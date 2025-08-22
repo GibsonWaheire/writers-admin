@@ -612,7 +612,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const getWriterActiveOrders = useCallback((writerId: string) => {
     return orders.filter(order => 
       order.writerId === writerId && 
-      ['In Progress', 'Pending Review', 'Upload to Client', 'Editor Revision', 'Approved', 'Pay Later', 'Awaiting Payment'].includes(order.status)
+      ['Awaiting Confirmation', 'Confirmed', 'In Progress', 'Submitted to Admin', 'Under Admin Review', 'Admin Approved', 'Client Review', 'Client Approved', 'Editor Revision', 'Awaiting Payment', 'Pay Later'].includes(order.status)
     );
   }, [orders]);
 
@@ -621,12 +621,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     
     return {
       total: writerOrders.length,
-      pending: writerOrders.filter(o => o.status === 'Pending Review').length,
+      pending: writerOrders.filter(o => o.status === 'Under Admin Review').length,
       available: writerOrders.filter(o => o.status === 'Available').length,
       inProgress: writerOrders.filter(o => o.status === 'In Progress').length,
-      uploadToClient: writerOrders.filter(o => o.status === 'Upload to Client').length,
+      submittedToAdmin: writerOrders.filter(o => o.status === 'Submitted to Admin').length,
       editorRevision: writerOrders.filter(o => o.status === 'Editor Revision').length,
-      approved: writerOrders.filter(o => o.status === 'Approved').length,
+      adminApproved: writerOrders.filter(o => o.status === 'Admin Approved').length,
       payLater: writerOrders.filter(o => o.status === 'Pay Later').length,
       completed: writerOrders.filter(o => o.status === 'Completed').length,
       rejected: writerOrders.filter(o => o.status === 'Rejected').length,
@@ -640,12 +640,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     const writerOrders = orders.filter(order => order.writerId === writerId);
     
     return {
-      pending: writerOrders.filter(o => o.status === 'Pending Review'),
+      pending: writerOrders.filter(o => o.status === 'Under Admin Review'),
       available: writerOrders.filter(o => o.status === 'Available'),
       inProgress: writerOrders.filter(o => o.status === 'In Progress'),
-      uploadToClient: writerOrders.filter(o => o.status === 'Upload to Client'),
+      submittedToAdmin: writerOrders.filter(o => o.status === 'Submitted to Admin'),
       editorRevision: writerOrders.filter(o => o.status === 'Editor Revision'),
-      approved: writerOrders.filter(o => o.status === 'Approved'),
+      adminApproved: writerOrders.filter(o => o.status === 'Admin Approved'),
       payLater: writerOrders.filter(o => o.status === 'Pay Later'),
       completed: writerOrders.filter(o => o.status === 'Completed'),
       rejected: writerOrders.filter(o => o.status === 'Rejected'),

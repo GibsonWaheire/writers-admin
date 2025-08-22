@@ -41,7 +41,8 @@ export default function OrdersPage() {
     getWriterOrderStats,
     getWriterOrdersByCategory,
     confirmOrder,
-    getWriterTotalEarnings
+    getWriterTotalEarnings,
+    pickOrder
   } = useOrders();
   const { user } = useAuth();
   
@@ -106,9 +107,11 @@ export default function OrdersPage() {
   };
 
   const handleOrderConfirm = (orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
+    // First, pick the order to assign it to the current writer
+    pickOrder(orderId, writerId);
+    
+    // Then confirm the order with the confirmation data
     confirmOrder(orderId, confirmation, questions);
-    // Update the order status to "Confirmed" and move it to "My Orders"
-    handleOrderAction('confirm', orderId);
   };
 
   const closeModal = () => {

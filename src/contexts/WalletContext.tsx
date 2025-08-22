@@ -1,14 +1,18 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { useOrders } from './OrderContext';
+import { usePOD } from './PODContext';
 
 export interface Transaction {
   id: string;
-  type: 'earning' | 'withdrawal' | 'refund';
+  type: 'earning' | 'withdrawal' | 'refund' | 'pod_earning';
   description: string;
   amount: number;
   date: string;
   status: 'pending' | 'completed' | 'failed';
   orderId?: string;
+  podOrderId?: string;
   paymentMethod?: string;
+  orderType: 'regular' | 'pod';
 }
 
 export interface WalletData {
@@ -16,83 +20,121 @@ export interface WalletData {
   pendingEarnings: number;
   totalEarned: number;
   totalWithdrawn: number;
+  regularOrderEarnings: number;
+  podOrderEarnings: number;
   transactions: Transaction[];
 }
 
 interface WalletContextType {
   wallet: WalletData;
-  addEarning: (orderId: string, amount: number, description: string) => void;
+  addEarning: (orderId: string, amount: number, description: string, orderType: 'regular' | 'pod') => void;
   requestWithdrawal: (amount: number, paymentMethod: string) => void;
   getMonthlyEarnings: (month?: number, year?: number) => number;
   getPendingOrdersCount: () => number;
+  getPendingEarnings: () => number;
+  getEarningsBreakdown: () => { regular: number; pod: number; total: number };
+  syncWithOrders: () => void;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [wallet, setWallet] = useState<WalletData>({
-    availableBalance: 1247.50,
-    pendingEarnings: 380.00,
-    totalEarned: 5890.75,
-    totalWithdrawn: 4643.25,
-    transactions: [
-      {
-        id: "TXN-001",
-        type: "earning",
-        description: "Order ORD-045 - Research Paper",
-        amount: 450.00,
-        date: "2024-01-20",
-        status: "completed",
-        orderId: "ORD-045"
-      },
-      {
-        id: "TXN-002",
-        type: "withdrawal",
-        description: "Bank Transfer to ****1234",
-        amount: -800.00,
-        date: "2024-01-18",
-        status: "completed",
-        paymentMethod: "Bank Transfer"
-      },
-      {
-        id: "TXN-003",
-        type: "earning",
-        description: "Order ORD-044 - Marketing Analysis",
-        amount: 280.00,
-        date: "2024-01-15",
-        status: "completed",
-        orderId: "ORD-044"
-      },
-      {
-        id: "TXN-004",
-        type: "earning",
-        description: "Order ORD-043 - Literature Review",
-        amount: 360.00,
-        date: "2024-01-12",
-        status: "completed",
-        orderId: "ORD-043"
-      },
-      {
-        id: "TXN-005",
-        type: "withdrawal",
-        description: "PayPal Transfer",
-        amount: -500.00,
-        date: "2024-01-10",
-        status: "completed",
-        paymentMethod: "PayPal"
-      }
-    ]
+    availableBalance: 0,
+    pendingEarnings: 0,
+    totalEarned: 0,
+    totalWithdrawn: 0,
+    regularOrderEarnings: 0,
+    podOrderEarnings: 0,
+    transactions: []
   });
 
-  const addEarning = useCallback((orderId: string, amount: number, description: string) => {
+  const { orders } = useOrders();
+  const { podOrders } = usePOD();
+
+  // Sync wallet with actual orders and POD orders
+  const syncWithOrders = useCallback(() => {
+    let regularEarnings = 0;
+    let podEarnings = 0;
+    let pendingEarnings = 0;
+    const newTransactions: Transaction[] = [];
+
+    // Calculate earnings from regular orders
+    orders.forEach(order => {
+      if (order.writerId && ['Completed', 'Admin Approved', 'Client Approved', 'Awaiting Payment'].includes(order.status)) {
+        const orderAmount = order.pages * 350; // 350 KES per page
+        regularEarnings += orderAmount;
+        
+        // Add transaction for completed orders
+        if (['Completed', 'Admin Approved', 'Client Approved'].includes(order.status)) {
+          newTransactions.push({
+            id: `TXN-${order.id}`,
+            type: 'earning',
+            description: `Order ${order.id} - ${order.title}`,
+            amount: orderAmount,
+            date: order.updatedAt.split('T')[0],
+            status: 'completed',
+            orderId: order.id,
+            orderType: 'regular'
+          });
+        } else if (order.status === 'Awaiting Payment') {
+          pendingEarnings += orderAmount;
+        }
+      }
+    });
+
+    // Calculate earnings from POD orders
+    podOrders.forEach(podOrder => {
+      if (podOrder.writerId && podOrder.status === 'Payment Received') {
+        const podAmount = podOrder.podAmount;
+        podEarnings += podAmount;
+        
+        newTransactions.push({
+          id: `TXN-POD-${podOrder.id}`,
+          type: 'pod_earning',
+          description: `POD Order ${podOrder.id} - ${podOrder.title}`,
+          amount: podAmount,
+          date: podOrder.paymentReceivedAt || podOrder.updatedAt.split('T')[0],
+          status: 'completed',
+          podOrderId: podOrder.id,
+          orderType: 'pod'
+        });
+      } else if (podOrder.writerId && ['Delivered', 'Ready for Delivery'].includes(podOrder.status)) {
+        pendingEarnings += podOrder.podAmount;
+      }
+    });
+
+    // Calculate total available balance
+    const totalEarned = regularEarnings + podEarnings;
+    const availableBalance = totalEarned - wallet.totalWithdrawn;
+
+    setWallet(prev => ({
+      ...prev,
+      availableBalance,
+      pendingEarnings,
+      totalEarned,
+      regularOrderEarnings: regularEarnings,
+      podOrderEarnings: podEarnings,
+      transactions: newTransactions
+    }));
+  }, [orders, podOrders, wallet.totalWithdrawn]);
+
+  // Sync wallet when orders or POD orders change
+  useEffect(() => {
+    syncWithOrders();
+  }, [syncWithOrders]);
+
+  const addEarning = useCallback((orderId: string, amount: number, description: string, orderType: 'regular' | 'pod') => {
     const newTransaction: Transaction = {
       id: `TXN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      type: 'earning',
+      type: orderType === 'pod' ? 'pod_earning' : 'earning',
       description,
       amount,
       date: new Date().toISOString().split('T')[0],
       status: 'completed',
-      orderId
+      orderId: orderType === 'regular' ? orderId : undefined,
+      podOrderId: orderType === 'pod' ? orderId : undefined,
+      orderType
     };
 
     setWallet(prev => ({
@@ -115,7 +157,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       amount: -amount,
       date: new Date().toISOString().split('T')[0],
       status: 'pending',
-      paymentMethod
+      paymentMethod,
+      orderType: 'regular'
     };
 
     setWallet(prev => ({
@@ -132,7 +175,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     
     return wallet.transactions
       .filter(tx => {
-        if (tx.type !== 'earning') return false;
+        if (tx.type !== 'earning' && tx.type !== 'pod_earning') return false;
         const txDate = new Date(tx.date);
         return txDate.getMonth() === targetMonth && txDate.getFullYear() === targetYear;
       })
@@ -140,10 +183,44 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [wallet.transactions]);
 
   const getPendingOrdersCount = useCallback(() => {
-    // This would typically come from OrderContext
-    // For now, return a mock value
-    return 3;
-  }, []);
+    const pendingRegular = orders.filter(order => 
+      order.writerId && order.status === 'Awaiting Payment'
+    ).length;
+    
+    const pendingPOD = podOrders.filter(podOrder => 
+      podOrder.writerId && ['Delivered', 'Ready for Delivery'].includes(podOrder.status)
+    ).length;
+    
+    return pendingRegular + pendingPOD;
+  }, [orders, podOrders]);
+
+  const getPendingEarnings = useCallback(() => {
+    let pending = 0;
+    
+    // Regular orders pending payment
+    orders.forEach(order => {
+      if (order.writerId && order.status === 'Awaiting Payment') {
+        pending += order.pages * 350;
+      }
+    });
+    
+    // POD orders pending payment
+    podOrders.forEach(podOrder => {
+      if (podOrder.writerId && ['Delivered', 'Ready for Delivery'].includes(podOrder.status)) {
+        pending += podOrder.podAmount;
+      }
+    });
+    
+    return pending;
+  }, [orders, podOrders]);
+
+  const getEarningsBreakdown = useCallback(() => {
+    return {
+      regular: wallet.regularOrderEarnings,
+      pod: wallet.podOrderEarnings,
+      total: wallet.totalEarned
+    };
+  }, [wallet.regularOrderEarnings, wallet.podOrderEarnings, wallet.totalEarned]);
 
   return (
     <WalletContext.Provider value={{
@@ -151,7 +228,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       addEarning,
       requestWithdrawal,
       getMonthlyEarnings,
-      getPendingOrdersCount
+      getPendingOrdersCount,
+      getPendingEarnings,
+      getEarningsBreakdown,
+      syncWithOrders
     }}>
       {children}
     </WalletContext.Provider>

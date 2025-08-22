@@ -34,13 +34,13 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
 
   const sizeClasses = {
     sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl'
+    md: 'max-w-2xl',
+    lg: 'max-w-4xl',
+    xl: 'max-w-6xl'
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       {/* Backdrop - Using site colors instead of black */}
       <div 
         className="absolute inset-0 bg-blue-600 bg-opacity-20 backdrop-blur-sm transition-opacity"
@@ -48,7 +48,7 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
       />
       
       {/* Modal */}
-      <div className={`relative bg-white rounded-lg shadow-2xl w-full mx-4 ${sizeClasses[size]} max-h-[90vh] overflow-hidden border border-gray-200`}>
+      <div className={`relative bg-white rounded-lg shadow-2xl w-full ${sizeClasses[size]} max-h-[95vh] border border-gray-200`}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
@@ -63,7 +63,7 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
         </div>
         
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="p-6 overflow-y-auto max-h-[calc(95vh-140px)]">
           {children}
         </div>
         

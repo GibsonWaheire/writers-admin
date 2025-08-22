@@ -17,6 +17,7 @@ import { Button } from './ui/button';
 import { useIsMobile } from '../hooks/use-mobile';
 import { useOrders } from '../contexts/OrderContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useWallet } from '../contexts/WalletContext';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/writer', emoji: '📊' },
@@ -35,6 +36,7 @@ export function Sidebar() {
   const isMobile = useIsMobile();
   const { getWriterOrderStats, getAvailableOrders } = useOrders();
   const { user } = useAuth();
+  const { wallet } = useWallet();
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
   const toggleMobileSidebar = () => setIsMobileOpen(!isMobileOpen);
@@ -89,6 +91,11 @@ export function Sidebar() {
                   {item.path === '/orders' && writerStats.total > 0 && (
                     <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 rounded-full">
                       {writerStats.total + availableOrders.length}
+                    </span>
+                  )}
+                  {item.path === '/wallet' && wallet.availableBalance > 0 && (
+                    <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-full">
+                      KES {wallet.availableBalance.toLocaleString()}
                     </span>
                   )}
                 </div>
