@@ -107,7 +107,7 @@ export function PODConfirmationModal({
 
         <div className="space-y-6">
           {/* Order Summary */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+          <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 rounded-xl p-6 shadow-lg">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 mb-3">{order.title}</h3>
@@ -144,7 +144,7 @@ export function PODConfirmationModal({
                 </div>
                 
                 <div className="text-center">
-                  <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium ${deadlineStatus.bg} ${deadlineStatus.color}`}>
+                  <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium ${deadlineStatus.bg} ${deadlineStatus.color} shadow-sm`}>
                     <Clock className="h-4 w-4" />
                     {deadlineStatus.text}
                   </div>
@@ -157,9 +157,9 @@ export function PODConfirmationModal({
           </div>
 
           {/* POD Terms Warning */}
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-6">
+          <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-red-50 border-2 border-amber-200 rounded-xl p-6 shadow-lg">
             <div className="flex items-start gap-4">
-              <div className="p-3 bg-amber-100 rounded-full">
+              <div className="p-3 bg-amber-100 rounded-full shadow-md">
                 <AlertTriangle className="h-6 w-6 text-amber-600" />
               </div>
               <div className="flex-1">
@@ -182,7 +182,7 @@ export function PODConfirmationModal({
                     <span className="text-amber-800 font-medium">Strict deadline enforcement</span>
                   </div>
                 </div>
-                <div className="mt-4 p-3 bg-amber-100 rounded-lg border border-amber-200">
+                <div className="mt-4 p-3 bg-amber-100 rounded-lg border border-amber-200 shadow-sm">
                   <p className="text-amber-800 font-semibold text-sm">
                     🚨 Note: POD orders have strict deadlines. Ensure you can complete the work within the specified hours.
                   </p>
@@ -199,7 +199,7 @@ export function PODConfirmationModal({
             </h3>
             
             <div className="space-y-4">
-              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-all duration-200 hover:shadow-md">
                 <Checkbox
                   id="hasReadInstructions"
                   checked={confirmation.hasReadInstructions}
@@ -210,7 +210,7 @@ export function PODConfirmationModal({
                   <Label htmlFor="hasReadInstructions" className="font-semibold text-gray-900 cursor-pointer">
                     I have read and understood all order instructions
                   </Label>
-                  <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200 shadow-sm">
                     <p className="text-sm text-blue-800">
                       <span className="font-medium">Instructions:</span> {order.additionalInstructions || 'No additional instructions provided'}
                     </p>
@@ -218,7 +218,7 @@ export function PODConfirmationModal({
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-all duration-200 hover:shadow-md">
                 <Checkbox
                   id="hasUnderstoodRequirements"
                   checked={confirmation.hasUnderstoodRequirements}
@@ -229,7 +229,7 @@ export function PODConfirmationModal({
                   <Label htmlFor="hasUnderstoodRequirements" className="font-semibold text-gray-900 cursor-pointer">
                     I understand all order requirements and specifications
                   </Label>
-                  <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200 shadow-sm">
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div>
                         <span className="font-medium text-green-800">Paper Type:</span>
@@ -248,7 +248,7 @@ export function PODConfirmationModal({
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-all duration-200 hover:shadow-md">
                 <Checkbox
                   id="canMeetDeadline"
                   checked={confirmation.canMeetDeadline}
@@ -259,7 +259,7 @@ export function PODConfirmationModal({
                   <Label htmlFor="canMeetDeadline" className="font-semibold text-gray-900 cursor-pointer">
                     I can complete this order within {order.deadlineHours} hours
                   </Label>
-                  <div className="mt-2 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                  <div className="mt-2 p-3 bg-orange-50 rounded-lg border border-orange-200 shadow-sm">
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-orange-600" />
                       <span className="font-medium text-orange-800">Deadline:</span>
@@ -272,7 +272,7 @@ export function PODConfirmationModal({
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-all duration-200 hover:shadow-md">
                 <Checkbox
                   id="hasNoConflicts"
                   checked={confirmation.hasNoConflicts}
@@ -283,7 +283,7 @@ export function PODConfirmationModal({
                   <Label htmlFor="hasNoConflicts" className="font-semibold text-gray-900 cursor-pointer">
                     I have no conflicts or overlapping deadlines
                   </Label>
-                  <div className="mt-2 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className="mt-2 p-3 bg-purple-50 rounded-lg border border-purple-200 shadow-sm">
                     <p className="text-sm text-purple-800">
                       <span className="font-medium">Note:</span> Ensure you can dedicate sufficient time to this order without compromising other commitments.
                     </p>
@@ -291,7 +291,7 @@ export function PODConfirmationModal({
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-all duration-200 hover:shadow-md">
                 <Checkbox
                   id="understandsPODTerms"
                   checked={confirmation.understandsPODTerms}
@@ -302,7 +302,7 @@ export function PODConfirmationModal({
                   <Label htmlFor="understandsPODTerms" className="font-semibold text-gray-900 cursor-pointer">
                     I understand and accept the POD terms and conditions
                   </Label>
-                  <div className="mt-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <div className="mt-2 p-3 bg-amber-50 rounded-lg border border-amber-200 shadow-sm">
                     <p className="text-sm text-amber-800">
                       <span className="font-medium">Key Terms:</span> File upload submission, no physical delivery, payment after approval, strict deadline enforcement.
                     </p>
@@ -310,7 +310,7 @@ export function PODConfirmationModal({
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-all duration-200 hover:shadow-md">
                 <Checkbox
                   id="canSubmitWork"
                   checked={confirmation.canSubmitWork}
@@ -321,7 +321,7 @@ export function PODConfirmationModal({
                   <Label htmlFor="canSubmitWork" className="font-semibold text-gray-900 cursor-pointer">
                     I can submit the completed work as a file upload
                   </Label>
-                  <div className="mt-2 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                  <div className="mt-2 p-3 bg-indigo-50 rounded-lg border border-indigo-200 shadow-sm">
                     <div className="flex items-center gap-2">
                       <Upload className="h-4 w-4 text-indigo-600" />
                       <span className="text-sm text-indigo-800">
@@ -342,7 +342,7 @@ export function PODConfirmationModal({
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-sm">
                 <Label htmlFor="estimatedCompletionHours" className="font-medium text-gray-700">
                   Estimated Completion Time
                 </Label>
@@ -350,10 +350,10 @@ export function PODConfirmationModal({
                   value={confirmation.estimatedCompletionHours.toString()} 
                   onValueChange={(value) => handleInputChange('estimatedCompletionHours', parseInt(value))}
                 >
-                  <SelectTrigger className="mt-2">
+                  <SelectTrigger className="mt-2 w-full">
                     <SelectValue placeholder="Select completion time" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" side="top" align="start" className="w-full min-w-[200px]">
                     <SelectItem value="6">6 hours</SelectItem>
                     <SelectItem value="12">12 hours</SelectItem>
                     <SelectItem value="18">18 hours</SelectItem>
@@ -367,7 +367,7 @@ export function PODConfirmationModal({
                 </p>
               </div>
 
-              <div>
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-sm">
                 <Label htmlFor="additionalNotes" className="font-medium text-gray-700">
                   Additional Notes or Questions
                 </Label>
@@ -387,15 +387,15 @@ export function PODConfirmationModal({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-6 border-t border-gray-200">
-            <Button variant="outline" onClick={onClose}>
+          <div className="flex items-center justify-between pt-6 border-t border-gray-200 bg-gray-50 p-6 rounded-lg shadow-sm">
+            <Button variant="outline" onClick={onClose} className="border-gray-300 hover:bg-gray-100">
               Cancel
             </Button>
             
             <Button 
               onClick={handleSubmit}
               disabled={!isFormValid}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all duration-200"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Confirm Assignment
@@ -403,20 +403,20 @@ export function PODConfirmationModal({
           </div>
 
           {/* Progress Indicator */}
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200 shadow-lg">
             <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-              <span>Form Completion</span>
-              <span>{Object.values(confirmation).filter(Boolean).length - 2}/{Object.keys(confirmation).length - 2} items</span>
+              <span className="font-medium">Form Completion</span>
+              <span className="font-semibold">{Object.values(confirmation).filter(Boolean).length - 2}/{Object.keys(confirmation).length - 2} items</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
               <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-blue-500 to-indigo-500 h-3 rounded-full transition-all duration-300 shadow-sm"
                 style={{ 
                   width: `${((Object.values(confirmation).filter(Boolean).length - 2) / (Object.keys(confirmation).length - 2)) * 100}%` 
                 }}
               ></div>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-600 mt-3 text-center">
               All required items must be checked to confirm assignment
             </p>
           </div>
