@@ -1,253 +1,434 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
   Search, 
   Filter, 
-  Eye, 
-  Clock, 
+  Plus,
+  Clock,
   DollarSign,
   FileText,
-  Calendar
+  BookOpen,
+  Users,
+  CheckCircle,
+  XCircle,
+  AlertTriangle
 } from "lucide-react";
+import { OrderCard } from "../components/OrderCard";
+import { OrderViewModal } from "../components/OrderViewModal";
+import { useOrders } from "../contexts/OrderContext";
+import { useAuth } from "../contexts/AuthContext";
+import type { Order } from "../types/order";
 
 export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("available");
+  const [filterDiscipline, setFilterDiscipline] = useState<string>("");
+  const [filterPaperType, setFilterPaperType] = useState<string>("");
+  const [filterPriceRange, setFilterPriceRange] = useState<string>("");
 
-  const orders = [
-    {
-      id: "ORD-001",
-      title: "Research Paper on Climate Change Impact",
-      description: "Comprehensive analysis of climate change effects on coastal regions",
-      pages: 15,
-      price: "$450",
-      deadline: "2024-01-25",
-      status: "Available",
-      category: "Research",
-      difficulty: "Advanced",
-      requirements: ["APA Format", "15+ References", "Graphs Required"]
-    },
-    {
-      id: "ORD-002", 
-      title: "Marketing Analysis for Tech Startup",
-      description: "Market research and competitive analysis for emerging tech company",
-      pages: 8,
-      price: "$280",
-      deadline: "2024-01-28",
-      status: "In Progress",
-      category: "Business",
-      difficulty: "Intermediate",
-      requirements: ["Harvard Style", "Case Studies", "SWOT Analysis"]
-    },
-    {
-      id: "ORD-003",
-      title: "Literature Review - Psychology",
-      description: "Systematic review of cognitive behavioral therapy effectiveness",
-      pages: 12,
-      price: "$360",
-      deadline: "2024-01-30",
-      status: "Available",
-      category: "Psychology",
-      difficulty: "Advanced",
-      requirements: ["APA Format", "20+ Sources", "Meta-analysis"]
-    },
-    {
-      id: "ORD-004",
-      title: "Technical Documentation",
-      description: "API documentation for mobile application development",
-      pages: 10,
-      price: "$320",
-      deadline: "2024-02-02",
-      status: "Available",
-      category: "Technology",
-      difficulty: "Intermediate",
-      requirements: ["Technical Writing", "Code Examples", "Diagrams"]
-    }
-  ];
+  const { orders, handleOrderAction, getOrdersByStatus, getWriterActiveOrders } = useOrders();
+  const { user } = useAuth();
+  
+  const userRole = user?.role || 'writer';
+  const isAdmin = userRole === 'admin';
+  const writerId = user?.id || '';
 
-  const getStatusBadge = (status: string): "default" | "secondary" | "outline" | "destructive" => {
-    const statusColors: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-      "Available": "outline",
-      "In Progress": "default",
-      "Pending Review": "secondary",
-      "Completed": "default",
-      "Rejected": "destructive"
-    };
-    return statusColors[status] || "default";
+  // Get orders by status
+  const availableOrders = getOrdersByStatus('Available');
+  const pendingApprovalOrders = getOrdersByStatus('Pending Approval');
+  const inProgressOrders = getOrdersByStatus('In Progress');
+  const completedOrders = getOrdersByStatus('Completed');
+  const rejectedOrders = getOrdersByStatus('Rejected');
+
+  // Get writer-specific orders
+  const myOrders = getWriterActiveOrders(writerId);
+
+  // Filter orders based on search and filters
+  const filterOrders = (orderList: Order[]) => {
+    return orderList.filter(order => {
+      const matchesSearch = 
+        order.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.discipline.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.paperType.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesDiscipline = !filterDiscipline || order.discipline === filterDiscipline;
+      const matchesPaperType = !filterPaperType || order.paperType === filterPaperType;
+      
+      let matchesPrice = true;
+      if (filterPriceRange) {
+        const [min, max] = filterPriceRange.split('-').map(Number);
+        if (max) {
+          matchesPrice = order.price >= min && order.price <= max;
+        } else {
+          matchesPrice = order.price >= min;
+        }
+      }
+      
+      return matchesSearch && matchesDiscipline && matchesPaperType && matchesPrice;
+    });
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    const colors: Record<string, string> = {
-      "Beginner": "text-success",
-      "Intermediate": "text-warning",
-      "Advanced": "text-destructive"
-    };
-    return colors[difficulty] || "text-muted-foreground";
+  const handleViewOrder = (order: Order) => {
+    setSelectedOrder(order);
+    setIsModalOpen(true);
   };
 
-  const filteredOrders = orders.filter(order =>
-    order.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleOrderActionLocal = (action: string, orderId: string, notes?: string) => {
+    handleOrderAction(action, orderId, notes);
+    setIsModalOpen(false);
+    setSelectedOrder(null);
+  };
 
-  const availableOrders = filteredOrders.filter(order => order.status === "Available");
-  const myOrders = filteredOrders.filter(order => order.status !== "Available");
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedOrder(null);
+  };
+
+  // Get unique disciplines and paper types for filters
+  const disciplines = Array.from(new Set(orders.map(order => order.discipline))).sort();
+  const paperTypes = Array.from(new Set(orders.map(order => order.paperType))).sort();
+
+  // Calculate statistics
+  const totalOrders = orders.length;
+  const totalValue = orders.reduce((sum, order) => sum + order.price, 0);
+  const overdueOrders = orders.filter(order => new Date(order.deadline) < new Date()).length;
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Orders</h1>
-          <p className="text-muted-foreground">Browse and manage your writing assignments</p>
+          <h1 className="text-3xl font-bold text-foreground">Orders Management</h1>
+          <p className="text-muted-foreground">
+            {isAdmin ? 'Manage all orders and assignments' : 'Browse and manage your writing assignments'}
+          </p>
         </div>
+        {isAdmin && (
+          <Button className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="h-4 w-4 mr-2" />
+            Upload New Order
+          </Button>
+        )}
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalOrders}</div>
+            <p className="text-xs text-muted-foreground">
+              Across all statuses
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${totalValue.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              Combined order value
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Overdue</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{overdueOrders}</div>
+            <p className="text-xs text-muted-foreground">
+              Past deadline
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Writers</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {Array.from(new Set(orders.filter(o => o.writerId).map(o => o.writerId))).length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Currently assigned
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Search and Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search orders..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Search & Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search orders..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <select
+              value={filterDiscipline}
+              onChange={(e) => setFilterDiscipline(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">All Disciplines</option>
+              {disciplines.map(discipline => (
+                <option key={discipline} value={discipline}>{discipline}</option>
+              ))}
+            </select>
+            
+            <select
+              value={filterPaperType}
+              onChange={(e) => setFilterPaperType(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">All Paper Types</option>
+              {paperTypes.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+            
+            <select
+              value={filterPriceRange}
+              onChange={(e) => setFilterPriceRange(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">All Prices</option>
+              <option value="0-200">$0 - $200</option>
+              <option value="200-400">$200 - $400</option>
+              <option value="400-600">$400 - $600</option>
+              <option value="600-">$600+</option>
+            </select>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Tabs for Available vs My Orders */}
-      <Tabs defaultValue="available" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="available">Available Orders ({availableOrders.length})</TabsTrigger>
-          <TabsTrigger value="my-orders">My Orders ({myOrders.length})</TabsTrigger>
+      {/* Orders Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="available" className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            Available ({filterOrders(availableOrders).length})
+          </TabsTrigger>
+          
+          {!isAdmin && (
+            <TabsTrigger value="my-orders" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              My Orders ({filterOrders(myOrders).length})
+            </TabsTrigger>
+          )}
+          
+          {isAdmin && (
+            <TabsTrigger value="pending-approval" className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Pending Approval ({filterOrders(pendingApprovalOrders).length})
+            </TabsTrigger>
+          )}
+          
+          <TabsTrigger value="assigned" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Assigned ({filterOrders(inProgressOrders).length})
+          </TabsTrigger>
+          
+          <TabsTrigger value="completed" className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4" />
+            Completed ({filterOrders(completedOrders).length})
+          </TabsTrigger>
+          
+          <TabsTrigger value="rejected" className="flex items-center gap-2">
+            <XCircle className="h-4 w-4" />
+            Rejected ({filterOrders(rejectedOrders).length})
+          </TabsTrigger>
         </TabsList>
 
+        {/* Available Orders Tab */}
         <TabsContent value="available" className="space-y-4">
           <div className="grid gap-4">
-            {availableOrders.map((order) => (
-              <Card key={order.id} className="hover:shadow-lg transition-shadow duration-200">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <CardTitle className="text-lg">{order.title}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{order.description}</p>
-                    </div>
-                    <Badge variant={getStatusBadge(order.status)}>
-                      {order.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-1">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span>{order.pages} pages</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <DollarSign className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium text-success">{order.price}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span>{order.deadline}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="px-2 py-1 bg-accent/10 text-accent rounded-full">
-                          {order.category}
-                        </span>
-                        <span className={`font-medium ${getDifficultyColor(order.difficulty)}`}>
-                          {order.difficulty}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm font-medium mb-1">Requirements:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {order.requirements.map((req, index) => (
-                            <span key={index} className="text-xs px-2 py-1 bg-muted rounded-full">
-                              {req}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" className="flex-1">
-                          Apply for Order
-                        </Button>
-                        <Button variant="outline" size="icon">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
+            {filterOrders(availableOrders).length > 0 ? (
+              filterOrders(availableOrders).map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  userRole={userRole}
+                  onView={handleViewOrder}
+                  onAction={handleOrderAction}
+                  showActions={true}
+                />
+              ))
+            ) : (
+              <Card className="text-center py-12">
+                <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Available Orders</h3>
+                <p className="text-gray-500">There are currently no orders available for pickup.</p>
               </Card>
-            ))}
+            )}
           </div>
         </TabsContent>
 
-        <TabsContent value="my-orders" className="space-y-4">
+        {/* My Orders Tab (Writers Only) */}
+        {!isAdmin && (
+          <TabsContent value="my-orders" className="space-y-4">
+            <div className="grid gap-4">
+              {filterOrders(myOrders).length > 0 ? (
+                filterOrders(myOrders).map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    userRole={userRole}
+                    onView={handleViewOrder}
+                    onAction={handleOrderActionLocal}
+                    showActions={true}
+                  />
+                ))
+              ) : (
+                <Card className="text-center py-12">
+                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Orders</h3>
+                  <p className="text-gray-500">You don't have any active orders at the moment.</p>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+        )}
+
+        {/* Pending Approval Tab (Admins Only) */}
+        {isAdmin && (
+          <TabsContent value="pending-approval" className="space-y-4">
+            <div className="grid gap-4">
+              {filterOrders(pendingApprovalOrders).length > 0 ? (
+                filterOrders(pendingApprovalOrders).map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    userRole={userRole}
+                    onView={handleViewOrder}
+                    onAction={handleOrderActionLocal}
+                    showActions={true}
+                  />
+                ))
+              ) : (
+                <Card className="text-center py-12">
+                  <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Pending Approvals</h3>
+                  <p className="text-gray-500">All orders have been reviewed and processed.</p>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+        )}
+
+        {/* Assigned Orders Tab */}
+        <TabsContent value="assigned" className="space-y-4">
           <div className="grid gap-4">
-            {myOrders.map((order) => (
-              <Card key={order.id} className="hover:shadow-lg transition-shadow duration-200">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <CardTitle className="text-lg">{order.title}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{order.description}</p>
-                    </div>
-                    <Badge variant={getStatusBadge(order.status)}>
-                      {order.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span>{order.pages} pages</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium text-success">{order.price}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span>Due: {order.deadline}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
-                        View Details
-                      </Button>
-                      {order.status === "In Progress" && (
-                        <Button size="sm">
-                          Submit Work
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
+            {filterOrders(inProgressOrders).length > 0 ? (
+              filterOrders(inProgressOrders).map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  userRole={userRole}
+                  onView={handleViewOrder}
+                  onAction={handleOrderActionLocal}
+                  showActions={true}
+                />
+              ))
+            ) : (
+              <Card className="text-center py-12">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Assigned Orders</h3>
+                <p className="text-gray-500">No orders are currently in progress.</p>
               </Card>
-            ))}
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Completed Orders Tab */}
+        <TabsContent value="completed" className="space-y-4">
+          <div className="grid gap-4">
+            {filterOrders(completedOrders).length > 0 ? (
+              filterOrders(completedOrders).map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  userRole={userRole}
+                  onView={handleViewOrder}
+                  onAction={handleOrderActionLocal}
+                  showActions={false}
+                />
+              ))
+            ) : (
+              <Card className="text-center py-12">
+                <CheckCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Completed Orders</h3>
+                <p className="text-gray-500">No orders have been completed yet.</p>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Rejected Orders Tab */}
+        <TabsContent value="rejected" className="space-y-4">
+          <div className="grid gap-4">
+            {filterOrders(rejectedOrders).length > 0 ? (
+              filterOrders(rejectedOrders).map((order) => (
+                                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    userRole={userRole}
+                    onView={handleViewOrder}
+                    onAction={handleOrderActionLocal}
+                    showActions={false}
+                  />
+              ))
+            ) : (
+              <Card className="text-center py-12">
+                <XCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Rejected Orders</h3>
+                <p className="text-gray-500">No orders have been rejected.</p>
+              </Card>
+            )}
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Order View Modal */}
+      {selectedOrder && (
+        <OrderViewModal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          order={selectedOrder}
+          userRole={userRole}
+          onAction={handleOrderActionLocal}
+          activeOrdersCount={myOrders.length}
+        />
+      )}
     </div>
   );
 }

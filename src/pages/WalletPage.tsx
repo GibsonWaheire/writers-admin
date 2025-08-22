@@ -10,57 +10,52 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from "lucide-react";
+import { useWallet } from "../contexts/WalletContext";
 
 export default function WalletPage() {
-  const walletStats = [
-    { label: "Available Balance", value: "$1,247.50", change: "+$127.50" },
-    { label: "Pending Earnings", value: "$380.00", change: "3 orders" },
-    { label: "Total Earned", value: "$5,890.75", change: "+15% this month" },
-    { label: "Withdrawn", value: "$4,643.25", change: "Last: Dec 15" }
-  ];
+  const { wallet, getMonthlyEarnings } = useWallet();
+  
+  const thisMonthEarnings = getMonthlyEarnings();
+  const lastMonthEarnings = getMonthlyEarnings(new Date().getMonth() - 1);
+  const earningsChange = lastMonthEarnings > 0 ? Math.round(((thisMonthEarnings - lastMonthEarnings) / lastMonthEarnings) * 100) : 0;
 
-  const transactions = [
-    {
-      id: "TXN-001",
-      type: "earning",
-      description: "Order ORD-045 - Research Paper",
-      amount: "$450.00",
-      date: "2024-01-20",
-      status: "Completed"
+  const walletStats = [
+    { 
+      label: "Available Balance", 
+      value: `$${wallet.availableBalance.toLocaleString()}`, 
+      change: `+$${thisMonthEarnings.toLocaleString()} this month`,
+      changeType: thisMonthEarnings > 0 ? "positive" : "neutral"
     },
-    {
-      id: "TXN-002",
-      type: "withdrawal",
-      description: "Bank Transfer to ****1234",
-      amount: "-$800.00",
-      date: "2024-01-18",
-      status: "Processed"
+    { 
+      label: "Pending Earnings", 
+      value: `$${wallet.pendingEarnings.toLocaleString()}`, 
+      change: "3 orders",
+      changeType: "neutral"
     },
-    {
-      id: "TXN-003",
-      type: "earning",
-      description: "Order ORD-044 - Marketing Analysis",
-      amount: "$280.00",
-      date: "2024-01-15",
-      status: "Completed"
+    { 
+      label: "Total Earned", 
+      value: `$${wallet.totalEarned.toLocaleString()}`, 
+      change: `${earningsChange > 0 ? '+' : ''}${earningsChange}% this month`,
+      changeType: earningsChange > 0 ? "positive" : earningsChange < 0 ? "negative" : "neutral"
     },
-    {
-      id: "TXN-004",
-      type: "earning",
-      description: "Order ORD-043 - Literature Review",
-      amount: "$360.00",
-      date: "2024-01-12",
-      status: "Completed"
-    },
-    {
-      id: "TXN-005",
-      type: "withdrawal",
-      description: "PayPal Transfer",
-      amount: "-$500.00",
-      date: "2024-01-10",
-      status: "Processed"
+    { 
+      label: "Total Withdrawn", 
+      value: `$${wallet.totalWithdrawn.toLocaleString()}`, 
+      change: "Last: Dec 15",
+      changeType: "neutral"
     }
   ];
+
+  const getChangeColor = (changeType: string) => {
+    switch (changeType) {
+      case "positive":
+        return "text-success";
+      case "negative":
+        return "text-destructive";
+      default:
+        return "text-muted-foreground";
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -82,7 +77,7 @@ export default function WalletPage() {
               <div className={`text-2xl font-bold ${index === 0 ? "text-white" : "text-foreground"}`}>
                 {stat.value}
               </div>
-              <p className={`text-xs mt-1 ${index === 0 ? "text-white/70" : "text-success"}`}>
+              <p className={`text-xs mt-1 ${index === 0 ? "text-white/70" : getChangeColor(stat.changeType)}`}>
                 {stat.change}
               </p>
             </CardContent>
@@ -145,7 +140,7 @@ export default function WalletPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {transactions.map((transaction) => (
+            {wallet.transactions.map((transaction) => (
               <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center gap-4">
                   <div className={`p-2 rounded-full ${
@@ -175,7 +170,7 @@ export default function WalletPage() {
                 <div className={`font-medium ${
                   transaction.type === "earning" ? "text-success" : "text-foreground"
                 }`}>
-                  {transaction.amount}
+                  ${transaction.amount.toLocaleString()}
                 </div>
               </div>
             ))}

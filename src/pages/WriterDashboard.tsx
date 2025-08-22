@@ -9,93 +9,181 @@ import {
   CheckCircle, 
   Star,
   TrendingUp,
-  Eye,
   Calendar,
-  Download,
-  MessageSquare
+  ArrowRight
 } from "lucide-react";
 import { OrderViewModal } from "../components/OrderViewModal";
 import { useOrders } from "../contexts/OrderContext";
+import { useWallet } from "../contexts/WalletContext";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { Order } from "../types/order";
 
 export default function WriterDashboard() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { pickOrder } = useOrders();
+  const { orders, getWriterActiveOrders } = useOrders();
+  const { wallet, getMonthlyEarnings } = useWallet();
+  const navigate = useNavigate();
+  
+  // Get writer-specific data (assuming current writer ID is 'writer-1')
+  const currentWriterId = 'writer-1';
+  const writerOrders = orders.filter(order => order.writerId === currentWriterId);
+  const activeOrders = getWriterActiveOrders(currentWriterId);
+  const completedOrders = writerOrders.filter(order => order.status === 'Completed');
+  const pendingOrders = writerOrders.filter(order => order.status === 'Pending Review');
+  
+  // Calculate real statistics
+  const totalEarnings = completedOrders.reduce((sum, order) => sum + order.price, 0);
+  const thisMonthEarnings = getMonthlyEarnings();
+  const lastMonthEarnings = getMonthlyEarnings(new Date().getMonth() - 1);
+  const earningsChange = lastMonthEarnings > 0 ? Math.round(((thisMonthEarnings - lastMonthEarnings) / lastMonthEarnings) * 100) : 0;
   
   const stats = [
     {
       title: "Wallet Balance",
-      value: "$1,247.50",
+      value: `$${wallet.availableBalance.toLocaleString()}`,
       icon: DollarSign,
-      change: "+$127.50 this month",
-      changeType: "positive" as const,
-      gradient: true
+      change: `+$${thisMonthEarnings.toLocaleString()} this month`,
+      changeType: thisMonthEarnings > 0 ? "positive" as const : "neutral" as const,
+      gradient: true,
+      details: {
+        description: "Your current available balance for withdrawals and spending.",
+        items: [
+          { label: "Available Balance", value: `$${wallet.availableBalance.toLocaleString()}`, icon: DollarSign },
+          { label: "Pending Earnings", value: `$${wallet.pendingEarnings.toLocaleString()}`, icon: Clock },
+          { label: "Total Earned", value: `$${wallet.totalEarned.toLocaleString()}`, icon: TrendingUp },
+          { label: "Total Withdrawn", value: `$${wallet.totalWithdrawn.toLocaleString()}`, icon: ArrowRight }
+        ],
+        action: {
+          label: "Go to Wallet",
+          onClick: () => navigate('/wallet')
+        }
+      }
     },
     {
       title: "Total Orders",
-      value: "24",
+      value: writerOrders.length.toString(),
       icon: FileText,
-      change: "+3 new orders",
-      changeType: "positive" as const
+      change: `${activeOrders.length} active now`,
+      changeType: "positive" as const,
+      details: {
+        description: "Complete overview of all your writing assignments.",
+        items: [
+          { label: "Total Orders", value: writerOrders.length.toString(), icon: FileText },
+          { label: "Active Orders", value: activeOrders.length.toString(), icon: Clock },
+          { label: "Completed Orders", value: completedOrders.length.toString(), icon: CheckCircle },
+          { label: "Success Rate", value: `${writerOrders.length > 0 ? Math.round((completedOrders.length / writerOrders.length) * 100) : 0}%`, icon: Star }
+        ],
+        action: {
+          label: "View All Orders",
+          onClick: () => navigate('/orders')
+        }
+      }
     },
     {
       title: "Pending Orders",
-      value: "3",
+      value: pendingOrders.length.toString(),
       icon: Clock,
-      change: "2 due this week",
-      changeType: "neutral" as const
+      change: pendingOrders.length > 0 ? `${pendingOrders.length} awaiting review` : "All caught up!",
+      changeType: pendingOrders.length > 0 ? "neutral" as const : "positive" as const,
+      details: {
+        description: pendingOrders.length > 0 
+          ? "Orders waiting for client review and approval." 
+          : "Great job! All your orders are processed.",
+        items: pendingOrders.length > 0 ? [
+          { label: "Pending Review", value: pendingOrders.length.toString(), icon: Clock },
+          { label: "Average Wait Time", value: "2-3 days", icon: Calendar },
+          { label: "Next Steps", value: "Awaiting feedback", icon: ArrowRight }
+        ] : [
+          { label: "Status", value: "All caught up!", icon: CheckCircle },
+          { label: "Next Action", value: "Take new orders", icon: FileText }
+        ],
+        action: pendingOrders.length > 0 ? {
+          label: "View Pending Orders",
+          onClick: () => navigate('/orders')
+        } : {
+          label: "Browse New Orders",
+          onClick: () => navigate('/orders')
+        }
+      }
     },
     {
       title: "Completed Orders",
-      value: "18",
+      value: completedOrders.length.toString(),
       icon: CheckCircle,
-      change: "+2 this week",
-      changeType: "positive" as const
+      change: `+${completedOrders.filter(order => {
+        const orderDate = new Date(order.updatedAt);
+        const now = new Date();
+        const diffDays = Math.ceil((now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+      }).length} this week`,
+      changeType: "positive" as const,
+      details: {
+        description: "Successfully completed assignments and their earnings.",
+        items: [
+          { label: "Total Completed", value: completedOrders.length.toString(), icon: CheckCircle },
+          { label: "This Week", value: completedOrders.filter(order => {
+            const orderDate = new Date(order.updatedAt);
+            const now = new Date();
+            const diffDays = Math.ceil((now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
+            return diffDays <= 7;
+          }).length.toString(), icon: Calendar },
+          { label: "Total Earnings", value: `$${totalEarnings.toLocaleString()}`, icon: DollarSign },
+          { label: "Average per Order", value: `$${completedOrders.length > 0 ? Math.round(totalEarnings / completedOrders.length) : 0}`, icon: TrendingUp }
+        ],
+        action: {
+          label: "View Completed Orders",
+          onClick: () => navigate('/orders')
+        }
+      }
     },
     {
       title: "Average Rating",
       value: "4.8",
       icon: Star,
       change: "↑ 0.2 from last month",
-      changeType: "positive" as const
+      changeType: "positive" as const,
+      details: {
+        description: "Your performance rating based on client feedback and order completion.",
+        items: [
+          { label: "Current Rating", value: "4.8/5.0", icon: Star },
+          { label: "Total Reviews", value: "24", icon: FileText },
+          { label: "5-Star Reviews", value: "20", icon: Star },
+          { label: "Client Satisfaction", value: "96%", icon: CheckCircle }
+        ],
+        action: {
+          label: "View All Reviews",
+          onClick: () => navigate('/reviews')
+        }
+      }
     },
     {
       title: "This Month Earnings",
-      value: "$2,340",
+      value: `$${thisMonthEarnings.toLocaleString()}`,
       icon: TrendingUp,
-      change: "+15% from last month",
-      changeType: "positive" as const
+      change: earningsChange !== 0 ? `${earningsChange > 0 ? '+' : ''}${earningsChange}% from last month` : "Starting fresh!",
+      changeType: earningsChange > 0 ? "positive" as const : earningsChange < 0 ? "negative" as const : "neutral" as const,
+      details: {
+        description: "Your earnings performance for the current month.",
+        items: [
+          { label: "This Month", value: `$${thisMonthEarnings.toLocaleString()}`, icon: TrendingUp },
+          { label: "Last Month", value: `$${lastMonthEarnings.toLocaleString()}`, icon: Calendar },
+          { label: "Change", value: `${earningsChange > 0 ? '+' : ''}${earningsChange}%`, icon: ArrowRight },
+          { label: "Projected Annual", value: `$${(thisMonthEarnings * 12).toLocaleString()}`, icon: DollarSign }
+        ],
+        action: {
+          label: "View Earnings Report",
+          onClick: () => navigate('/wallet')
+        }
+      }
     }
   ];
 
-  const recentOrders = [
-    {
-      id: "ORD-001",
-      title: "Research Paper on Climate Change",
-      pages: 15,
-      price: "$450",
-      deadline: "2024-01-25",
-      status: "In Progress"
-    },
-    {
-      id: "ORD-002", 
-      title: "Marketing Analysis Report",
-      pages: 8,
-      price: "$280",
-      deadline: "2024-01-28",
-      status: "Pending Review"
-    },
-    {
-      id: "ORD-003",
-      title: "Literature Review - Psychology",
-      pages: 12,
-      price: "$360",
-      deadline: "2024-01-30",
-      status: "Available"
-    }
-  ];
+  // Get recent orders (last 5 orders)
+  const recentOrders = writerOrders
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, 5);
 
   const getStatusBadge = (status: string): "default" | "secondary" | "outline" | "destructive" => {
     const statusColors: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
@@ -107,6 +195,43 @@ export default function WriterDashboard() {
     };
     return statusColors[status] || "default";
   };
+
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'browse':
+        navigate('/orders');
+        break;
+      case 'withdrawal':
+        navigate('/wallet');
+        break;
+      case 'reviews':
+        navigate('/reviews');
+        break;
+      case 'messages':
+        navigate('/messages');
+        break;
+      default:
+        break;
+    }
+  };
+
+  const getPerformanceMetrics = () => {
+    const onTimeDeliveries = completedOrders.filter(order => {
+      const deadline = new Date(order.deadline);
+      const completed = new Date(order.updatedAt);
+      return completed <= deadline;
+    }).length;
+    
+    const onTimePercentage = completedOrders.length > 0 ? Math.round((onTimeDeliveries / completedOrders.length) * 100) : 100;
+    
+    return {
+      onTimeDelivery: onTimePercentage,
+      clientSatisfaction: 4.8,
+      monthlyGoal: Math.round((completedOrders.length / Math.max(writerOrders.length, 1)) * 100)
+    };
+  };
+
+  const performance = getPerformanceMetrics();
 
   return (
     <div className="space-y-6">
@@ -127,6 +252,7 @@ export default function WriterDashboard() {
             change={stat.change}
             changeType={stat.changeType}
             gradient={stat.gradient}
+            details={stat.details}
           />
         ))}
       </div>
@@ -140,64 +266,69 @@ export default function WriterDashboard() {
               <CardTitle className="flex items-center gap-2">
                 <span className="text-xl">📄</span>
                 Recent Orders
+                {recentOrders.length === 0 && (
+                  <span className="text-sm text-gray-500 font-normal">(No orders yet)</span>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg">📚</span>
-                      <h4 className="font-semibold text-gray-900">{order.title}</h4>
+              {recentOrders.length > 0 ? (
+                recentOrders.map((order) => (
+                  <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">📚</span>
+                        <h4 className="font-semibold text-gray-900">{order.title}</h4>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <span className="flex items-center gap-1">
+                          <span>📄</span>
+                          {order.pages} pages
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span>💰</span>
+                          ${order.price}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span>📅</span>
+                          Due: {new Date(order.deadline).toLocaleDateString()}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <span className="flex items-center gap-1">
-                        <span>📄</span>
-                        {order.pages} pages
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span>💰</span>
-                        {order.price}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span>📅</span>
-                        Due: {order.deadline}
-                      </span>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={getStatusBadge(order.status)} className="flex items-center gap-1">
+                        {order.status === "In Progress" && <span className="w-2 h-2 bg-blue-500 rounded-full"></span>}
+                        {order.status === "Pending Review" && <span className="text-yellow-600">👁️</span>}
+                        {order.status === "Available" && <span className="text-green-600">🔓</span>}
+                        {order.status}
+                      </Badge>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="hover:bg-blue-50 hover:border-blue-300 transition-colors duration-200"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setIsModalOpen(true);
+                        }}
+                      >
+                        <span className="mr-2">👁️</span>
+                        View
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant={getStatusBadge(order.status)} className="flex items-center gap-1">
-                      {order.status === "In Progress" && <span className="w-2 h-2 bg-blue-500 rounded-full"></span>}
-                      {order.status === "Pending Review" && <span className="text-yellow-600">👁️</span>}
-                      {order.status === "Available" && <span className="text-green-600">🔓</span>}
-                      {order.status}
-                    </Badge>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="hover:bg-blue-50 hover:border-blue-300 transition-colors duration-200"
-                      onClick={() => {
-                        setSelectedOrder({
-                          id: order.id,
-                          title: order.title,
-                          description: "Order description will be shown here",
-                          subject: "General",
-                          pages: order.pages,
-                          price: parseInt(order.price.replace('$', '')),
-                          deadline: order.deadline,
-                          status: order.status as any,
-                          createdAt: new Date().toISOString(),
-                          updatedAt: new Date().toISOString()
-                        });
-                        setIsModalOpen(true);
-                      }}
-                    >
-                      <span className="mr-2">👁️</span>
-                      View
-                    </Button>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <span className="text-4xl mb-4 block">📝</span>
+                  <p>No orders yet. Start by browsing available orders!</p>
+                  <Button 
+                    className="mt-4"
+                    onClick={() => navigate('/orders')}
+                  >
+                    Browse Orders
+                  </Button>
                 </div>
-              ))}
+              )}
             </CardContent>
           </Card>
         </div>
@@ -212,19 +343,35 @@ export default function WriterDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full justify-start hover:bg-blue-50 hover:border-blue-300 transition-all duration-200" variant="outline">
+              <Button 
+                className="w-full justify-start hover:bg-blue-50 hover:border-blue-300 transition-all duration-200" 
+                variant="outline"
+                onClick={() => handleQuickAction('browse')}
+              >
                 <span className="mr-2">📑</span>
                 Browse Available Orders
               </Button>
-              <Button className="w-full justify-start hover:bg-green-50 hover:border-green-300 transition-all duration-200" variant="outline">
+              <Button 
+                className="w-full justify-start hover:bg-green-50 hover:border-green-300 transition-all duration-200" 
+                variant="outline"
+                onClick={() => handleQuickAction('withdrawal')}
+              >
                 <span className="mr-2">💵</span>
                 Request Withdrawal
               </Button>
-              <Button className="w-full justify-start hover:bg-yellow-50 hover:border-yellow-300 transition-all duration-200" variant="outline">
+              <Button 
+                className="w-full justify-start hover:bg-yellow-50 hover:border-yellow-300 transition-all duration-200" 
+                variant="outline"
+                onClick={() => handleQuickAction('reviews')}
+              >
                 <span className="mr-2">⭐</span>
                 View My Reviews
               </Button>
-              <Button className="w-full justify-start hover:bg-purple-50 hover:border-purple-300 transition-all duration-200" variant="outline">
+              <Button 
+                className="w-full justify-start hover:bg-purple-50 hover:border-purple-300 transition-all duration-200" 
+                variant="outline"
+                onClick={() => handleQuickAction('messages')}
+              >
                 <span className="mr-2">💬</span>
                 Check Messages
               </Button>
@@ -245,21 +392,21 @@ export default function WriterDashboard() {
                   <span>⏰</span>
                   On-time delivery
                 </span>
-                <span className="text-sm font-medium text-green-600">98%</span>
+                <span className="text-sm font-medium text-green-600">{performance.onTimeDelivery}%</span>
               </div>
               <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
                 <span className="text-sm text-gray-600 flex items-center gap-2">
                   <span>😊</span>
                   Client satisfaction
                 </span>
-                <span className="text-sm font-medium text-green-600">4.8/5</span>
+                <span className="text-sm font-medium text-green-600">{performance.clientSatisfaction}/5</span>
               </div>
               <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
                 <span className="text-sm text-gray-600 flex items-center gap-2">
                   <span>🎯</span>
                   Monthly goal
                 </span>
-                <span className="text-sm font-medium text-blue-600">85%</span>
+                <span className="text-sm font-medium text-blue-600">{performance.monthlyGoal}%</span>
               </div>
             </CardContent>
           </Card>
@@ -276,11 +423,15 @@ export default function WriterDashboard() {
           }}
           order={selectedOrder}
           userRole="writer"
-          onPickOrder={(orderId) => {
-            pickOrder(orderId, 'writer-1'); // Assuming current writer ID
+          onAction={(action, orderId) => {
+            if (action === 'pick') {
+              // Handle pick order action
+              console.log('Picking order:', orderId);
+            }
             setIsModalOpen(false);
             setSelectedOrder(null);
           }}
+          activeOrdersCount={activeOrders.length}
         />
       )}
     </div>

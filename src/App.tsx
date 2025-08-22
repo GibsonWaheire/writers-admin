@@ -6,12 +6,14 @@ import { Layout } from "./components/Layout";
 import WriterDashboard from "./pages/WriterDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import OrdersPage from "./pages/OrdersPage";
+import InvoicesPage from "./pages/InvoicesPage";
 import WalletPage from "./pages/WalletPage";
 import ReviewsPage from "./pages/ReviewsPage";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { ToastProvider } from "./contexts/ToastContext";
 import { OrderProvider } from "./contexts/OrderContext";
+import { WalletProvider } from "./contexts/WalletContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
@@ -36,32 +38,30 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
   return <>{children}</>;
 }
 
-// Main App Routes
-function AppRoutes() {
+
+
+// Main App Router
+function AppRouter() {
   const { isAuthenticated, user } = useAuth();
 
-  // If user is authenticated, redirect from home page to appropriate dashboard
-  if (isAuthenticated) {
-    if (user?.role === 'admin') {
-      return <Navigate to="/admin" replace />;
-    } else {
-      return <Navigate to="/writer" replace />;
-    }
+  if (!isAuthenticated) {
+    return (
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
   }
 
-  return (
-    <Routes>
-      <Route path="/" element={<Index />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  );
-}
-
-// Dashboard Routes (only accessible when authenticated)
-function DashboardRoutes() {
+  // If user is authenticated, show dashboard routes
   return (
     <Layout>
       <Routes>
+        <Route path="/" element={
+          user?.role === 'admin' ? 
+            <Navigate to="/admin" replace /> : 
+            <Navigate to="/writer" replace />
+        } />
         <Route path="/writer" element={
           <ProtectedRoute requiredRole="writer">
             <WriterDashboard />
@@ -97,10 +97,7 @@ function DashboardRoutes() {
         } />
         <Route path="/invoices" element={
           <ProtectedRoute>
-            <div className="p-6">
-              <h1 className="text-2xl font-bold">Invoices</h1>
-              <p>Invoices functionality coming soon...</p>
-            </div>
+            <InvoicesPage />
           </ProtectedRoute>
         } />
         <Route path="/admin" element={
@@ -119,17 +116,13 @@ const App = () => (
     <AuthProvider>
       <ToastProvider>
         <OrderProvider>
-          <TooltipProvider>
-            <BrowserRouter>
-              <Routes>
-                {/* Public route - only accessible when NOT authenticated */}
-                <Route path="/" element={<AppRoutes />} />
-                
-                {/* Protected routes - only accessible when authenticated */}
-                <Route path="/*" element={<DashboardRoutes />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
+          <WalletProvider>
+            <TooltipProvider>
+              <BrowserRouter>
+                <AppRouter />
+              </BrowserRouter>
+            </TooltipProvider>
+          </WalletProvider>
         </OrderProvider>
       </ToastProvider>
     </AuthProvider>

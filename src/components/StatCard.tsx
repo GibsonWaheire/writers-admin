@@ -1,5 +1,18 @@
 import { Card, CardContent } from "./ui/card";
+import { Button } from "./ui/button";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle
+} from "./ui/dialog";
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  ArrowRight
+} from "lucide-react";
 import type { ComponentType } from "react";
+import { useState } from "react";
 
 interface StatCardProps {
   title: string;
@@ -8,6 +21,19 @@ interface StatCardProps {
   change?: string;
   changeType?: "positive" | "negative" | "neutral";
   gradient?: boolean;
+  onClick?: () => void;
+  details?: {
+    description: string;
+    items?: Array<{
+      label: string;
+      value: string;
+      icon?: ComponentType<{ className?: string }>;
+    }>;
+    action?: {
+      label: string;
+      onClick: () => void;
+    };
+  };
 }
 
 export function StatCard({ 
@@ -16,14 +42,18 @@ export function StatCard({
   icon: Icon, 
   change, 
   changeType = "neutral",
-  gradient = false 
+  gradient = false,
+  onClick,
+  details
 }: StatCardProps) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
   const getCardColors = () => {
     if (gradient) return 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:from-blue-100 hover:to-blue-200';
     
     switch (title) {
       case 'Wallet Balance':
-        return 'bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200 hover:from-emerald-100 hover:to-emerald-200';
+        return 'bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200 hover:from-emerald-100 hover:to-blue-200';
       case 'Total Orders':
         return 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:from-blue-100 hover:to-blue-200';
       case 'Pending Orders':
@@ -74,34 +104,103 @@ export function StatCard({
   const getChangeIcon = () => {
     switch (changeType) {
       case "positive":
-        return "↗";
+        return <TrendingUp className="h-4 w-4" />;
       case "negative":
-        return "↘";
+        return <TrendingDown className="h-4 w-4" />;
       default:
-        return "→";
+        return <ArrowRight className="h-4 w-4" />;
     }
   };
 
+  const handleCardClick = () => {
+    if (details) {
+      setIsDialogOpen(true);
+    } else if (onClick) {
+      onClick();
+    }
+  };
+
+  const isClickable = details || onClick;
+
   return (
-    <Card className={`transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-0 ${getCardColors()}`}>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-600 mb-2 opacity-80">{title}</p>
-            <p className="text-3xl font-bold text-gray-900 tracking-tight">{value}</p>
+    <>
+      <Card 
+        className={`transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-0 ${getCardColors()} ${
+          isClickable ? 'cursor-pointer hover:scale-105' : ''
+        }`}
+        onClick={handleCardClick}
+      >
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600 mb-2 opacity-80">{title}</p>
+              <p className="text-3xl font-bold text-gray-900 tracking-tight">{value}</p>
+            </div>
+            <div className={`p-3 rounded-xl ${getIconColors()} transition-transform duration-300 hover:scale-110`}>
+              <Icon className="h-6 w-6" />
+            </div>
           </div>
-          <div className={`p-3 rounded-xl ${getIconColors()} transition-transform duration-300 hover:scale-110`}>
-            <Icon className="h-6 w-6" />
-          </div>
-        </div>
-        {change && (
-          <div className="flex items-center gap-2">
-            <span className={`text-sm font-semibold ${getChangeColor()}`}>
-              {getChangeIcon()} {change}
-            </span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          {change && (
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-semibold ${getChangeColor()} flex items-center gap-1`}>
+                {getChangeIcon()} {change}
+              </span>
+            </div>
+          )}
+          {isClickable && (
+            <div className="mt-3 pt-3 border-t border-gray-200/50">
+              <span className="text-xs text-gray-500 flex items-center gap-1">
+                Click to view details
+                <ArrowRight className="h-3 w-3" />
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Details Dialog */}
+      {details && (
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Icon className="h-5 w-5" />
+                {title} Details
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <p className="text-gray-600">{details.description}</p>
+              
+              {details.items && (
+                <div className="space-y-3">
+                  {details.items.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        {item.icon && <item.icon className="h-4 w-4 text-gray-500" />}
+                        <span className="text-sm text-gray-600">{item.label}</span>
+                      </div>
+                      <span className="text-sm font-medium">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {details.action && (
+                <Button 
+                  className="w-full" 
+                  onClick={() => {
+                    details.action!.onClick();
+                    setIsDialogOpen(false);
+                  }}
+                >
+                  {details.action.label}
+                </Button>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
