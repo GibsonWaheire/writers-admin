@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { useOrders } from './OrderContext';
 import { usePOD } from './PODContext';
 
@@ -33,6 +33,9 @@ interface WalletContextType {
   getPendingOrdersCount: () => number;
   getPendingEarnings: () => number;
   getEarningsBreakdown: () => { regular: number; pod: number; total: number };
+  getWithdrawalTransactions: () => Transaction[];
+  getTotalWithdrawn: () => number;
+  getPendingWithdrawals: () => Transaction[];
   syncWithOrders: () => void;
 }
 
@@ -51,6 +54,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const { orders } = useOrders();
   const { podOrders } = usePOD();
+  
+  // Use ref to track previous state to avoid infinite loops
+  const prevWalletRef = useRef<WalletData>(wallet);
 
   // Sync wallet with actual orders and POD orders
   const syncWithOrders = useCallback(() => {
@@ -104,20 +110,34 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    // Preserve existing transactions (withdrawals, etc.) and merge with new earnings
+    const existingTransactions = prevWalletRef.current.transactions.filter(tx => 
+      tx.type === 'withdrawal' || tx.type === 'refund'
+    );
+    
+    // Merge existing transactions with new earnings transactions
+    const allTransactions = [...existingTransactions, ...newTransactions];
+
     // Calculate total available balance
     const totalEarned = regularEarnings + podEarnings;
-    const availableBalance = totalEarned - wallet.totalWithdrawn;
+    const availableBalance = totalEarned - prevWalletRef.current.totalWithdrawn;
 
-    setWallet(prev => ({
-      ...prev,
-      availableBalance,
-      pendingEarnings,
-      totalEarned,
-      regularOrderEarnings: regularEarnings,
-      podOrderEarnings: podEarnings,
-      transactions: newTransactions
-    }));
-  }, [orders, podOrders, wallet.totalWithdrawn]);
+    setWallet(prev => {
+      const newWallet = {
+        ...prev,
+        availableBalance,
+        pendingEarnings,
+        totalEarned,
+        regularOrderEarnings: regularEarnings,
+        podOrderEarnings: podEarnings,
+        transactions: allTransactions
+      };
+      
+      // Update the ref with the new state
+      prevWalletRef.current = newWallet;
+      return newWallet;
+    });
+  }, [orders, podOrders]);
 
   // Sync wallet when orders or POD orders change
   useEffect(() => {
@@ -222,6 +242,21 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     };
   }, [wallet.regularOrderEarnings, wallet.podOrderEarnings, wallet.totalEarned]);
 
+  const getWithdrawalTransactions = useCallback(() => {
+    return wallet.transactions.filter(tx => tx.type === 'withdrawal');
+  }, [wallet.transactions]);
+
+  const getTotalWithdrawn = useCallback(() => {
+    return wallet.transactions
+      .filter(tx => tx.type === 'withdrawal' && tx.status === 'completed')
+      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+  }, [wallet.transactions]);
+
+  const getPendingWithdrawals = useCallback(() => {
+    return wallet.transactions
+      .filter(tx => tx.type === 'withdrawal' && tx.status === 'pending');
+  }, [wallet.transactions]);
+
   return (
     <WalletContext.Provider value={{
       wallet,
@@ -231,6 +266,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       getPendingOrdersCount,
       getPendingEarnings,
       getEarningsBreakdown,
+      getWithdrawalTransactions,
+      getTotalWithdrawn,
+      getPendingWithdrawals,
       syncWithOrders
     }}>
       {children}

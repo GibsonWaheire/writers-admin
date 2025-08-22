@@ -9,39 +9,35 @@ import {
   Download, 
   Calendar,
   CreditCard,
-  ArrowUpRight,
   ArrowDownRight,
   FileText,
   Package,
   Clock,
-  CheckCircle,
-  AlertCircle,
   BarChart3,
   PieChart,
   RefreshCw
 } from "lucide-react";
 import { useWallet } from "../contexts/WalletContext";
-import { useOrders } from "../contexts/OrderContext";
-import { usePOD } from "../contexts/PODContext";
-import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { WithdrawalModal } from "../components/WithdrawalModal";
 import { PaymentMethodsModal } from "../components/PaymentMethodsModal";
 
 export default function WalletPage() {
-  const { wallet, getMonthlyEarnings, getPendingEarnings, getEarningsBreakdown, syncWithOrders, getPendingOrdersCount } = useWallet();
-  const { orders, getWriterActiveOrders } = useOrders();
-  const { podOrders, getWriterPODOrders } = usePOD();
-  const { user } = useAuth();
+  const { 
+    wallet, 
+    getMonthlyEarnings, 
+    getPendingEarnings, 
+    getEarningsBreakdown, 
+    getTotalWithdrawn,
+    getPendingWithdrawals,
+    syncWithOrders, 
+    getPendingOrdersCount 
+  } = useWallet();
   const navigate = useNavigate();
   
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
   const [showPaymentMethodsModal, setShowPaymentMethodsModal] = useState(false);
-  
-  const writerId = user?.id || 'writer-1';
-  const writerOrders = getWriterActiveOrders(writerId);
-  const writerPODOrders = getWriterPODOrders(writerId);
   
   const thisMonthEarnings = getMonthlyEarnings();
   const lastMonthEarnings = getMonthlyEarnings(new Date().getMonth() - 1);
@@ -49,6 +45,12 @@ export default function WalletPage() {
   
   const pendingEarnings = getPendingEarnings();
   const earningsBreakdown = getEarningsBreakdown();
+
+  const totalWithdrawn = getTotalWithdrawn();
+  const pendingWithdrawals = getPendingWithdrawals();
+  const lastWithdrawal = pendingWithdrawals.length > 0 ? 
+    `Last: ${new Date(pendingWithdrawals[0].date).toLocaleDateString()}` : 
+    "No withdrawals yet";
 
   const walletStats = [
     { 
@@ -77,24 +79,15 @@ export default function WalletPage() {
     },
     { 
       label: "Total Withdrawn", 
-      value: `KES ${wallet.totalWithdrawn.toLocaleString()}`, 
-      change: "Last: Dec 15",
+      value: `KES ${totalWithdrawn.toLocaleString()}`, 
+      change: lastWithdrawal,
       changeType: "neutral",
       icon: CreditCard,
       color: "bg-gradient-to-r from-purple-500 to-pink-600"
     }
   ];
 
-  const getChangeColor = (changeType: string) => {
-    switch (changeType) {
-      case "positive":
-        return "text-green-600";
-      case "negative":
-        return "text-red-600";
-      default:
-        return "text-muted-foreground";
-    }
-  };
+
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -248,28 +241,28 @@ export default function WalletPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Regular Orders</span>
-                <span className="font-medium">
-                  {writerOrders.filter(o => o.status === 'Awaiting Payment').length} orders
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">POD Orders</span>
-                <span className="font-medium">
-                  {writerPODOrders.filter(o => ['Delivered', 'Ready for Delivery'].includes(o.status)).length} orders
-                </span>
-              </div>
-              <div className="border-t pt-2">
+                          <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium">Total Pending</span>
-                  <span className="font-bold text-lg text-orange-600">
-                    KES {pendingEarnings.toLocaleString()}
+                  <span className="text-sm text-muted-foreground">Regular Orders</span>
+                  <span className="font-medium">
+                    {getPendingOrdersCount() > 0 ? `${getPendingOrdersCount()} orders` : '0 orders'}
                   </span>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">POD Orders</span>
+                  <span className="font-medium">
+                    {getPendingOrdersCount() > 0 ? `${getPendingOrdersCount()} orders` : '0 orders'}
+                  </span>
+                </div>
+                <div className="border-t pt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Total Pending</span>
+                    <span className="font-bold text-lg text-orange-600">
+                      KES {pendingEarnings.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
           </CardContent>
         </Card>
       </div>
