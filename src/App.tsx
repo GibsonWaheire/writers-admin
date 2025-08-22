@@ -5,6 +5,12 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import WriterDashboard from "./pages/WriterDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminOrdersPage from "./pages/AdminOrdersPage";
+import AdminWritersPage from "./pages/AdminWritersPage";
+import AdminReviewsPage from "./pages/AdminReviewsPage";
+import AdminFinancialPage from "./pages/AdminFinancialPage";
+import AdminUsersPage from "./pages/AdminUsersPage";
+import AdminAnalyticsPage from "./pages/AdminAnalyticsPage";
 import OrdersPage from "./pages/OrdersPage";
 import PODOrdersPage from "./pages/PODOrdersPage";
 import InvoicesPage from "./pages/InvoicesPage";
@@ -126,6 +132,48 @@ function AppRouter() {
         <ProtectedRoute requiredRole="admin">
           <Layout>
             <AdminDashboard />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/orders" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <AdminOrdersPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/writers" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <AdminWritersPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/reviews" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <AdminReviewsPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/financial" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <AdminFinancialPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/users" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <AdminUsersPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/analytics" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <AdminAnalyticsPage />
           </Layout>
         </ProtectedRoute>
       } />

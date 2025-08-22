@@ -17,7 +17,11 @@ import {
   ThumbsUp,
   CreditCard,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  UserCheck,
+  RefreshCw,
+  UserX,
+  Clock
 } from 'lucide-react';
 import { OrderConfirmationModal } from './OrderConfirmationModal';
 import { OrderReassignmentModal } from './OrderReassignmentModal';
@@ -204,17 +208,82 @@ export function OrderCard({
     if (userRole === 'admin') {
       if (order.status === 'Available') {
         return (
-          <Button 
-            onClick={() => onAction?.('assign', order.id)}
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            Assign Order
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => onAction?.('assign', order.id)}
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <UserCheck className="h-4 w-4 mr-2" />
+              Assign Order
+            </Button>
+            <Button 
+              onClick={() => onAction?.('make_available', order.id)}
+              size="sm"
+              variant="outline"
+            >
+              <BookOpen className="h-4 w-4 mr-2" />
+              Make Available
+            </Button>
+          </div>
         );
       }
       
       if (order.status === 'Submitted') {
+        return (
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => onAction?.('approve', order.id)}
+              size="sm"
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Approve
+            </Button>
+            <Button 
+              onClick={() => onAction?.('request_revision', order.id)}
+              size="sm"
+              className="bg-yellow-600 hover:bg-yellow-700"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Request Revision
+            </Button>
+            <Button 
+              onClick={() => onAction?.('reject', order.id)}
+              size="sm"
+              variant="destructive"
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Reject
+            </Button>
+          </div>
+        );
+      }
+
+      if (order.status === 'In Progress') {
+        return (
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => onAction?.('reassign', order.id, { reason: 'Admin reassignment' })}
+              size="sm"
+              variant="outline"
+            >
+              <UserX className="h-4 w-4 mr-2" />
+              Reassign
+            </Button>
+            <Button 
+              onClick={() => onAction?.('put_on_hold', order.id)}
+              size="sm"
+              variant="outline"
+            >
+              <Clock className="h-4 w-4 mr-2" />
+              Put on Hold
+            </Button>
+          </div>
+        );
+      }
+
+      if (order.status === 'Revision') {
         return (
           <div className="flex gap-2">
             <Button 

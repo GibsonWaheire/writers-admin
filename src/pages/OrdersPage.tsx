@@ -410,40 +410,50 @@ export default function OrdersPage() {
       </Card>
 
       {/* Orders Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="available" className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            Available ({filterOrders(availableOrders).length})
-          </TabsTrigger>
-          
-          <TabsTrigger value="assigned" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Assigned ({filterOrders([...assignedOrders, ...inProgressOrders]).length})
-          </TabsTrigger>
-
-          {isAdmin && (
-            <TabsTrigger value="submitted" className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Submitted ({filterOrders([...submittedOrders, ...resubmittedOrders]).length})
+      {isAdmin ? (
+        <div className="text-center py-12">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 max-w-2xl mx-auto">
+            <h3 className="text-lg font-semibold text-blue-800 mb-4">Admin Access Required</h3>
+            <p className="text-blue-700 mb-6">
+              As an admin, you should use the dedicated Admin Orders Management page for managing all orders, 
+              assigning writers, and reviewing submissions.
+            </p>
+            <Button 
+              onClick={() => window.location.href = '/admin/orders'}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Go to Admin Orders Management
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="available" className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              Available ({filterOrders(availableOrders).length})
             </TabsTrigger>
-          )}
+            
+            <TabsTrigger value="assigned" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Assigned ({filterOrders([...assignedOrders, ...inProgressOrders]).length})
+            </TabsTrigger>
 
-          <TabsTrigger value="revisions" className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Revisions ({filterOrders(revisionOrders).length})
-          </TabsTrigger>
-          
-          <TabsTrigger value="completed" className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4" />
-            Completed ({filterOrders([...approvedOrders, ...completedOrders]).length})
-          </TabsTrigger>
-          
-          <TabsTrigger value="rejected" className="flex items-center gap-2">
-            <XCircle className="h-4 w-4" />
-            Rejected ({filterOrders(rejectedOrders).length})
-          </TabsTrigger>
-        </TabsList>
+            <TabsTrigger value="revisions" className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Revisions ({filterOrders(revisionOrders).length})
+            </TabsTrigger>
+            
+            <TabsTrigger value="completed" className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Completed ({filterOrders([...approvedOrders, ...completedOrders]).length})
+            </TabsTrigger>
+            
+            <TabsTrigger value="rejected" className="flex items-center gap-2">
+              <XCircle className="h-4 w-4" />
+              Rejected ({filterOrders(rejectedOrders).length})
+            </TabsTrigger>
+          </TabsList>
 
         {/* Available Orders Tab */}
         <TabsContent value="available" className="space-y-4">
@@ -626,6 +636,7 @@ export default function OrdersPage() {
           )}
         </TabsContent>
       </Tabs>
+      )}
 
       {/* Order View Modal */}
       {selectedOrder && (
