@@ -13,20 +13,22 @@ import {
   CheckCircle,
   XCircle,
   MessageSquare,
-  Upload,
   Edit,
   ThumbsUp,
   CreditCard,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 import { OrderConfirmationModal } from './OrderConfirmationModal';
+import { OrderReassignmentModal } from './OrderReassignmentModal';
+import { SubmitToAdminModal } from './SubmitToAdminModal';
 import type { Order, OrderStatus, WriterConfirmation, WriterQuestion } from '../types/order';
 
 interface OrderCardProps {
   order: Order;
   userRole: 'writer' | 'admin';
   onView: (order: Order) => void;
-  onAction?: (action: string, orderId: string) => void;
+  onAction?: (action: string, orderId: string, additionalData?: Record<string, unknown>) => void;
   onConfirm?: (orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => void;
   showActions?: boolean;
 }
@@ -40,25 +42,30 @@ export function OrderCard({
   showActions = true 
 }: OrderCardProps) {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showReassignmentModal, setShowReassignmentModal] = useState(false);
+  const [showSubmitToAdminModal, setShowSubmitToAdminModal] = useState(false);
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
       'Available': { variant: 'outline' as const, color: 'text-blue-600', bg: 'bg-blue-50', icon: '🟢' },
-
       'Pending Approval': { variant: 'secondary' as const, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '🟡' },
       'Awaiting Confirmation': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '⏳' },
       'Confirmed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
       'In Progress': { variant: 'default' as const, color: 'text-blue-600', bg: 'bg-blue-50', icon: '🔵' },
-      'Pending Review': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '🟠' },
+      'Submitted to Admin': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50', icon: '📤' },
+      'Under Admin Review': { variant: 'secondary' as const, color: 'text-blue-600', bg: 'bg-blue-50', icon: '👁️' },
+      'Admin Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
+      'Admin Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '❌' },
+      'Client Review': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '👀' },
+      'Client Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '👍' },
+      'Client Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '❌' },
       'Completed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
       'Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '❌' },
       'Requires Admin Approval': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50', icon: '⚠️' },
-      'Upload to Client': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '📤' },
       'Editor Revision': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50', icon: '✏️' },
-      'Approved': { variant: 'default' as const, color: 'text-indigo-600', bg: 'bg-indigo-50', icon: '👍' },
       'Awaiting Payment': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '💰' },
       'Pay Later': { variant: 'outline' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '💳' },
-
+      'Reassigned': { variant: 'secondary' as const, color: 'text-gray-600', bg: 'bg-gray-50', icon: '🔄' },
       'Cancelled': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '❌' },
       'On Hold': { variant: 'secondary' as const, color: 'text-gray-600', bg: 'bg-gray-50', icon: '⏸️' },
       'Disputed': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '⚠️' },
@@ -127,29 +134,30 @@ export function OrderCard({
         return (
           <div className="flex gap-2">
             <Button 
-              onClick={() => onAction?.('submit', order.id)}
+              onClick={() => setShowSubmitToAdminModal(true)}
               size="sm"
               className="bg-blue-600 hover:bg-blue-700"
             >
               <FileText className="h-4 w-4 mr-2" />
-              Submit Work
+              Submit to Admin
             </Button>
             <Button 
-              onClick={() => onAction?.('upload_to_client', order.id)}
+              onClick={() => setShowReassignmentModal(true)}
               size="sm"
-              className="bg-green-600 hover:bg-green-700"
+              variant="outline"
+              className="border-red-300 text-red-600 hover:bg-red-50"
             >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload to Client
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reassign Order
             </Button>
           </div>
         );
       }
 
-      if (order.status === 'Pending Review') {
+      if (order.status === 'Submitted to Admin') {
         return (
           <Button 
-            onClick={() => onAction?.('request_revision', order.id)}
+            onClick={() => onAction?.('admin_reject', order.id)}
             size="sm"
             className="bg-yellow-600 hover:bg-yellow-700"
           >
@@ -172,20 +180,20 @@ export function OrderCard({
         );
       }
 
-      if (order.status === 'Upload to Client') {
+      if (order.status === 'Admin Approved') {
         return (
           <Button 
-            onClick={() => onAction?.('approve_final', order.id)}
+            onClick={() => onAction?.('client_approve', order.id)}
             size="sm"
             className="bg-indigo-600 hover:bg-indigo-700"
           >
             <ThumbsUp className="h-4 w-4 mr-2" />
-            Mark as Final
+            Client Approve
           </Button>
         );
       }
 
-      if (order.status === 'Approved') {
+      if (order.status === 'Client Approved') {
         return (
           <Button 
             onClick={() => onAction?.('pay_later', order.id)}
@@ -244,6 +252,24 @@ export function OrderCard({
       onConfirm(order.id, confirmation, questions);
     }
     setShowConfirmationModal(false);
+  };
+
+  const handleReassignOrder = (reason: string) => {
+    if (onAction) {
+      onAction('reassign', order.id, { reason, writerId: 'current-writer' });
+    }
+    setShowReassignmentModal(false);
+  };
+
+  const handleSubmitToAdmin = (submission: {
+    files: import('../types/order').UploadedFile[];
+    notes: string;
+    estimatedCompletionTime?: string;
+  }) => {
+    if (onAction) {
+      onAction('submit_to_admin', order.id, submission);
+    }
+    setShowSubmitToAdminModal(false);
   };
 
   return (
@@ -310,8 +336,8 @@ export function OrderCard({
               
               <div className="flex items-center gap-2 text-sm">
                 <DollarSign className="h-4 w-4 text-green-600" />
-                <span className="text-gray-600">Price:</span>
-                <span className="font-bold text-green-600">KES {order.priceKES?.toLocaleString() || 'N/A'}</span>
+                <span className="text-gray-600">Total Price:</span>
+                <span className="font-bold text-green-600">KES {order.totalPriceKES?.toLocaleString() || order.priceKES?.toLocaleString() || 'N/A'}</span>
               </div>
 
               <div className="flex items-center gap-2 text-sm">
@@ -319,6 +345,14 @@ export function OrderCard({
                 <span className="text-gray-600">CPP:</span>
                 <span className="font-medium text-blue-600">KES {order.cpp?.toLocaleString() || 'N/A'}</span>
               </div>
+
+              {order.fineAmount && order.fineAmount > 0 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <span className="text-gray-600">Fine:</span>
+                  <span className="font-medium text-red-600">KES {order.fineAmount.toLocaleString()}</span>
+                </div>
+              )}
 
 
             </div>
@@ -381,6 +415,22 @@ export function OrderCard({
           onConfirm={handleConfirmOrder}
         />
       )}
+
+      {/* Order Reassignment Modal */}
+      <OrderReassignmentModal
+        order={order}
+        isOpen={showReassignmentModal}
+        onClose={() => setShowReassignmentModal(false)}
+        onConfirm={handleReassignOrder}
+      />
+
+      {/* Submit to Admin Modal */}
+      <SubmitToAdminModal
+        order={order}
+        isOpen={showSubmitToAdminModal}
+        onClose={() => setShowSubmitToAdminModal(false)}
+        onSubmit={handleSubmitToAdmin}
+      />
     </>
   );
 }

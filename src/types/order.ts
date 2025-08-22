@@ -10,7 +10,7 @@ export interface Order {
   format: CitationFormat;
   price: number; // Price in USD
   priceKES: number; // Price in Kenyan Shillings
-  cpp: number; // Cost Per Page
+  cpp: number; // Cost Per Page in KES (350 KES for normal, 400-500 KES for priority)
   deadline: string;
   status: OrderStatus;
   assignedWriter?: string;
@@ -29,6 +29,19 @@ export interface Order {
   earnings?: OrderEarnings;
   // Payment and delivery fields
   paymentType: 'advance' | 'milestone'; // Payment types (removed POD)
+  // Pricing and fines
+  totalPriceKES: number; // Total price in KES
+  fineAmount?: number; // Fine amount if applicable
+  fineReason?: string; // Reason for fine
+  // Reassignment tracking
+  reassignmentReason?: string; // Reason for reassignment
+  reassignedAt?: string; // When order was reassigned
+  reassignedBy?: string; // Who reassigned the order
+  // Admin review tracking
+  submittedToAdminAt?: string; // When submitted to admin
+  adminReviewNotes?: string; // Admin's review notes
+  adminReviewedAt?: string; // When admin reviewed
+  adminReviewedBy?: string; // Who reviewed the order
 }
 
 export type PaperType = 
@@ -60,15 +73,20 @@ export type OrderStatus =
   | 'Awaiting Confirmation' // Writer needs to confirm
   | 'Confirmed' // Writer confirmed, order is active
   | 'In Progress' // Writer is working on it
-  | 'Pending Review' // Submitted for review
+  | 'Submitted to Admin' // Submitted for admin review
+  | 'Under Admin Review' // Admin is reviewing
+  | 'Admin Approved' // Admin approved, ready for client
+  | 'Admin Rejected' // Admin rejected, needs revision
+  | 'Client Review' // Client is reviewing
+  | 'Client Approved' // Client approved
+  | 'Client Rejected' // Client rejected, needs revision
   | 'Completed' // Order completed
   | 'Rejected' // Order rejected
   | 'Requires Admin Approval' // Needs admin review
-  | 'Upload to Client' // Ready for client review
   | 'Editor Revision' // Needs revision
-  | 'Approved' // Client approved
   | 'Awaiting Payment' // Ready for payment
   | 'Pay Later' // Payment deferred
+  | 'Reassigned' // Order was reassigned by writer
   | 'Cancelled' // Order cancelled
   | 'On Hold' // Order temporarily on hold
   | 'Disputed' // Order under dispute
@@ -150,4 +168,30 @@ export interface OrderEarnings {
   totalAmount: number; // Total earnings in KES
   currency: 'KES';
   calculatedAt: string;
+}
+
+export interface OrderFine {
+  id: string;
+  orderId: string;
+  amount: number;
+  reason: 'missed_deadline' | 'rejected_work' | 'reassignment' | 'other';
+  description: string;
+  appliedAt: string;
+  appliedBy: string; // admin ID
+  waived?: boolean;
+  waivedAt?: string;
+  waivedBy?: string;
+  waivedReason?: string;
+}
+
+export interface OrderReassignment {
+  id: string;
+  orderId: string;
+  reason: string;
+  reassignedBy: string; // writer ID
+  reassignedAt: string;
+  previousWriter: string;
+  fineApplied?: boolean;
+  fineAmount?: number;
+  adminNotes?: string;
 }

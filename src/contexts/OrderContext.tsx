@@ -7,7 +7,7 @@ interface OrderContextType {
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   assignOrderToWriter: (orderId: string, writerId: string) => void;
   pickOrder: (orderId: string, writerId: string) => void;
-  handleOrderAction: (action: string, orderId: string, notes?: string) => void;
+  handleOrderAction: (action: string, orderId: string, additionalData?: Record<string, unknown>) => void;
   confirmOrder: (orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => void;
   getOrdersByStatus: (status: OrderStatus) => Order[];
   getAvailableOrders: () => Order[];
@@ -61,7 +61,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       format: 'APA',
       price: 450,
       priceKES: 67500,
-      cpp: 4500,
+      cpp: 350,
+      totalPriceKES: 67500,
       deadline: '2024-02-15',
       status: 'Available',
       createdAt: '2024-01-15',
@@ -102,7 +103,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       format: 'Harvard',
       price: 360,
       priceKES: 54000,
-      cpp: 4500,
+      cpp: 350,
+      totalPriceKES: 54000,
       deadline: '2024-03-01',
       status: 'Available',
       createdAt: '2024-01-22',
@@ -126,7 +128,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       format: 'MLA',
       price: 240,
       priceKES: 36000,
-      cpp: 4500,
+      cpp: 350,
+      totalPriceKES: 36000,
       deadline: '2024-02-28',
       status: 'Available',
       createdAt: '2024-01-23',
@@ -150,7 +153,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       format: 'IEEE',
       price: 600,
       priceKES: 90000,
-      cpp: 4500,
+      cpp: 350,
+      totalPriceKES: 90000,
       deadline: '2024-03-10',
       status: 'Available',
       createdAt: '2024-01-24',
@@ -174,9 +178,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       format: 'Harvard',
       price: 280,
       priceKES: 42000,
-      cpp: 5250,
+      cpp: 350,
+      totalPriceKES: 42000,
       deadline: '2024-02-10',
-      status: 'Pending Review',
+      status: 'Submitted to Admin',
       assignedWriter: 'John Doe',
       writerId: 'writer-1',
       createdAt: '2024-01-16',
@@ -502,12 +507,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     ));
   }, []);
 
-  const handleOrderAction = useCallback((action: string, orderId: string) => {
+  const handleOrderAction = useCallback((action: string, orderId: string, additionalData?: Record<string, unknown>) => {
     setOrders(prev => prev.map(order => {
       if (order.id !== orderId) return order;
       
       let newStatus = order.status;
       const updatedAt = new Date().toISOString();
+      let updates: any = { updatedAt };
       
       switch (action) {
         case 'pick':
@@ -516,39 +522,64 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         case 'confirm':
           newStatus = 'Confirmed';
           break;
-        case 'submit':
-          newStatus = 'Pending Review';
+        case 'submit_to_admin':
+          newStatus = 'Submitted to Admin';
+          updates.submittedToAdminAt = new Date().toISOString();
+          if (additionalData?.files) {
+            updates.uploadedFiles = [...order.uploadedFiles, ...additionalData.files];
+          }
+          if (additionalData?.notes) {
+            updates.adminReviewNotes = additionalData.notes;
+          }
           break;
-        case 'approve':
-          newStatus = 'In Progress';
+        case 'admin_approve':
+          newStatus = 'Admin Approved';
+          updates.adminReviewedAt = new Date().toISOString();
+          updates.adminReviewedBy = additionalData?.adminId || 'admin';
+          if (additionalData?.notes) {
+            updates.adminReviewNotes = additionalData.notes;
+          }
           break;
-        case 'reject':
-          newStatus = 'Rejected';
+        case 'admin_reject':
+          newStatus = 'Admin Rejected';
+          updates.adminReviewedAt = new Date().toISOString();
+          updates.adminReviewedBy = additionalData?.adminId || 'admin';
+          if (additionalData?.notes) {
+            updates.adminReviewNotes = additionalData.notes;
+          }
           break;
-        case 'request_approval':
-          newStatus = 'Requires Admin Approval';
+        case 'client_approve':
+          newStatus = 'Client Approved';
+          break;
+        case 'client_reject':
+          newStatus = 'Client Rejected';
+          break;
+        case 'reassign':
+          newStatus = 'Reassigned';
+          updates.reassignmentReason = additionalData?.reason || 'No reason provided';
+          updates.reassignedAt = new Date().toISOString();
+          updates.reassignedBy = additionalData?.writerId || 'unknown';
+          updates.writerId = undefined;
+          updates.assignedWriter = undefined;
           break;
         case 'assign':
           newStatus = 'In Progress';
           break;
-        case 'reassign':
-          newStatus = 'Available';
-          break;
-        case 'upload_to_client':
-          newStatus = 'Upload to Client';
-          break;
         case 'editor_revision':
           newStatus = 'Editor Revision';
           break;
-        case 'approve_final':
-          newStatus = 'Approved';
+        case 'complete':
+          newStatus = 'Completed';
           break;
-        case 'pay_later':
-          newStatus = 'Pay Later';
+        case 'cancel':
+          newStatus = 'Cancelled';
+          break;
+        case 'put_on_hold':
+          newStatus = 'On Hold';
           break;
       }
       
-      return { ...order, status: newStatus, updatedAt };
+      return { ...order, status: newStatus, ...updates };
     }));
   }, []);
 

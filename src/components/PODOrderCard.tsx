@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useAuth } from '../contexts/AuthContext';
 import { usePOD } from '../contexts/PODContext';
 import { PODConfirmationModal } from './PODConfirmationModal';
+import { PODReassignmentModal } from './PODReassignmentModal';
+import { PODSubmitModal } from './PODSubmitModal';
 import type { PODOrder, PODStatus } from '../types/pod';
 import { 
   FileText, 
@@ -19,7 +21,8 @@ import {
   AlertTriangle,
   CheckCircle,
   Truck,
-  CreditCard
+  CreditCard,
+  RotateCcw
 } from 'lucide-react';
 
 interface PODOrderCardProps {
@@ -48,6 +51,8 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
@@ -115,6 +120,30 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
     setIsPaymentModalOpen(false);
     setPaymentNotes('');
     setPaymentMethod('cash');
+  };
+
+  const handleReassignOrder = async (reason: string) => {
+    if (user) {
+      // Reassign the order back to available status
+      handlePODOrderAction('reassign', order.id);
+      // You could also add a note about the reassignment reason
+      console.log(`POD Order ${order.id} reassigned by ${user.name} for reason: ${reason}`);
+    }
+  };
+
+  const handleSubmitPODOrder = async (submission: {
+    files: File[];
+    notes: string;
+    estimatedDeliveryTime?: string;
+    deliveryAddress?: string;
+    clientContactInfo?: string;
+  }) => {
+    if (user) {
+      // Mark the order as ready for delivery
+      handlePODOrderAction('ready_for_delivery', order.id);
+      // You could also store the submission details
+      console.log(`POD Order ${order.id} submitted for delivery by ${user.name}`, submission);
+    }
   };
 
   return (
@@ -321,6 +350,28 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
               </DialogContent>
             </Dialog>
           )}
+
+          {/* Additional Actions for Picked Orders */}
+          {(order.status === 'Assigned' || order.status === 'In Progress') && order.writerId === user?.id && (
+            <>
+              <Button 
+                onClick={() => setShowReassignModal(true)}
+                variant="outline"
+                className="border-red-300 text-red-600 hover:bg-red-50"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Reassign Order
+              </Button>
+              
+              <Button 
+                onClick={() => setShowSubmitModal(true)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Submit Order
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Order Info Footer */}
@@ -338,6 +389,22 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
         isOpen={isConfirmationModalOpen}
         onClose={() => setIsConfirmationModalOpen(false)}
         onConfirm={handleConfirmPickOrder}
+      />
+
+      {/* POD Reassignment Modal */}
+      <PODReassignmentModal
+        order={order}
+        isOpen={showReassignModal}
+        onClose={() => setShowReassignModal(false)}
+        onConfirm={handleReassignOrder}
+      />
+
+      {/* POD Submit Modal */}
+      <PODSubmitModal
+        order={order}
+        isOpen={showSubmitModal}
+        onClose={() => setShowSubmitModal(false)}
+        onSubmit={handleSubmitPODOrder}
       />
     </Card>
   );

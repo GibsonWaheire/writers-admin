@@ -93,8 +93,8 @@ export default function OrdersPage() {
     setIsModalOpen(true);
   };
 
-  const handleOrderActionLocal = (action: string, orderId: string, notes?: string) => {
-    handleOrderAction(action, orderId, notes);
+  const handleOrderActionLocal = (action: string, orderId: string, additionalData?: Record<string, unknown>) => {
+    handleOrderAction(action, orderId, additionalData);
     setIsModalOpen(false);
     setSelectedOrder(null);
   };

@@ -178,6 +178,16 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
         case 'receive_payment':
           newStatus = 'Payment Received';
           break;
+        case 'reassign':
+          newStatus = 'Available';
+          // Clear writer assignment when reassigning
+          return { 
+            ...order, 
+            status: newStatus, 
+            writerId: undefined,
+            assignedWriter: undefined,
+            updatedAt 
+          };
         case 'cancel':
           newStatus = 'Cancelled';
           break;
