@@ -19,7 +19,6 @@ interface OrderContextType {
     revision: number;
     completed: number;
     rejected: number;
-    autoReassigned: number;
     cancelled: number;
     onHold: number;
     disputed: number;
@@ -34,7 +33,6 @@ interface OrderContextType {
     revision: Order[];
     completed: Order[];
     rejected: Order[];
-    autoReassigned: Order[];
     cancelled: Order[];
     onHold: Order[];
     disputed: Order[];
@@ -352,7 +350,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           break;
           
         case 'reassign':
-          newStatus = 'Auto-Reassigned';
+          newStatus = 'Available';
           updates.reassignmentReason = additionalData?.reason || 'No reason provided';
           updates.reassignedAt = new Date().toISOString();
           updates.reassignedBy = additionalData?.writerId || 'unknown';
@@ -413,7 +411,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   // Get available orders (excluding assigned orders)
   const getAvailableOrders = useCallback(() => {
     return orders.filter(order => 
-      order.status === 'Available' && 
+      (order.status === 'Available' || order.status === 'Auto-Reassigned') && 
       !order.writerId && 
       !order.assignedWriter
     );
@@ -439,7 +437,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       revision: writerOrders.filter(o => o.status === 'Revision').length,
       completed: writerOrders.filter(o => o.status === 'Completed').length,
       rejected: writerOrders.filter(o => o.status === 'Rejected').length,
-      autoReassigned: writerOrders.filter(o => o.status === 'Auto-Reassigned').length,
+      autoReassigned: 0, // Reassigned orders now go back to Available status
       cancelled: writerOrders.filter(o => o.status === 'Cancelled').length,
       onHold: writerOrders.filter(o => o.status === 'On Hold').length,
       disputed: writerOrders.filter(o => o.status === 'Disputed').length,
@@ -459,7 +457,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       revision: writerOrders.filter(o => o.status === 'Revision'),
       completed: writerOrders.filter(o => o.status === 'Completed'),
       rejected: writerOrders.filter(o => o.status === 'Rejected'),
-      autoReassigned: writerOrders.filter(o => o.status === 'Auto-Reassigned'),
+      autoReassigned: [], // Reassigned orders now go back to Available status
       cancelled: writerOrders.filter(o => o.status === 'Cancelled'),
       onHold: writerOrders.filter(o => o.status === 'On Hold'),
       disputed: writerOrders.filter(o => o.status === 'Disputed'),

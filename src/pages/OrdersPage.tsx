@@ -30,7 +30,7 @@ export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("orders");
+  const [activeTab, setActiveTab] = useState("available");
   const [filterDiscipline, setFilterDiscipline] = useState<string>("");
   const [filterPaperType, setFilterPaperType] = useState<string>("");
   const [filterPriceRange, setFilterPriceRange] = useState<string>("");
@@ -42,7 +42,6 @@ export default function OrdersPage() {
     getAvailableOrders,
     getWriterActiveOrders,
     getWriterOrderStats,
-    getWriterOrdersByCategory,
     confirmOrder,
     getWriterTotalEarnings,
     pickOrder
@@ -54,19 +53,19 @@ export default function OrdersPage() {
   const writerId = user?.id || 'writer-1'; // Default for demo
 
   // Get orders by status - properly categorized
-  const availableOrders = getAvailableOrders(); // Available orders
-  const pendingApprovalOrders = getOrdersByStatus('Submitted');
-  const inProgressOrders = getOrdersByStatus('In Progress');
-  const completedOrders = getOrdersByStatus('Completed');
-  const rejectedOrders = getOrdersByStatus('Rejected');
-  const editorRevisionOrders = getOrdersByStatus('Revision');
-  const submittedToAdminOrders = getOrdersByStatus('Submitted');
-  const adminApprovedOrders = getOrdersByStatus('Approved');
+  const availableOrders = getAvailableOrders(); // Only truly available orders (status: 'Available', no writerId)
+  const assignedOrders = getOrdersByStatus('Assigned'); // Orders picked but not yet started
+  const inProgressOrders = getOrdersByStatus('In Progress'); // Orders actively being worked on
+  const submittedOrders = getOrdersByStatus('Submitted'); // Orders submitted for review
+  const approvedOrders = getOrdersByStatus('Approved'); // Orders approved by admin
+  const completedOrders = getOrdersByStatus('Completed'); // Orders marked as complete
+  const rejectedOrders = getOrdersByStatus('Rejected'); // Orders rejected by admin
+  const revisionOrders = getOrdersByStatus('Revision'); // Orders requiring revision
+  const resubmittedOrders = getOrdersByStatus('Resubmitted'); // Orders resubmitted after revision
 
   // Get writer-specific orders and stats (excluding POD orders)
   const myOrders = getWriterActiveOrders(writerId);
   const writerStats = getWriterOrderStats(writerId);
-  const writerOrdersByCategory = getWriterOrdersByCategory(writerId);
   const writerTotalEarnings = getWriterTotalEarnings(writerId);
 
   // Filter orders based on search and filters
@@ -245,7 +244,7 @@ export default function OrdersPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-700">
-                {submittedToAdminOrders.length + pendingApprovalOrders.length}
+                {submittedOrders.length + resubmittedOrders.length}
               </div>
               <p className="text-xs text-yellow-600">Awaiting admin action</p>
             </CardContent>
@@ -258,7 +257,7 @@ export default function OrdersPage() {
               <RefreshCw className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-700">{editorRevisionOrders.length}</div>
+              <div className="text-2xl font-bold text-red-700">{revisionOrders.length}</div>
               <p className="text-xs text-red-600">Need writer attention</p>
             </CardContent>
           </Card>
@@ -270,7 +269,7 @@ export default function OrdersPage() {
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-700">{adminApprovedOrders.length}</div>
+              <div className="text-2xl font-bold text-green-700">{approvedOrders.length}</div>
               <p className="text-xs text-green-600">Ready for client</p>
             </CardContent>
           </Card>
@@ -413,31 +412,31 @@ export default function OrdersPage() {
       {/* Orders Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="orders" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Orders ({filterOrders([...availableOrders, ...myOrders]).length})
+          <TabsTrigger value="available" className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            Available ({filterOrders(availableOrders).length})
           </TabsTrigger>
-          
-          {isAdmin && (
-            <TabsTrigger value="pending-approval" className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Pending Approval ({filterOrders(pendingApprovalOrders).length})
-            </TabsTrigger>
-          )}
           
           <TabsTrigger value="assigned" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Assigned ({filterOrders(inProgressOrders).length})
+            Assigned ({filterOrders([...assignedOrders, ...inProgressOrders]).length})
           </TabsTrigger>
+
+          {isAdmin && (
+            <TabsTrigger value="submitted" className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Submitted ({filterOrders([...submittedOrders, ...resubmittedOrders]).length})
+            </TabsTrigger>
+          )}
 
           <TabsTrigger value="revisions" className="flex items-center gap-2">
             <RefreshCw className="h-4 w-4" />
-            Revisions ({filterOrders(editorRevisionOrders).length})
+            Revisions ({filterOrders(revisionOrders).length})
           </TabsTrigger>
           
           <TabsTrigger value="completed" className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4" />
-            Completed ({filterOrders(completedOrders).length})
+            Completed ({filterOrders([...approvedOrders, ...completedOrders]).length})
           </TabsTrigger>
           
           <TabsTrigger value="rejected" className="flex items-center gap-2">
@@ -446,111 +445,77 @@ export default function OrdersPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Consolidated Orders Tab */}
-        <TabsContent value="orders" className="space-y-6">
-          {/* Orders Categories */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer bg-blue-50 border-blue-200">
-              <CardContent className="p-4 text-center">
-                <BookOpen className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-blue-600">{availableOrders.length}</div>
-                <p className="text-sm text-blue-600">Available Orders</p>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-md transition-shadow cursor-pointer bg-green-50 border-green-200">
-              <CardContent className="p-4 text-center">
-                <FileText className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-green-600">{myOrders.length}</div>
-                <p className="text-sm text-green-600">My Active Orders</p>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-md transition-shadow cursor-pointer bg-purple-50 border-purple-200">
-              <CardContent className="p-4 text-center">
-                <CheckCircle className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-purple-600">{writerOrdersByCategory.completed.length}</div>
-                <p className="text-sm text-purple-600">Completed</p>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-md transition-shadow cursor-pointer bg-orange-50 border-orange-200">
-              <CardContent className="p-4 text-center">
-                <DollarSign className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-orange-600">
-                  KES {writerTotalEarnings.toLocaleString()}
-                </div>
-                <p className="text-sm text-orange-600">Total Earnings</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Orders Table */}
-          <AvailableOrdersTable
-            orders={[...availableOrders, ...myOrders]}
-            onView={handleViewOrder}
-            onConfirm={handleOrderConfirm}
-            userRole={userRole}
-          />
-        </TabsContent>
-
-        {/* Pending Approval Tab (Admins Only) */}
-        {isAdmin && (
-          <TabsContent value="pending-approval" className="space-y-4">
-            <div className="grid gap-4">
-              {filterOrders(pendingApprovalOrders).length > 0 ? (
-                filterOrders(pendingApprovalOrders).map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    userRole={userRole}
-                    onView={handleViewOrder}
-                    onAction={handleOrderActionLocal}
-                    onConfirm={handleOrderConfirm}
-                    showActions={true}
-                  />
-                ))
-              ) : (
-                <Card className="text-center py-12">
-                  <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Pending Approvals</h3>
-                  <p className="text-gray-500">All orders have been reviewed and processed.</p>
-                </Card>
+        {/* Available Orders Tab */}
+        <TabsContent value="available" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Available Orders</h3>
+            <div className="text-sm text-gray-600">
+              <span>{availableOrders.length} orders available for pickup</span>
+              {availableOrders.some(order => order.status === 'Auto-Reassigned') && (
+                <span className="ml-2 text-orange-600">
+                  ({availableOrders.filter(order => order.status === 'Auto-Reassigned').length} reassigned)
+                </span>
               )}
             </div>
-          </TabsContent>
-        )}
+          </div>
+          
+          {filterOrders(availableOrders).length > 0 ? (
+            <AvailableOrdersTable
+              orders={filterOrders(availableOrders)}
+              onView={handleViewOrder}
+              onConfirm={handleOrderConfirm}
+              userRole={userRole}
+            />
+          ) : (
+            <div className="text-center py-12">
+              <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">No Available Orders</h3>
+              <p className="text-gray-500">All orders have been picked by writers.</p>
+            </div>
+          )}
+        </TabsContent>
 
         {/* Assigned Orders Tab */}
         <TabsContent value="assigned" className="space-y-4">
-          <div className="grid gap-4">
-            {filterOrders(inProgressOrders).length > 0 ? (
-              filterOrders(inProgressOrders).map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  userRole={userRole}
-                  onView={handleViewOrder}
-                  onAction={handleOrderActionLocal}
-                  onConfirm={handleOrderConfirm}
-                  showActions={true}
-                />
-              ))
-            ) : (
-              <Card className="text-center py-12">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Assigned Orders</h3>
-                <p className="text-gray-500">No orders are currently in progress.</p>
-              </Card>
-            )}
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Assigned Orders</h3>
+            <p className="text-sm text-gray-600">
+              {assignedOrders.length + inProgressOrders.length} orders assigned to writers
+            </p>
           </div>
+          
+          {filterOrders([...assignedOrders, ...inProgressOrders]).length > 0 ? (
+            filterOrders([...assignedOrders, ...inProgressOrders]).map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                userRole={userRole}
+                onView={handleViewOrder}
+                onAction={handleOrderActionLocal}
+                onConfirm={handleOrderConfirm}
+              />
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">No Assigned Orders</h3>
+              <p className="text-gray-500">No orders have been assigned to writers yet.</p>
+            </div>
+          )}
         </TabsContent>
 
-        {/* Revisions Tab - NEW */}
-        <TabsContent value="revisions" className="space-y-4">
-          <div className="grid gap-4">
-            {filterOrders(editorRevisionOrders).length > 0 ? (
-              filterOrders(editorRevisionOrders).map((order) => (
+        {/* Submitted Orders Tab (Admins Only) */}
+        {isAdmin && (
+          <TabsContent value="submitted" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Submitted Orders</h3>
+              <p className="text-sm text-gray-600">
+                {submittedOrders.length + resubmittedOrders.length} orders awaiting review
+              </p>
+            </div>
+            
+            {filterOrders([...submittedOrders, ...resubmittedOrders]).length > 0 ? (
+              filterOrders([...submittedOrders, ...resubmittedOrders]).map((order) => (
                 <OrderCard
                   key={order.id}
                   order={order}
@@ -562,61 +527,103 @@ export default function OrdersPage() {
                 />
               ))
             ) : (
-              <Card className="text-center py-12">
-                <RefreshCw className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Revisions Required</h3>
-                <p className="text-gray-500">All your orders are up to standard.</p>
-              </Card>
+              <div className="text-center py-12">
+                <AlertTriangle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-600 mb-2">No Submitted Orders</h3>
+                <p className="text-gray-500">All orders have been reviewed and processed.</p>
+              </div>
             )}
+          </TabsContent>
+        )}
+
+        {/* Revisions Tab */}
+        <TabsContent value="revisions" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Orders Requiring Revision</h3>
+            <p className="text-sm text-gray-600">
+              {revisionOrders.length} orders need revision
+            </p>
           </div>
+          
+          {filterOrders(revisionOrders).length > 0 ? (
+            filterOrders(revisionOrders).map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                userRole={userRole}
+                onView={handleViewOrder}
+                onAction={handleOrderActionLocal}
+                onConfirm={handleOrderConfirm}
+                showActions={true}
+              />
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <RefreshCw className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">No Revisions Required</h3>
+              <p className="text-gray-500">All orders are up to standard.</p>
+            </div>
+          )}
         </TabsContent>
 
         {/* Completed Orders Tab */}
         <TabsContent value="completed" className="space-y-4">
-          <div className="grid gap-4">
-            {filterOrders(completedOrders).length > 0 ? (
-              filterOrders(completedOrders).map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  userRole={userRole}
-                  onView={handleViewOrder}
-                  onAction={handleOrderActionLocal}
-                  showActions={false}
-                />
-              ))
-            ) : (
-              <Card className="text-center py-12">
-                <CheckCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Completed Orders</h3>
-                <p className="text-gray-500">No orders have been completed yet.</p>
-              </Card>
-            )}
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Completed Orders</h3>
+            <p className="text-sm text-gray-600">
+              {approvedOrders.length + completedOrders.length} orders completed
+            </p>
           </div>
+          
+          {filterOrders([...approvedOrders, ...completedOrders]).length > 0 ? (
+            filterOrders([...approvedOrders, ...completedOrders]).map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                userRole={userRole}
+                onView={handleViewOrder}
+                onAction={handleOrderActionLocal}
+                onConfirm={handleOrderConfirm}
+                showActions={false}
+              />
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <CheckCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">No Completed Orders</h3>
+              <p className="text-gray-500">No orders have been completed yet.</p>
+            </div>
+          )}
         </TabsContent>
 
         {/* Rejected Orders Tab */}
         <TabsContent value="rejected" className="space-y-4">
-          <div className="grid gap-4">
-            {filterOrders(rejectedOrders).length > 0 ? (
-              filterOrders(rejectedOrders).map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  userRole={userRole}
-                  onView={handleViewOrder}
-                  onAction={handleOrderActionLocal}
-                  showActions={false}
-                />
-              ))
-            ) : (
-              <Card className="text-center py-12">
-                <XCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Rejected Orders</h3>
-                <p className="text-gray-500">No orders have been rejected.</p>
-              </Card>
-            )}
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Rejected Orders</h3>
+            <p className="text-sm text-gray-600">
+              {rejectedOrders.length} orders rejected
+            </p>
           </div>
+          
+          {filterOrders(rejectedOrders).length > 0 ? (
+            filterOrders(rejectedOrders).map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                userRole={userRole}
+                onView={handleViewOrder}
+                onAction={handleOrderActionLocal}
+                onConfirm={handleOrderConfirm}
+                showActions={false}
+              />
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <XCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">No Rejected Orders</h3>
+              <p className="text-gray-500">Great! No orders have been rejected.</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

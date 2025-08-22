@@ -213,10 +213,17 @@ export function AvailableOrdersTable({
                     
                     <TableCell className="py-4">
                       <div className="space-y-2">
-                        {order.status === 'Available' && !order.writerId ? (
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                            Available
-                          </Badge>
+                        {(order.status === 'Available' || order.status === 'Auto-Reassigned') && !order.writerId ? (
+                          <div className="space-y-1">
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              {order.status === 'Auto-Reassigned' ? 'Reassigned' : 'Available'}
+                            </Badge>
+                            {order.status === 'Auto-Reassigned' && (
+                              <div className="text-xs text-orange-600">
+                                Previously assigned to another writer
+                              </div>
+                            )}
+                          </div>
                         ) : order.writerId ? (
                           <div className="space-y-1">
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
