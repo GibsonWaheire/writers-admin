@@ -3,8 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Input } from './ui/input';
-import { AlertTriangle, FileText, Upload, CheckCircle, Truck, Calendar } from 'lucide-react';
+import { AlertTriangle, FileText, Upload, CheckCircle, Send } from 'lucide-react';
 import type { PODOrder } from '../types/pod';
 
 interface PODSubmitModalProps {
@@ -14,9 +13,6 @@ interface PODSubmitModalProps {
   onSubmit: (submission: {
     files: File[];
     notes: string;
-    estimatedDeliveryTime?: string;
-    deliveryAddress?: string;
-    clientContactInfo?: string;
   }) => void;
 }
 
@@ -27,9 +23,6 @@ export function PODSubmitModal({
   onSubmit 
 }: PODSubmitModalProps) {
   const [notes, setNotes] = useState('');
-  const [estimatedDeliveryTime, setEstimatedDeliveryTime] = useState('');
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [clientContactInfo, setClientContactInfo] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,16 +33,10 @@ export function PODSubmitModal({
     try {
       await onSubmit({
         files: uploadedFiles,
-        notes: notes.trim(),
-        estimatedDeliveryTime: estimatedDeliveryTime.trim() || undefined,
-        deliveryAddress: deliveryAddress.trim() || undefined,
-        clientContactInfo: clientContactInfo.trim() || undefined
+        notes: notes.trim()
       });
       onClose();
       setNotes('');
-      setEstimatedDeliveryTime('');
-      setDeliveryAddress('');
-      setClientContactInfo('');
       setUploadedFiles([]);
     } finally {
       setIsSubmitting(false);
@@ -72,12 +59,15 @@ export function PODSubmitModal({
         <DialogHeader className="border-b border-gray-200 pb-4">
           <DialogTitle className="flex items-center gap-3 text-2xl font-bold text-gray-900">
             <div className="p-2 bg-blue-100 rounded-full">
-              <Truck className="h-6 w-6 text-blue-600" />
+              <Send className="h-6 w-6 text-blue-600" />
             </div>
-            Submit POD Order for Delivery
+            {order.status === 'Revision Required' ? 'Resubmit POD Order After Revision' : 'Submit POD Order to Admin'}
           </DialogTitle>
           <DialogDescription className="text-gray-600 mt-2">
-            Upload completed work and provide delivery information for this POD order
+            {order.status === 'Revision Required' 
+              ? 'Upload revised work and resubmit to admin for review'
+              : 'Upload completed work and submit to admin for review and approval'
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -118,7 +108,7 @@ export function PODSubmitModal({
               </div>
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-orange-100 rounded-lg">
-                  <Calendar className="h-4 w-4 text-orange-600" />
+                  <FileText className="h-4 w-4 text-orange-600" />
                 </div>
                 <div>
                   <span className="text-gray-500 text-xs uppercase tracking-wide">Deadline</span>
@@ -130,7 +120,7 @@ export function PODSubmitModal({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-green-100 rounded-lg">
-                    <Truck className="h-5 w-5 text-green-600" />
+                    <FileText className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
                     <span className="text-gray-500 text-xs uppercase tracking-wide">POD Amount</span>
@@ -140,24 +130,57 @@ export function PODSubmitModal({
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-gray-500 text-xs uppercase tracking-wide">Payment Terms</span>
-                  <p className="text-sm font-medium text-gray-700">Pay on Delivery</p>
+                  <span className="text-gray-500 text-xs uppercase tracking-wide">Status</span>
+                  <p className="text-sm font-medium text-gray-700">Ready for Admin Review</p>
                 </div>
               </div>
             </div>
           </div>
 
+          {/* Revision Information - Show only for revision orders */}
+          {order.status === 'Revision Required' && order.revisionNotes && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+                <div className="text-sm text-red-800">
+                  <p className="font-medium mb-2">Revision Required - Previous Feedback</p>
+                  <div className="bg-white p-3 rounded border mt-2">
+                    <p className="text-gray-800">{order.revisionNotes}</p>
+                    {order.revisionCount && order.revisionCount > 1 && (
+                      <p className="text-xs text-gray-600 mt-2">
+                        This is revision #{order.revisionCount} for this order.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Important Notice */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className={`border rounded-lg p-4 ${
+            order.status === 'Revision Required' 
+              ? 'bg-orange-50 border-orange-200' 
+              : 'bg-blue-50 border-blue-200'
+          }`}>
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div className="text-sm text-blue-800">
-                <p className="font-medium mb-2">Important: POD Delivery Process</p>
+              <AlertTriangle className={`h-5 w-5 mt-0.5 ${
+                order.status === 'Revision Required' ? 'text-orange-600' : 'text-blue-600'
+              }`} />
+              <div className={`text-sm ${
+                order.status === 'Revision Required' ? 'text-orange-800' : 'text-blue-800'
+              }`}>
+                <p className="font-medium mb-2">
+                  {order.status === 'Revision Required' 
+                    ? 'Important: POD Order Resubmission Process'
+                    : 'Important: POD Order Submission Process'
+                  }
+                </p>
                 <ul className="list-disc list-inside space-y-1">
-                  <li>Upload the completed work files</li>
-                  <li>Provide delivery information and timing</li>
-                  <li>You will be responsible for physical delivery</li>
-                  <li>Payment must be collected upon successful delivery</li>
+                  <li>Upload the {order.status === 'Revision Required' ? 'revised' : 'completed'} work files</li>
+                  <li>Admin will review your {order.status === 'Revision Required' ? 'resubmission' : 'submission'}</li>
+                  <li>Once approved, order will be marked as ready for delivery</li>
+                  <li>You will then coordinate delivery with the client</li>
                 </ul>
               </div>
             </div>
@@ -222,64 +245,6 @@ export function PODSubmitModal({
             )}
           </div>
 
-          {/* Delivery Information */}
-          <div className="space-y-4">
-            <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-              <Truck className="h-5 w-5 text-indigo-600" />
-              Delivery Information
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="estimatedDeliveryTime" className="font-medium text-gray-700">
-                  Estimated Delivery Time
-                </Label>
-                <Input
-                  id="estimatedDeliveryTime"
-                  value={estimatedDeliveryTime}
-                  onChange={(e) => setEstimatedDeliveryTime(e.target.value)}
-                  placeholder="e.g., 2 hours, 1 day, etc."
-                  className="mt-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  When do you expect to deliver this order?
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="deliveryAddress" className="font-medium text-gray-700">
-                  Delivery Address
-                </Label>
-                <Input
-                  id="deliveryAddress"
-                  value={deliveryAddress}
-                  onChange={(e) => setDeliveryAddress(e.target.value)}
-                  placeholder="Client delivery address"
-                  className="mt-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  Where will you deliver this order?
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="clientContactInfo" className="font-medium text-gray-700">
-                Client Contact Information
-              </Label>
-              <Input
-                id="clientContactInfo"
-                value={clientContactInfo}
-                onChange={(e) => setClientContactInfo(e.target.value)}
-                placeholder="Client phone, email, or contact details"
-                className="mt-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                How can you contact the client for delivery coordination?
-              </p>
-            </div>
-          </div>
-
           {/* Additional Information */}
           <div>
             <Label htmlFor="notes" className="font-medium text-gray-700">
@@ -289,28 +254,51 @@ export function PODSubmitModal({
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any special notes, delivery instructions, or additional context..."
+              placeholder="Any special notes, completion details, or additional context for admin review..."
               className="mt-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               rows={3}
             />
             <p className="text-xs text-gray-500 mt-2">
-              Optional: Provide context about your delivery plans or any special requirements.
+              Optional: Provide context about your work, any special considerations, or notes for admin review.
             </p>
           </div>
 
           {/* Submission Checklist */}
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className={`border rounded-lg p-4 ${
+            order.status === 'Revision Required' 
+              ? 'bg-orange-50 border-orange-200' 
+              : 'bg-green-50 border-green-200'
+          }`}>
             <div className="flex items-start gap-3">
-              <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-              <div className="text-sm text-green-800">
-                <p className="font-medium mb-2">Submission Checklist:</p>
+              <CheckCircle className={`h-5 w-5 mt-0.5 ${
+                order.status === 'Revision Required' ? 'text-orange-600' : 'text-green-600'
+              }`} />
+              <div className={`text-sm ${
+                order.status === 'Revision Required' ? 'text-orange-800' : 'text-green-800'
+              }`}>
+                <p className="font-medium mb-2">
+                  {order.status === 'Revision Required' ? 'Resubmission Checklist:' : 'Submission Checklist:'}
+                </p>
                 <ul className="list-disc list-inside space-y-1">
-                  <li>✅ Work is complete and meets requirements</li>
-                  <li>✅ Files are properly formatted and readable</li>
-                  <li>✅ All instructions have been followed</li>
-                  <li>✅ Work has been proofread and edited</li>
-                  <li>✅ Ready for physical delivery to client</li>
-                  <li>✅ Payment collection plan is in place</li>
+                  {order.status === 'Revision Required' ? (
+                    <>
+                      <li>✅ Revision feedback has been addressed</li>
+                      <li>✅ All requested changes have been made</li>
+                      <li>✅ Work quality has been improved</li>
+                      <li>✅ Files are properly formatted and readable</li>
+                      <li>✅ Work has been proofread and edited</li>
+                      <li>✅ Ready for admin review and approval</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>✅ Work is complete and meets requirements</li>
+                      <li>✅ Files are properly formatted and readable</li>
+                      <li>✅ All instructions have been followed</li>
+                      <li>✅ Work has been proofread and edited</li>
+                      <li>✅ Ready for admin review and approval</li>
+                      <li>✅ All necessary files are uploaded</li>
+                    </>
+                  )}
                 </ul>
               </div>
             </div>
@@ -338,8 +326,8 @@ export function PODSubmitModal({
                 </>
               ) : (
                 <>
-                  <CheckCircle className="h-5 w-5 mr-2" />
-                  Submit for Delivery
+                  <Send className="h-5 w-5 mr-2" />
+                  Submit to Admin
                 </>
               )}
             </Button>

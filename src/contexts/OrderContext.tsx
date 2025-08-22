@@ -238,6 +238,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
+      totalPriceKES: 54000,
       clientMessages: [],
       uploadedFiles: [],
       additionalInstructions: 'Focus on studies from the last 10 years and include meta-analysis'
@@ -256,7 +257,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       priceKES: 48000,
       cpp: 4800,
       deadline: '2024-02-05',
-      status: 'Upload to Client',
+      status: 'Submitted to Admin',
       assignedWriter: 'John Doe',
       writerId: 'writer-1',
       createdAt: '2024-01-18',
@@ -264,6 +265,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
+      totalPriceKES: 48000,
       clientMessages: [
         {
           id: 'msg-4',
@@ -307,6 +309,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
+      totalPriceKES: 90000,
       clientMessages: [
         {
           id: 'msg-5',
@@ -350,6 +353,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
+      totalPriceKES: 27000,
       clientMessages: [
         {
           id: 'msg-6',
@@ -383,6 +387,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
+      totalPriceKES: 48000,
       clientMessages: [
         {
           id: 'msg-7',
@@ -418,7 +423,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       priceKES: 36000,
       cpp: 4500,
       deadline: '2024-02-10',
-      status: 'Approved',
+      status: 'Client Approved',
       assignedWriter: 'John Doe',
       writerId: 'writer-1',
       createdAt: '2024-01-20',
@@ -426,6 +431,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
+      totalPriceKES: 36000,
       clientMessages: [
         {
           id: 'msg-8',
@@ -459,6 +465,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
+      totalPriceKES: 81000,
       clientMessages: [
         {
           id: 'msg-9',
@@ -513,7 +520,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       
       let newStatus = order.status;
       const updatedAt = new Date().toISOString();
-      let updates: any = { updatedAt };
+      const updates: Record<string, unknown> = { updatedAt };
       
       switch (action) {
         case 'pick':
@@ -525,7 +532,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         case 'submit_to_admin':
           newStatus = 'Submitted to Admin';
           updates.submittedToAdminAt = new Date().toISOString();
-          if (additionalData?.files) {
+          if (additionalData?.files && Array.isArray(additionalData.files)) {
             updates.uploadedFiles = [...order.uploadedFiles, ...additionalData.files];
           }
           if (additionalData?.notes) {
@@ -624,9 +631,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       pending: writerOrders.filter(o => o.status === 'Under Admin Review').length,
       available: writerOrders.filter(o => o.status === 'Available').length,
       inProgress: writerOrders.filter(o => o.status === 'In Progress').length,
-      submittedToAdmin: writerOrders.filter(o => o.status === 'Submitted to Admin').length,
+      uploadToClient: writerOrders.filter(o => o.status === 'Submitted to Admin').length,
       editorRevision: writerOrders.filter(o => o.status === 'Editor Revision').length,
-      adminApproved: writerOrders.filter(o => o.status === 'Admin Approved').length,
+      approved: writerOrders.filter(o => o.status === 'Admin Approved').length,
       payLater: writerOrders.filter(o => o.status === 'Pay Later').length,
       completed: writerOrders.filter(o => o.status === 'Completed').length,
       rejected: writerOrders.filter(o => o.status === 'Rejected').length,
@@ -643,9 +650,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       pending: writerOrders.filter(o => o.status === 'Under Admin Review'),
       available: writerOrders.filter(o => o.status === 'Available'),
       inProgress: writerOrders.filter(o => o.status === 'In Progress'),
-      submittedToAdmin: writerOrders.filter(o => o.status === 'Submitted to Admin'),
+      uploadToClient: writerOrders.filter(o => o.status === 'Submitted to Admin'),
       editorRevision: writerOrders.filter(o => o.status === 'Editor Revision'),
-      adminApproved: writerOrders.filter(o => o.status === 'Admin Approved'),
+      approved: writerOrders.filter(o => o.status === 'Admin Approved'),
       payLater: writerOrders.filter(o => o.status === 'Pay Later'),
       completed: writerOrders.filter(o => o.status === 'Completed'),
       rejected: writerOrders.filter(o => o.status === 'Rejected'),

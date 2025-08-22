@@ -5,16 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Checkbox } from './ui/checkbox';
 import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
-import { Badge } from './ui/badge';
 import { 
   AlertTriangle, 
   CheckCircle, 
-  Clock, 
-  DollarSign, 
   FileText, 
-  BookOpen,
   MessageSquare,
-  Upload
+  DollarSign
 } from 'lucide-react';
 import type { Order, WriterQuestion, WriterConfirmation } from '../types/order';
 

@@ -17,6 +17,9 @@ import { OrderProvider } from "./contexts/OrderContext";
 import { PODProvider } from "./contexts/PODContext";
 import { WalletProvider } from "./contexts/WalletContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { MessagesProvider } from './contexts/MessagesContext';
+import { InvoicesProvider } from './contexts/InvoicesContext';
+import MessagesPage from './pages/MessagesPage';
 
 const queryClient = new QueryClient();
 
@@ -108,10 +111,7 @@ function AppRouter() {
       <Route path="/messages" element={
         <ProtectedRoute>
           <Layout>
-            <div className="p-6">
-              <h1 className="text-2xl font-bold">Messages</h1>
-              <p>Messages functionality coming soon...</p>
-            </div>
+            <MessagesPage />
           </Layout>
         </ProtectedRoute>
       } />
@@ -141,11 +141,15 @@ const App = () => (
         <OrderProvider>
           <PODProvider>
             <WalletProvider>
-              <TooltipProvider>
-                <BrowserRouter>
-                  <AppRouter />
-                </BrowserRouter>
-              </TooltipProvider>
+              <MessagesProvider>
+                <InvoicesProvider>
+                  <TooltipProvider>
+                    <BrowserRouter>
+                      <AppRouter />
+                    </BrowserRouter>
+                  </TooltipProvider>
+                </InvoicesProvider>
+              </MessagesProvider>
             </WalletProvider>
           </PODProvider>
         </OrderProvider>

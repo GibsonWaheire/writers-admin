@@ -181,12 +181,13 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
     ));
   }, []);
 
-  const handlePODOrderAction = useCallback((action: string, orderId: string) => {
+  const handlePODOrderAction = useCallback((action: string, orderId: string, additionalData?: Record<string, unknown>) => {
     setPODOrders(prev => prev.map(order => {
       if (order.id !== orderId) return order;
       
       let newStatus = order.status;
       const updatedAt = new Date().toISOString();
+      const updates: Record<string, unknown> = { updatedAt };
       
       switch (action) {
         case 'pick':
@@ -194,6 +195,28 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
           break;
         case 'start_working':
           newStatus = 'In Progress';
+          break;
+        case 'submit_to_admin':
+          newStatus = 'Submitted to Admin';
+          break;
+        case 'admin_approve':
+          newStatus = 'Admin Approved';
+          updates.adminReviewedAt = new Date().toISOString();
+          updates.adminReviewedBy = additionalData?.adminId || 'admin';
+          if (additionalData?.notes) {
+            updates.adminReviewNotes = additionalData.notes;
+          }
+          break;
+        case 'admin_reject':
+          newStatus = 'Revision Required';
+          updates.adminReviewedAt = new Date().toISOString();
+          updates.adminReviewedBy = additionalData?.adminId || 'admin';
+          if (additionalData?.notes) {
+            updates.revisionNotes = additionalData.notes;
+            updates.revisionRequestedAt = new Date().toISOString();
+            updates.revisionRequestedBy = additionalData?.adminId || 'admin';
+            updates.revisionCount = (order.revisionCount || 0) + 1;
+          }
           break;
         case 'ready_for_delivery':
           newStatus = 'Ready for Delivery';
@@ -203,6 +226,9 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
           break;
         case 'receive_payment':
           newStatus = 'Payment Received';
+          break;
+        case 'complete':
+          newStatus = 'Completed';
           break;
         case 'reassign':
           newStatus = 'Available';
@@ -228,7 +254,7 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
           break;
       }
       
-      return { ...order, status: newStatus, updatedAt };
+      return { ...order, status: newStatus, ...updates };
     }));
   }, []);
 
@@ -245,7 +271,7 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
   const getWriterPODOrders = useCallback((writerId: string) => {
     return pODOrders.filter(order => 
       order.writerId === writerId && 
-      ['Assigned', 'In Progress', 'Ready for Delivery', 'Delivered', 'Payment Received'].includes(order.status)
+      ['Assigned', 'In Progress', 'Submitted to Admin', 'Admin Approved', 'Revision Required', 'Ready for Delivery', 'Delivered', 'Payment Received', 'Completed'].includes(order.status)
     );
   }, [pODOrders]);
 
@@ -257,9 +283,13 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
       available: writerOrders.filter(o => o.status === 'Available').length,
       assigned: writerOrders.filter(o => o.status === 'Assigned').length,
       inProgress: writerOrders.filter(o => o.status === 'In Progress').length,
+      submittedToAdmin: writerOrders.filter(o => o.status === 'Submitted to Admin').length,
+      adminApproved: writerOrders.filter(o => o.status === 'Admin Approved').length,
+      revisionRequired: writerOrders.filter(o => o.status === 'Revision Required').length,
       readyForDelivery: writerOrders.filter(o => o.status === 'Ready for Delivery').length,
       delivered: writerOrders.filter(o => o.status === 'Delivered').length,
       paymentReceived: writerOrders.filter(o => o.status === 'Payment Received').length,
+      completed: writerOrders.filter(o => o.status === 'Completed').length,
       cancelled: writerOrders.filter(o => o.status === 'Cancelled').length,
       onHold: writerOrders.filter(o => o.status === 'On Hold').length,
       disputed: writerOrders.filter(o => o.status === 'Disputed').length,

@@ -9,30 +9,53 @@ import {
   FileText,
   CheckCircle,
   Clock,
-  XCircle
+  XCircle,
+  AlertTriangle,
+  TrendingUp,
+  User
 } from 'lucide-react';
-import type { Invoice } from '../types/order';
+import type { InvoiceData } from '../contexts/InvoicesContext';
 
 interface InvoiceCardProps {
-  invoice: Invoice;
+  invoice: InvoiceData;
   onDownload?: (invoiceId: string) => void;
 }
 
 export function InvoiceCard({ invoice, onDownload }: InvoiceCardProps) {
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      'pending': { variant: 'secondary' as const, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: <Clock className="h-4 w-4" /> },
-      'paid': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: <CheckCircle className="h-4 w-4" /> },
-      'cancelled': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: <XCircle className="h-4 w-4" /> }
-    };
+    switch (status) {
+      case 'paid':
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Paid</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pending</Badge>;
+      case 'overdue':
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Overdue</Badge>;
+      case 'cancelled':
+        return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Cancelled</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig['pending'];
-    return (
-      <Badge variant={config.variant} className={`${config.color} ${config.bg} border-0 flex items-center gap-1`}>
-        {config.icon}
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
+  const getPaymentStatusBadge = (paymentStatus: string) => {
+    switch (paymentStatus) {
+      case 'paid':
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Paid</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pending</Badge>;
+      case 'overdue':
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Overdue</Badge>;
+      case 'cancelled':
+        return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Cancelled</Badge>;
+      default:
+        return <Badge variant="outline">{paymentStatus}</Badge>;
+    }
+  };
+
+  const getOrderTypeBadge = (orderType: string) => {
+    return orderType === 'pod' ? 
+      <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">POD Order</Badge> :
+      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Regular Order</Badge>;
   };
 
   const formatDate = (dateString: string) => {
@@ -43,8 +66,15 @@ export function InvoiceCard({ invoice, onDownload }: InvoiceCardProps) {
     });
   };
 
+  const isOverdue = () => {
+    if (invoice.paymentStatus === 'paid' || invoice.paymentStatus === 'cancelled') return false;
+    const dueDate = new Date(invoice.dueDate);
+    const now = new Date();
+    return dueDate < now;
+  };
+
   return (
-    <Card className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-green-500">
+    <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
@@ -57,6 +87,8 @@ export function InvoiceCard({ invoice, onDownload }: InvoiceCardProps) {
           </div>
           <div className="flex flex-col items-end gap-2 ml-4">
             {getStatusBadge(invoice.status)}
+            {getPaymentStatusBadge(invoice.paymentStatus)}
+            {getOrderTypeBadge(invoice.orderType)}
             <span className="text-xs text-gray-500 font-mono">
               Order: {invoice.orderId}
             </span>
@@ -69,7 +101,7 @@ export function InvoiceCard({ invoice, onDownload }: InvoiceCardProps) {
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm">
-              <FileText className="h-4 w-4 text-blue-600" />
+              <User className="h-4 w-4 text-blue-600" />
               <span className="text-gray-600">Writer:</span>
               <span className="font-medium">{invoice.writerName}</span>
             </div>
@@ -78,6 +110,15 @@ export function InvoiceCard({ invoice, onDownload }: InvoiceCardProps) {
               <Calendar className="h-4 w-4 text-green-600" />
               <span className="text-gray-600">Created:</span>
               <span className="font-medium">{formatDate(invoice.createdAt)}</span>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm">
+              <Calendar className="h-4 w-4 text-orange-600" />
+              <span className="text-gray-600">Due Date:</span>
+              <span className={`font-medium ${isOverdue() ? 'text-red-600' : ''}`}>
+                {formatDate(invoice.dueDate)}
+                {isOverdue() && <AlertTriangle className="h-3 w-3 ml-1 inline text-red-600" />}
+              </span>
             </div>
             
             {invoice.paidAt && (
@@ -92,8 +133,20 @@ export function InvoiceCard({ invoice, onDownload }: InvoiceCardProps) {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm">
               <DollarSign className="h-4 w-4 text-green-600" />
-              <span className="text-gray-600">Amount:</span>
-              <span className="font-bold text-green-600">KES {(invoice.order.pages * 350).toLocaleString()}</span>
+              <span className="text-gray-600">Total Amount:</span>
+              <span className="font-bold text-green-600">KES {invoice.totalAmountKES.toLocaleString()}</span>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm">
+              <TrendingUp className="h-4 w-4 text-blue-600" />
+              <span className="text-gray-600">Writer Earnings:</span>
+              <span className="font-medium text-blue-600">KES {invoice.writerEarnings.toLocaleString()}</span>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm">
+              <FileText className="h-4 w-4 text-purple-600" />
+              <span className="text-gray-600">Platform Fee:</span>
+              <span className="font-medium text-purple-600">KES {invoice.platformFee.toLocaleString()}</span>
             </div>
             
             {invoice.paymentMethod && (
@@ -103,26 +156,40 @@ export function InvoiceCard({ invoice, onDownload }: InvoiceCardProps) {
                 <span className="font-medium">{invoice.paymentMethod}</span>
               </div>
             )}
+
+            {invoice.pages && (
+              <div className="flex items-center gap-2 text-sm">
+                <FileText className="h-4 w-4 text-gray-600" />
+                <span className="text-gray-600">Pages:</span>
+                <span className="font-medium">{invoice.pages}</span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-2 border-t border-gray-100">
           <div className="text-sm text-gray-500">
-            {invoice.status === 'paid' && (
+            {invoice.paymentStatus === 'paid' && (
               <span className="flex items-center gap-1 text-green-600">
                 <CheckCircle className="h-3 w-3" />
                 Payment completed
               </span>
             )}
-            {invoice.status === 'pending' && (
+            {invoice.paymentStatus === 'pending' && (
               <span className="flex items-center gap-1 text-yellow-600">
                 <Clock className="h-3 w-3" />
                 Awaiting payment
               </span>
             )}
-            {invoice.status === 'cancelled' && (
+            {invoice.paymentStatus === 'overdue' && (
               <span className="flex items-center gap-1 text-red-600">
+                <AlertTriangle className="h-3 w-3" />
+                Payment overdue
+              </span>
+            )}
+            {invoice.paymentStatus === 'cancelled' && (
+              <span className="flex items-center gap-1 text-gray-600">
                 <XCircle className="h-3 w-3" />
                 Invoice cancelled
               </span>

@@ -34,9 +34,13 @@ const getStatusConfig = (status: PODStatus) => {
     'Available': { variant: 'outline' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '🟢' },
     'Assigned': { variant: 'secondary' as const, color: 'text-blue-600', bg: 'bg-blue-50', icon: '👤' },
     'In Progress': { variant: 'default' as const, color: 'text-blue-600', bg: 'bg-blue-50', icon: '⚡' },
+    'Submitted to Admin': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50', icon: '📋' },
+    'Admin Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
+    'Revision Required': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '🔄' },
     'Ready for Delivery': { variant: 'outline' as const, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '📦' },
     'Delivered': { variant: 'default' as const, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '🚚' },
     'Payment Received': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '💵' },
+    'Completed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '🎉' },
     'Cancelled': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '❌' },
     'On Hold': { variant: 'outline' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '⏸️' },
     'Disputed': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '⚠️' },
@@ -158,15 +162,12 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
   const handleSubmitPODOrder = async (submission: {
     files: File[];
     notes: string;
-    estimatedDeliveryTime?: string;
-    deliveryAddress?: string;
-    clientContactInfo?: string;
   }) => {
     if (user) {
-      // Mark the order as ready for delivery
-      handlePODOrderAction('ready_for_delivery', order.id);
+      // Mark the order as submitted to admin for review
+      handlePODOrderAction('submit_to_admin', order.id);
       // You could also store the submission details
-      console.log(`POD Order ${order.id} submitted for delivery by ${user.name}`, submission);
+      console.log(`POD Order ${order.id} submitted to admin by ${user.name}`, submission);
     }
   };
 
@@ -395,9 +396,97 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 <FileText className="w-4 h-4 mr-2" />
-                Submit Order
+                Submit to Admin
               </Button>
             </>
+          )}
+
+          {/* Action for Admin Approved Orders */}
+          {order.status === 'Admin Approved' && order.writerId === user?.id && (
+            <Button 
+              onClick={handleReadyForDelivery}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Truck className="w-4 h-4 mr-2" />
+              Mark Ready for Delivery
+            </Button>
+          )}
+
+          {/* Action for Ready for Delivery Orders */}
+          {order.status === 'Ready for Delivery' && order.writerId === user?.id && (
+            <Button 
+              onClick={() => setIsDeliveryModalOpen(true)}
+              className="bg-yellow-600 hover:bg-yellow-700"
+            >
+              <Truck className="w-4 h-4 mr-2" />
+              Record Delivery
+            </Button>
+          )}
+
+          {/* Show admin review status for submitted orders */}
+          {order.status === 'Submitted to Admin' && order.writerId === user?.id && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-purple-800">
+                <FileText className="h-5 w-5" />
+                <span className="font-medium">Submitted to Admin for Review</span>
+              </div>
+              <p className="text-sm text-purple-600 mt-1">
+                Your work has been submitted and is awaiting admin review. 
+                You will be notified once it's approved and ready for delivery.
+              </p>
+            </div>
+          )}
+
+          {/* Show admin approved status */}
+          {order.status === 'Admin Approved' && order.writerId === user?.id && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-green-800">
+                <CheckCircle className="h-5 w-5" />
+                <span className="font-medium">Admin Approved - Ready for Delivery</span>
+              </div>
+              <p className="text-sm text-green-600 mt-1">
+                Your work has been approved by admin. You can now proceed with delivery to the client.
+              </p>
+              {order.adminReviewNotes && (
+                <div className="mt-2 p-2 bg-white rounded border">
+                  <p className="text-xs text-gray-600 font-medium">Admin Notes:</p>
+                  <p className="text-sm text-gray-800">{order.adminReviewNotes}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Show revision required status */}
+          {order.status === 'Revision Required' && order.writerId === user?.id && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-red-800">
+                <AlertTriangle className="h-5 w-5" />
+                <span className="font-medium">Revision Required</span>
+                {order.revisionCount && order.revisionCount > 1 && (
+                  <Badge variant="destructive" className="text-xs">
+                    Revision #{order.revisionCount}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-red-600 mt-1">
+                Admin has requested revisions to your work. Please review the feedback and resubmit.
+              </p>
+              {order.revisionNotes && (
+                <div className="mt-2 p-2 bg-white rounded border">
+                  <p className="text-xs text-gray-600 font-medium">Revision Notes:</p>
+                  <p className="text-sm text-gray-800">{order.revisionNotes}</p>
+                </div>
+              )}
+              <div className="mt-3">
+                <Button 
+                  onClick={() => setShowSubmitModal(true)}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Resubmit After Revision
+                </Button>
+              </div>
+            </div>
           )}
         </div>
 

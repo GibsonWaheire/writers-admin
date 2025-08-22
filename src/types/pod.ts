@@ -28,6 +28,14 @@ export interface PODOrder {
   paymentReceivedAt?: string; // When payment was received
   deliveryNotes?: string; // Notes about the delivery
   clientSignature?: string; // Client signature or confirmation
+  // Admin review and revision fields
+  adminReviewNotes?: string; // Admin's review notes
+  adminReviewedAt?: string; // When admin reviewed
+  adminReviewedBy?: string; // Who reviewed the order
+  revisionNotes?: string; // Notes about what needs revision
+  revisionRequestedAt?: string; // When revision was requested
+  revisionRequestedBy?: string; // Who requested the revision
+  revisionCount?: number; // Number of times revision was requested
 }
 
 // New POD-specific writer confirmation interface
@@ -73,9 +81,13 @@ export type PODStatus =
   | 'Available' // Available for writers to pick
   | 'Assigned' // Assigned to a writer
   | 'In Progress' // Writer is working on it
+  | 'Submitted to Admin' // Submitted to admin for review
+  | 'Admin Approved' // Admin approved, ready for delivery
+  | 'Revision Required' // Admin requested revision
   | 'Ready for Delivery' // Ready to be delivered to client
   | 'Delivered' // Delivered to client, awaiting payment
   | 'Payment Received' // Payment received, order completed
+  | 'Completed' // Order completed successfully
   | 'Cancelled' // Order cancelled
   | 'On Hold' // Order temporarily on hold
   | 'Disputed' // Order under dispute
