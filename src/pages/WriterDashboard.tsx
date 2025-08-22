@@ -22,7 +22,7 @@ import type { Order } from "../types/order";
 export default function WriterDashboard() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { orders, getWriterActiveOrders } = useOrders();
+  const { orders, getWriterActiveOrders, getWriterOrderStats } = useOrders();
   const { wallet, getMonthlyEarnings } = useWallet();
   const navigate = useNavigate();
   
@@ -32,6 +32,7 @@ export default function WriterDashboard() {
   const activeOrders = getWriterActiveOrders(currentWriterId);
   const completedOrders = writerOrders.filter(order => order.status === 'Completed');
   const pendingOrders = writerOrders.filter(order => order.status === 'Pending Review');
+  const writerStats = getWriterOrderStats(currentWriterId);
   
   // Calculate real statistics
   const totalEarnings = completedOrders.reduce((sum, order) => sum + order.price, 0);
@@ -63,45 +64,45 @@ export default function WriterDashboard() {
     },
     {
       title: "Total Orders",
-      value: writerOrders.length.toString(),
+      value: writerStats.total.toString(),
       icon: FileText,
-      change: `${activeOrders.length} active now`,
+      change: `${writerStats.inProgress} active now`,
       changeType: "positive" as const,
       details: {
         description: "Complete overview of all your writing assignments.",
         items: [
-          { label: "Total Orders", value: writerOrders.length.toString(), icon: FileText },
-          { label: "Active Orders", value: activeOrders.length.toString(), icon: Clock },
-          { label: "Completed Orders", value: completedOrders.length.toString(), icon: CheckCircle },
-          { label: "Success Rate", value: `${writerOrders.length > 0 ? Math.round((completedOrders.length / writerOrders.length) * 100) : 0}%`, icon: Star }
+          { label: "Total Orders", value: writerStats.total.toString(), icon: FileText },
+          { label: "Active Orders", value: writerStats.inProgress.toString(), icon: Clock },
+          { label: "Completed Orders", value: writerStats.completed.toString(), icon: CheckCircle },
+          { label: "Success Rate", value: `${writerStats.total > 0 ? Math.round((writerStats.completed / writerStats.total) * 100) : 0}%`, icon: Star }
         ],
         action: {
           label: "View All Orders",
-          onClick: () => navigate('/orders')
+          onClick: () => navigate('/my-orders')
         }
       }
     },
     {
       title: "Pending Orders",
-      value: pendingOrders.length.toString(),
+      value: writerStats.pending.toString(),
       icon: Clock,
-      change: pendingOrders.length > 0 ? `${pendingOrders.length} awaiting review` : "All caught up!",
-      changeType: pendingOrders.length > 0 ? "neutral" as const : "positive" as const,
+      change: writerStats.pending > 0 ? `${writerStats.pending} awaiting review` : "All caught up!",
+      changeType: writerStats.pending > 0 ? "neutral" as const : "positive" as const,
       details: {
-        description: pendingOrders.length > 0 
+        description: writerStats.pending > 0 
           ? "Orders waiting for client review and approval." 
           : "Great job! All your orders are processed.",
-        items: pendingOrders.length > 0 ? [
-          { label: "Pending Review", value: pendingOrders.length.toString(), icon: Clock },
+        items: writerStats.pending > 0 ? [
+          { label: "Pending Review", value: writerStats.pending.toString(), icon: Clock },
           { label: "Average Wait Time", value: "2-3 days", icon: Calendar },
           { label: "Next Steps", value: "Awaiting feedback", icon: ArrowRight }
         ] : [
           { label: "Status", value: "All caught up!", icon: CheckCircle },
           { label: "Next Action", value: "Take new orders", icon: FileText }
         ],
-        action: pendingOrders.length > 0 ? {
+        action: writerStats.pending > 0 ? {
           label: "View Pending Orders",
-          onClick: () => navigate('/orders')
+          onClick: () => navigate('/my-orders')
         } : {
           label: "Browse New Orders",
           onClick: () => navigate('/orders')
@@ -110,7 +111,7 @@ export default function WriterDashboard() {
     },
     {
       title: "Completed Orders",
-      value: completedOrders.length.toString(),
+      value: writerStats.completed.toString(),
       icon: CheckCircle,
       change: `+${completedOrders.filter(order => {
         const orderDate = new Date(order.updatedAt);
@@ -122,7 +123,7 @@ export default function WriterDashboard() {
       details: {
         description: "Successfully completed assignments and their earnings.",
         items: [
-          { label: "Total Completed", value: completedOrders.length.toString(), icon: CheckCircle },
+          { label: "Total Completed", value: writerStats.completed.toString(), icon: CheckCircle },
           { label: "This Week", value: completedOrders.filter(order => {
             const orderDate = new Date(order.updatedAt);
             const now = new Date();
@@ -134,7 +135,7 @@ export default function WriterDashboard() {
         ],
         action: {
           label: "View Completed Orders",
-          onClick: () => navigate('/orders')
+          onClick: () => navigate('/my-orders')
         }
       }
     },

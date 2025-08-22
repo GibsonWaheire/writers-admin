@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import type { Order, OrderStatus } from '../types/order';
+import type { Order, OrderStatus, WriterConfirmation, WriterQuestion, OrderEarnings } from '../types/order';
 
 interface OrderContextType {
   orders: Order[];
@@ -8,8 +8,42 @@ interface OrderContextType {
   assignOrderToWriter: (orderId: string, writerId: string) => void;
   pickOrder: (orderId: string, writerId: string) => void;
   handleOrderAction: (action: string, orderId: string, notes?: string) => void;
+  confirmOrder: (orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => void;
   getOrdersByStatus: (status: OrderStatus) => Order[];
+  getAvailableOrders: () => Order[];
+  getPODOrders: () => Order[];
   getWriterActiveOrders: (writerId: string) => Order[];
+  getWriterOrderStats: (writerId: string) => {
+    total: number;
+    pending: number;
+    available: number;
+    inProgress: number;
+    uploadToClient: number;
+    editorRevision: number;
+    approved: number;
+    payLater: number;
+    completed: number;
+    rejected: number;
+    awaitingConfirmation: number;
+    confirmed: number;
+    awaitingPayment: number;
+  };
+  getWriterOrdersByCategory: (writerId: string) => {
+    pending: Order[];
+    available: Order[];
+    inProgress: Order[];
+    uploadToClient: Order[];
+    editorRevision: Order[];
+    approved: Order[];
+    payLater: Order[];
+    completed: Order[];
+    rejected: Order[];
+    awaitingConfirmation: Order[];
+    confirmed: Order[];
+    awaitingPayment: Order[];
+  };
+  calculateOrderEarnings: (order: Order) => OrderEarnings;
+  getWriterTotalEarnings: (writerId: string) => number;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -27,11 +61,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       words: 3750,
       format: 'APA',
       price: 450,
+      priceKES: 67500,
+      cpp: 4500,
       deadline: '2024-02-15',
       status: 'Available',
       createdAt: '2024-01-15',
       updatedAt: '2024-01-15',
       isOverdue: false,
+      confirmationStatus: 'pending',
+      paymentType: 'advance',
+      isPOD: false,
       clientMessages: [
         {
           id: 'msg-1',
@@ -54,6 +93,81 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       additionalInstructions: 'Include at least 20 peer-reviewed sources and 3-4 graphs/charts'
     },
     {
+      id: 'ORD-012',
+      title: 'Business Strategy Analysis - Digital Marketing',
+      description: 'Strategic analysis of digital marketing approaches for e-commerce businesses',
+      subject: 'Business Strategy',
+      discipline: 'Business',
+      paperType: 'Business Plan',
+      pages: 12,
+      words: 3000,
+      format: 'Harvard',
+      price: 360,
+      priceKES: 54000,
+      cpp: 4500,
+      deadline: '2024-03-01',
+      status: 'Available',
+      createdAt: '2024-01-22',
+      updatedAt: '2024-01-22',
+      isOverdue: false,
+      confirmationStatus: 'pending',
+      paymentType: 'advance',
+      isPOD: false,
+      clientMessages: [],
+      uploadedFiles: [],
+      additionalInstructions: 'Focus on ROI analysis and customer acquisition strategies'
+    },
+    {
+      id: 'ORD-013',
+      title: 'Academic Essay - Modern Literature Analysis',
+      description: 'Critical analysis of contemporary literature and its impact on society',
+      subject: 'Literature',
+      discipline: 'English Literature',
+      paperType: 'Essay',
+      pages: 8,
+      words: 2000,
+      format: 'MLA',
+      price: 240,
+      priceKES: 36000,
+      cpp: 4500,
+      deadline: '2024-02-28',
+      status: 'Available',
+      createdAt: '2024-01-23',
+      updatedAt: '2024-01-23',
+      isOverdue: false,
+      confirmationStatus: 'pending',
+      paymentType: 'advance',
+      isPOD: false,
+      clientMessages: [],
+      uploadedFiles: [],
+      additionalInstructions: 'Include analysis of at least 3 contemporary authors'
+    },
+    {
+      id: 'ORD-014',
+      title: 'Technical Report - Cybersecurity in Healthcare',
+      description: 'Comprehensive report on cybersecurity challenges and solutions in healthcare sector',
+      subject: 'Cybersecurity',
+      discipline: 'Computer Science',
+      paperType: 'Report',
+      pages: 20,
+      words: 5000,
+      format: 'IEEE',
+      price: 600,
+      priceKES: 90000,
+      cpp: 4500,
+      deadline: '2024-03-10',
+      status: 'Available',
+      createdAt: '2024-01-24',
+      updatedAt: '2024-01-24',
+      isOverdue: false,
+      confirmationStatus: 'pending',
+      paymentType: 'advance',
+      isPOD: false,
+      clientMessages: [],
+      uploadedFiles: [],
+      additionalInstructions: 'Include case studies and regulatory compliance requirements'
+    },
+    {
       id: 'ORD-002',
       title: 'Marketing Analysis Report for Tech Startup',
       description: 'Market research and competitive analysis for emerging tech company in AI space',
@@ -64,13 +178,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       words: 2000,
       format: 'Harvard',
       price: 280,
+      priceKES: 42000,
+      cpp: 5250,
       deadline: '2024-02-10',
-      status: 'In Progress',
+      status: 'Pending Review',
       assignedWriter: 'John Doe',
       writerId: 'writer-1',
       createdAt: '2024-01-16',
       updatedAt: '2024-01-16',
       isOverdue: false,
+      confirmationStatus: 'confirmed',
+      paymentType: 'advance',
+      isPOD: false,
       clientMessages: [
         {
           id: 'msg-2',
@@ -109,11 +228,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       words: 3000,
       format: 'APA',
       price: 360,
+      priceKES: 54000,
+      cpp: 4500,
       deadline: '2024-02-20',
-      status: 'Available',
+      status: 'In Progress',
+      assignedWriter: 'John Doe',
+      writerId: 'writer-1',
       createdAt: '2024-01-17',
       updatedAt: '2024-01-17',
       isOverdue: false,
+      confirmationStatus: 'confirmed',
+      paymentType: 'advance',
+      isPOD: false,
       clientMessages: [],
       uploadedFiles: [],
       additionalInstructions: 'Focus on studies from the last 10 years and include meta-analysis'
@@ -129,13 +255,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       words: 2500,
       format: 'IEEE',
       price: 320,
+      priceKES: 48000,
+      cpp: 4800,
       deadline: '2024-02-05',
-      status: 'Pending Approval',
-      assignedWriter: 'Jane Smith',
-      writerId: 'writer-2',
+      status: 'Upload to Client',
+      assignedWriter: 'John Doe',
+      writerId: 'writer-1',
       createdAt: '2024-01-18',
       updatedAt: '2024-01-18',
       isOverdue: false,
+      confirmationStatus: 'confirmed',
+      paymentType: 'advance',
+      isPOD: false,
       clientMessages: [
         {
           id: 'msg-4',
@@ -168,13 +299,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       words: 5000,
       format: 'Chicago',
       price: 600,
+      priceKES: 90000,
+      cpp: 4500,
       deadline: '2024-01-30',
       status: 'Completed',
-      assignedWriter: 'Mike Johnson',
-      writerId: 'writer-3',
+      assignedWriter: 'John Doe',
+      writerId: 'writer-1',
       createdAt: '2024-01-10',
       updatedAt: '2024-01-25',
       isOverdue: false,
+      confirmationStatus: 'confirmed',
+      paymentType: 'advance',
+      isPOD: false,
       clientMessages: [
         {
           id: 'msg-5',
@@ -187,7 +323,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         {
           id: 'file-4',
           filename: 'business_plan.pdf',
-          originalName: 'Business_Plan_Final.pdf',
+          originalName: 'Business_Plan.pdf',
           size: 3145728,
           type: 'application/pdf',
           url: '/files/business_plan.pdf',
@@ -207,6 +343,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       words: 1500,
       format: 'MLA',
       price: 180,
+      priceKES: 27000,
+      cpp: 4500,
       deadline: '2024-01-28',
       status: 'Completed',
       assignedWriter: 'John Doe',
@@ -214,6 +352,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       createdAt: '2024-01-10',
       updatedAt: '2024-01-25',
       isOverdue: false,
+      confirmationStatus: 'confirmed',
+      paymentType: 'advance',
+      isPOD: false,
       clientMessages: [
         {
           id: 'msg-6',
@@ -236,13 +377,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       words: 2500,
       format: 'APA',
       price: 320,
+      priceKES: 48000,
+      cpp: 4800,
       deadline: '2024-02-01',
-      status: 'In Progress',
+      status: 'Editor Revision',
       assignedWriter: 'John Doe',
       writerId: 'writer-1',
       createdAt: '2024-01-18',
       updatedAt: '2024-01-20',
       isOverdue: false,
+      confirmationStatus: 'confirmed',
+      paymentType: 'advance',
+      isPOD: false,
       clientMessages: [
         {
           id: 'msg-7',
@@ -275,13 +421,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       words: 2000,
       format: 'Chicago',
       price: 240,
+      priceKES: 36000,
+      cpp: 4500,
       deadline: '2024-02-10',
-      status: 'Pending Review',
+      status: 'Approved',
       assignedWriter: 'John Doe',
       writerId: 'writer-1',
       createdAt: '2024-01-20',
       updatedAt: '2024-01-22',
       isOverdue: false,
+      confirmationStatus: 'confirmed',
+      paymentType: 'advance',
+      isPOD: false,
       clientMessages: [
         {
           id: 'msg-8',
@@ -292,6 +443,94 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       ],
       uploadedFiles: [],
       additionalInstructions: 'Include contemporary examples and case studies'
+    },
+    // POD Orders (Pay on Delivery)
+    {
+      id: 'ORD-009',
+      title: 'Case Study - Digital Transformation in Banking',
+      description: 'Analysis of successful digital transformation initiatives in traditional banking sector',
+      subject: 'Business Technology',
+      discipline: 'Business',
+      paperType: 'Case Study',
+      pages: 14,
+      words: 3500,
+      format: 'Harvard',
+      price: 420,
+      priceKES: 63000,
+      cpp: 4500,
+      deadline: '2024-02-25',
+      status: 'POD Available',
+      createdAt: '2024-01-19',
+      updatedAt: '2024-01-19',
+      isOverdue: false,
+      confirmationStatus: 'pending',
+      paymentType: 'pod',
+      isPOD: true,
+      podAmount: 63000,
+      clientMessages: [],
+      uploadedFiles: [],
+      additionalInstructions: 'Focus on customer experience improvements and operational efficiency'
+    },
+    {
+      id: 'ORD-010',
+      title: 'Thesis - Machine Learning in Healthcare',
+      description: 'Comprehensive thesis on applications of machine learning in medical diagnosis and treatment',
+      subject: 'Healthcare Technology',
+      discipline: 'Computer Science',
+      paperType: 'Thesis',
+      pages: 80,
+      words: 20000,
+      format: 'APA',
+      price: 1200,
+      priceKES: 180000,
+      cpp: 2250,
+      deadline: '2024-03-15',
+      status: 'POD Available',
+      createdAt: '2024-01-20',
+      updatedAt: '2024-01-20',
+      isOverdue: false,
+      confirmationStatus: 'pending',
+      paymentType: 'pod',
+      isPOD: true,
+      podAmount: 180000,
+      clientMessages: [],
+      uploadedFiles: [],
+      additionalInstructions: 'Include ethical considerations and real-world case studies'
+    },
+    // More assigned orders for testing
+    {
+      id: 'ORD-011',
+      title: 'Research Paper - Renewable Energy Sources',
+      description: 'Comprehensive analysis of solar, wind, and hydroelectric energy sources',
+      subject: 'Energy Studies',
+      discipline: 'Engineering',
+      paperType: 'Research Paper',
+      pages: 18,
+      words: 4500,
+      format: 'IEEE',
+      price: 540,
+      priceKES: 81000,
+      cpp: 4500,
+      deadline: '2024-02-28',
+      status: 'Rejected',
+      assignedWriter: 'John Doe',
+      writerId: 'writer-1',
+      createdAt: '2024-01-21',
+      updatedAt: '2024-01-22',
+      isOverdue: false,
+      confirmationStatus: 'confirmed',
+      paymentType: 'advance',
+      isPOD: false,
+      clientMessages: [
+        {
+          id: 'msg-9',
+          sender: 'client',
+          message: 'The analysis was not comprehensive enough for our requirements',
+          timestamp: '2024-01-22T10:00:00Z'
+        }
+      ],
+      uploadedFiles: [],
+      additionalInstructions: 'Include detailed cost-benefit analysis and environmental impact assessment'
     }
   ]);
 
@@ -330,16 +569,19 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     ));
   }, []);
 
-  const handleOrderAction = useCallback((action: string, orderId: string, _notes?: string) => {
+  const handleOrderAction = useCallback((action: string, orderId: string) => {
     setOrders(prev => prev.map(order => {
       if (order.id !== orderId) return order;
       
       let newStatus = order.status;
-      let updatedAt = new Date().toISOString();
+      const updatedAt = new Date().toISOString();
       
       switch (action) {
         case 'pick':
-          newStatus = 'In Progress';
+          newStatus = 'Awaiting Confirmation';
+          break;
+        case 'confirm':
+          newStatus = 'Confirmed';
           break;
         case 'submit':
           newStatus = 'Pending Review';
@@ -359,9 +601,34 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         case 'reassign':
           newStatus = 'Available';
           break;
+        case 'upload_to_client':
+          newStatus = 'Upload to Client';
+          break;
+        case 'editor_revision':
+          newStatus = 'Editor Revision';
+          break;
+        case 'approve_final':
+          newStatus = 'Approved';
+          break;
+        case 'pay_later':
+          newStatus = 'Pay Later';
+          break;
       }
       
       return { ...order, status: newStatus, updatedAt };
+    }));
+  }, []);
+
+  const confirmOrder = useCallback((orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
+    setOrders(prev => prev.map(order => {
+      if (order.id !== orderId) return order;
+      return {
+        ...order,
+        status: 'Awaiting Payment',
+        confirmation: confirmation,
+        questions: questions,
+        updatedAt: new Date().toISOString()
+      };
     }));
   }, []);
 
@@ -369,11 +636,111 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     return orders.filter(order => order.status === status);
   }, [orders]);
 
+  // Get available orders (excluding POD orders and assigned orders)
+  const getAvailableOrders = useCallback(() => {
+    return orders.filter(order => 
+      order.status === 'Available' && 
+      !order.isPOD && 
+      !order.writerId && 
+      !order.assignedWriter
+    );
+  }, [orders]);
+
+  // Get POD orders separately
+  const getPODOrders = useCallback(() => {
+    return orders.filter(order => 
+      order.status === 'POD Available' || order.isPOD
+    );
+  }, [orders]);
+
   const getWriterActiveOrders = useCallback((writerId: string) => {
     return orders.filter(order => 
       order.writerId === writerId && 
-      ['In Progress', 'Pending Review'].includes(order.status)
+      ['In Progress', 'Pending Review', 'Upload to Client', 'Editor Revision', 'Approved', 'Pay Later', 'Awaiting Payment'].includes(order.status) &&
+      !order.isPOD // Exclude POD orders from active orders
     );
+  }, [orders]);
+
+  const getWriterOrderStats = useCallback((writerId: string) => {
+    const writerOrders = orders.filter(order => 
+      order.writerId === writerId && !order.isPOD // Exclude POD orders from stats
+    );
+    
+    return {
+      total: writerOrders.length,
+      pending: writerOrders.filter(o => o.status === 'Pending Review').length,
+      available: writerOrders.filter(o => o.status === 'Available').length,
+      inProgress: writerOrders.filter(o => o.status === 'In Progress').length,
+      uploadToClient: writerOrders.filter(o => o.status === 'Upload to Client').length,
+      editorRevision: writerOrders.filter(o => o.status === 'Editor Revision').length,
+      approved: writerOrders.filter(o => o.status === 'Approved').length,
+      payLater: writerOrders.filter(o => o.status === 'Pay Later').length,
+      completed: writerOrders.filter(o => o.status === 'Completed').length,
+      rejected: writerOrders.filter(o => o.status === 'Rejected').length,
+      awaitingConfirmation: writerOrders.filter(o => o.status === 'Awaiting Confirmation').length,
+      confirmed: writerOrders.filter(o => o.status === 'Confirmed').length,
+      awaitingPayment: writerOrders.filter(o => o.status === 'Awaiting Payment').length,
+    };
+  }, [orders]);
+
+  const getWriterOrdersByCategory = useCallback((writerId: string) => {
+    const writerOrders = orders.filter(order => 
+      order.writerId === writerId && !order.isPOD // Exclude POD orders
+    );
+    
+    return {
+      pending: writerOrders.filter(o => o.status === 'Pending Review'),
+      available: writerOrders.filter(o => o.status === 'Available'),
+      inProgress: writerOrders.filter(o => o.status === 'In Progress'),
+      uploadToClient: writerOrders.filter(o => o.status === 'Upload to Client'),
+      editorRevision: writerOrders.filter(o => o.status === 'Editor Revision'),
+      approved: writerOrders.filter(o => o.status === 'Approved'),
+      payLater: writerOrders.filter(o => o.status === 'Pay Later'),
+      completed: writerOrders.filter(o => o.status === 'Completed'),
+      rejected: writerOrders.filter(o => o.status === 'Rejected'),
+      awaitingConfirmation: writerOrders.filter(o => o.status === 'Awaiting Confirmation'),
+      confirmed: writerOrders.filter(o => o.status === 'Confirmed'),
+      awaitingPayment: writerOrders.filter(o => o.status === 'Awaiting Payment'),
+    };
+  }, [orders]);
+
+  // Calculate earnings only from non-POD orders
+  const calculateOrderEarnings = useCallback((order: Order): OrderEarnings => {
+    // POD orders don't count towards writer earnings
+    if (order.isPOD) {
+      return {
+        baseAmount: 0,
+        cppAmount: 0,
+        totalAmount: 0,
+        currency: 'KES',
+        calculatedAt: new Date().toISOString()
+      };
+    }
+
+    const baseAmount = order.priceKES || (order.price * 150); // Convert USD to KES if needed
+    const cppAmount = order.cpp || (baseAmount / order.pages);
+    const totalAmount = baseAmount;
+    
+    return {
+      baseAmount,
+      cppAmount,
+      totalAmount,
+      currency: 'KES',
+      calculatedAt: new Date().toISOString()
+    };
+  }, []);
+
+  // Get total writer earnings (excluding POD orders)
+  const getWriterTotalEarnings = useCallback((writerId: string) => {
+    const writerOrders = orders.filter(order => 
+      order.writerId === writerId && 
+      !order.isPOD && 
+      ['Completed', 'Approved', 'Awaiting Payment'].includes(order.status)
+    );
+    
+    return writerOrders.reduce((total, order) => {
+      return total + (order.priceKES || 0);
+    }, 0);
   }, [orders]);
 
   return (
@@ -384,8 +751,15 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       assignOrderToWriter,
       pickOrder,
       handleOrderAction,
+      confirmOrder,
       getOrdersByStatus,
-      getWriterActiveOrders
+      getAvailableOrders,
+      getPODOrders,
+      getWriterActiveOrders,
+      getWriterOrderStats,
+      getWriterOrdersByCategory,
+      calculateOrderEarnings,
+      getWriterTotalEarnings
     }}>
       {children}
     </OrderContext.Provider>

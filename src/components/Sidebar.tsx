@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   FileText, 
-  ShoppingCart, 
   Wallet, 
   Star, 
   MessageSquare, 
@@ -11,15 +10,18 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  DollarSign
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { useIsMobile } from '../hooks/use-mobile';
+import { useOrders } from '../contexts/OrderContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/writer', emoji: '📊' },
-  { icon: FileText, label: 'Available Orders', path: '/orders', emoji: '📂' },
-  { icon: ShoppingCart, label: 'My Orders', path: '/my-orders', emoji: '📝' },
+  { icon: FileText, label: 'Orders', path: '/orders', emoji: '📝' },
+  { icon: DollarSign, label: 'POD Orders', path: '/pod-orders', emoji: '💰' },
   { icon: Wallet, label: 'Wallet', path: '/wallet', emoji: '💳' },
   { icon: Star, label: 'Reviews', path: '/reviews', emoji: '⭐' },
   { icon: MessageSquare, label: 'Messages', path: '/messages', emoji: '💬' },
@@ -31,9 +33,16 @@ export function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const location = useLocation();
   const isMobile = useIsMobile();
+  const { getWriterOrderStats, getAvailableOrders } = useOrders();
+  const { user } = useAuth();
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
   const toggleMobileSidebar = () => setIsMobileOpen(!isMobileOpen);
+
+  // Get writer order stats for the sidebar
+  const writerId = user?.id || 'writer-1';
+  const writerStats = getWriterOrderStats(writerId);
+  const availableOrders = getAvailableOrders();
 
   const SidebarContent = () => (
     <div className={`bg-white border-r border-gray-200 h-full transition-all duration-300 ${
@@ -74,11 +83,79 @@ export function Sidebar() {
               <span className={`text-lg ${isCollapsed ? 'mx-auto' : 'mr-3'}`}>
                 {item.emoji}
               </span>
-              {!isCollapsed && <span className="font-medium">{item.label}</span>}
+              {!isCollapsed && (
+                <div className="flex items-center justify-between w-full">
+                  <span className="font-medium">{item.label}</span>
+                  {item.path === '/orders' && writerStats.total > 0 && (
+                    <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 rounded-full">
+                      {writerStats.total + availableOrders.length}
+                    </span>
+                  )}
+                </div>
+              )}
             </Link>
           );
         })}
       </nav>
+
+      {/* My Orders Breakdown (when not collapsed) */}
+      {!isCollapsed && writerStats.total > 0 && (
+        <div className="px-4 pb-4">
+          <div className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
+            My Orders Breakdown
+          </div>
+          <div className="space-y-1">
+            {writerStats.pending > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-yellow-600">Pending</span>
+                <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs font-medium">
+                  {writerStats.pending}
+                </span>
+              </div>
+            )}
+            {writerStats.inProgress > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-blue-600">In Progress</span>
+                <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
+                  {writerStats.inProgress}
+                </span>
+              </div>
+            )}
+            {writerStats.uploadToClient > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-green-600">Upload</span>
+                <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
+                  {writerStats.uploadToClient}
+                </span>
+              </div>
+            )}
+            {writerStats.editorRevision > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-purple-600">Revision</span>
+                <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-medium">
+                  {writerStats.editorRevision}
+                </span>
+              </div>
+            )}
+            {writerStats.approved > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-indigo-600">Approved</span>
+                <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs font-medium">
+                  {writerStats.approved}
+                </span>
+              </div>
+            )}
+            {writerStats.payLater > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-orange-600">Pay Later</span>
+                <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-xs font-medium">
+                  {writerStats.payLater}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 

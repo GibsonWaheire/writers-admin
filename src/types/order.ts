@@ -8,7 +8,9 @@ export interface Order {
   pages: number;
   words: number;
   format: CitationFormat;
-  price: number;
+  price: number; // Price in USD
+  priceKES: number; // Price in Kenyan Shillings
+  cpp: number; // Cost Per Page
   deadline: string;
   status: OrderStatus;
   assignedWriter?: string;
@@ -20,6 +22,15 @@ export interface Order {
   uploadedFiles: UploadedFile[];
   additionalInstructions?: string;
   isOverdue: boolean;
+  // New fields for order flow
+  confirmationStatus: 'pending' | 'confirmed' | 'rejected';
+  writerQuestions?: WriterQuestion[];
+  writerConfirmation?: WriterConfirmation;
+  earnings?: OrderEarnings;
+  // Payment and delivery fields
+  paymentType: 'advance' | 'pod' | 'milestone'; // POD = Pay on Delivery
+  isPOD: boolean; // Flag for POD orders
+  podAmount?: number; // Amount to be paid on delivery
 }
 
 export type PaperType = 
@@ -46,13 +57,27 @@ export type CitationFormat =
   | 'Other';
 
 export type OrderStatus = 
-  | 'Available'
-  | 'Pending Approval'
-  | 'In Progress'
-  | 'Pending Review'
-  | 'Completed'
-  | 'Rejected'
-  | 'Requires Admin Approval';
+  | 'Available' // Available for writers to pick
+  | 'POD Available' // POD orders available
+  | 'Pending Approval' // Admin approval needed
+  | 'Awaiting Confirmation' // Writer needs to confirm
+  | 'Confirmed' // Writer confirmed, order is active
+  | 'In Progress' // Writer is working on it
+  | 'Pending Review' // Submitted for review
+  | 'Completed' // Order completed
+  | 'Rejected' // Order rejected
+  | 'Requires Admin Approval' // Needs admin review
+  | 'Upload to Client' // Ready for client review
+  | 'Editor Revision' // Needs revision
+  | 'Approved' // Client approved
+  | 'Awaiting Payment' // Ready for payment
+  | 'Pay Later' // Payment deferred
+  | 'POD Delivered' // POD order delivered, awaiting payment
+  | 'POD Paid' // POD order payment received
+  | 'Cancelled' // Order cancelled
+  | 'On Hold' // Order temporarily on hold
+  | 'Disputed' // Order under dispute
+  | 'Refunded'; // Order refunded
 
 export interface ClientMessage {
   id: string;
@@ -102,4 +127,32 @@ export interface Invoice {
   createdAt: string;
   paidAt?: string;
   paymentMethod?: string;
+}
+
+export interface WriterQuestion {
+  id: string;
+  question: string;
+  answer?: string;
+  askedAt: string;
+  answeredAt?: string;
+  isRequired: boolean;
+}
+
+export interface WriterConfirmation {
+  id: string;
+  hasReadInstructions: boolean;
+  hasUnderstoodRequirements: boolean;
+  canMeetDeadline: boolean;
+  hasNoConflicts: boolean;
+  additionalNotes?: string;
+  confirmedAt: string;
+  writerId: string;
+}
+
+export interface OrderEarnings {
+  baseAmount: number; // Base price in KES
+  cppAmount: number; // Cost per page amount
+  totalAmount: number; // Total earnings in KES
+  currency: 'KES';
+  calculatedAt: string;
 }

@@ -20,33 +20,49 @@ import { OrderCard } from "../components/OrderCard";
 import { OrderViewModal } from "../components/OrderViewModal";
 import { useOrders } from "../contexts/OrderContext";
 import { useAuth } from "../contexts/AuthContext";
-import type { Order } from "../types/order";
+import type { Order, WriterConfirmation, WriterQuestion } from "../types/order";
+import { AvailableOrdersTable } from "../components/AvailableOrdersTable";
 
 export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("available");
+  const [activeTab, setActiveTab] = useState("orders");
   const [filterDiscipline, setFilterDiscipline] = useState<string>("");
   const [filterPaperType, setFilterPaperType] = useState<string>("");
   const [filterPriceRange, setFilterPriceRange] = useState<string>("");
 
-  const { orders, handleOrderAction, getOrdersByStatus, getWriterActiveOrders } = useOrders();
+  const { 
+    orders, 
+    handleOrderAction, 
+    getOrdersByStatus, 
+    getAvailableOrders,
+    getPODOrders,
+    getWriterActiveOrders,
+    getWriterOrderStats,
+    getWriterOrdersByCategory,
+    confirmOrder,
+    getWriterTotalEarnings
+  } = useOrders();
   const { user } = useAuth();
   
   const userRole = user?.role || 'writer';
   const isAdmin = userRole === 'admin';
-  const writerId = user?.id || '';
+  const writerId = user?.id || 'writer-1'; // Default for demo
 
-  // Get orders by status
-  const availableOrders = getOrdersByStatus('Available');
+  // Get orders by status - properly categorized
+  const availableOrders = getAvailableOrders(); // Excludes POD orders
+  const podOrders = getPODOrders(); // POD orders only
   const pendingApprovalOrders = getOrdersByStatus('Pending Approval');
   const inProgressOrders = getOrdersByStatus('In Progress');
   const completedOrders = getOrdersByStatus('Completed');
   const rejectedOrders = getOrdersByStatus('Rejected');
 
-  // Get writer-specific orders
+  // Get writer-specific orders and stats (excluding POD orders)
   const myOrders = getWriterActiveOrders(writerId);
+  const writerStats = getWriterOrderStats(writerId);
+  const writerOrdersByCategory = getWriterOrdersByCategory(writerId);
+  const writerTotalEarnings = getWriterTotalEarnings(writerId);
 
   // Filter orders based on search and filters
   const filterOrders = (orderList: Order[]) => {
@@ -83,6 +99,12 @@ export default function OrdersPage() {
     handleOrderAction(action, orderId, notes);
     setIsModalOpen(false);
     setSelectedOrder(null);
+  };
+
+  const handleOrderConfirm = (orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
+    confirmOrder(orderId, confirmation, questions);
+    // Update the order status to "Confirmed" and move it to "My Orders"
+    handleOrderAction('confirm', orderId);
   };
 
   const closeModal = () => {
@@ -174,6 +196,68 @@ export default function OrdersPage() {
         </Card>
       </div>
 
+      {/* Writer-specific Statistics (for writers) */}
+      {!isAdmin && (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Card className="bg-blue-50 border-blue-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-blue-700">My Orders</CardTitle>
+              <FileText className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-700">{writerStats.total}</div>
+              <p className="text-xs text-blue-600">Total assigned</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-yellow-50 border-yellow-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-yellow-700">Pending</CardTitle>
+              <Clock className="h-4 w-4 text-yellow-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-700">{writerStats.pending}</div>
+              <p className="text-xs text-yellow-600">Awaiting review</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-green-50 border-green-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-green-700">In Progress</CardTitle>
+              <BookOpen className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-700">{writerStats.inProgress}</div>
+              <p className="text-xs text-green-600">Currently working</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-purple-50 border-purple-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-purple-700">Completed</CardTitle>
+              <CheckCircle className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-700">{writerStats.completed}</div>
+              <p className="text-xs text-purple-600">Successfully done</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-orange-50 border-orange-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-orange-700">Earnings</CardTitle>
+              <DollarSign className="h-4 w-4 text-orange-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-700">
+                KES {writerTotalEarnings.toLocaleString()}
+              </div>
+              <p className="text-xs text-orange-600">From completed orders (excl. POD)</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Search and Filters */}
       <Card>
         <CardHeader>
@@ -234,17 +318,15 @@ export default function OrdersPage() {
       {/* Orders Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="available" className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            Available ({filterOrders(availableOrders).length})
+          <TabsTrigger value="orders" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Orders ({filterOrders([...availableOrders, ...myOrders]).length})
           </TabsTrigger>
           
-          {!isAdmin && (
-            <TabsTrigger value="my-orders" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              My Orders ({filterOrders(myOrders).length})
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="pod-orders" className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            POD Orders ({filterOrders(podOrders).length})
+          </TabsTrigger>
           
           {isAdmin && (
             <TabsTrigger value="pending-approval" className="flex items-center gap-2">
@@ -269,55 +351,92 @@ export default function OrdersPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Available Orders Tab */}
-        <TabsContent value="available" className="space-y-4">
+        {/* Consolidated Orders Tab */}
+        <TabsContent value="orders" className="space-y-6">
+          {/* Orders Categories */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer bg-blue-50 border-blue-200">
+              <CardContent className="p-4 text-center">
+                <BookOpen className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-blue-600">{availableOrders.length}</div>
+                <p className="text-sm text-blue-600">Available Orders</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow cursor-pointer bg-green-50 border-green-200">
+              <CardContent className="p-4 text-center">
+                <FileText className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-green-600">{myOrders.length}</div>
+                <p className="text-sm text-green-600">My Active Orders</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow cursor-pointer bg-purple-50 border-purple-200">
+              <CardContent className="p-4 text-center">
+                <CheckCircle className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-purple-600">{writerOrdersByCategory.completed.length}</div>
+                <p className="text-sm text-purple-600">Completed</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow cursor-pointer bg-orange-50 border-orange-200">
+              <CardContent className="p-4 text-center">
+                <DollarSign className="h-8 w-8 text-orange-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-orange-600">
+                  KES {writerTotalEarnings.toLocaleString()}
+                </div>
+                <p className="text-sm text-orange-600">Total Earnings</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Orders Table */}
+          <AvailableOrdersTable
+            orders={[...availableOrders, ...myOrders]}
+            onView={handleViewOrder}
+            onConfirm={handleOrderConfirm}
+            userRole={userRole}
+          />
+        </TabsContent>
+
+        {/* POD Orders Tab */}
+        <TabsContent value="pod-orders" className="space-y-4">
+          <div className="mb-4">
+            <Card className="bg-yellow-50 border-yellow-200">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium">Pay on Delivery (POD) Orders</p>
+                    <p className="mt-1">These orders are paid upon delivery and completion. They do not count towards your regular earnings until payment is received.</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
           <div className="grid gap-4">
-            {filterOrders(availableOrders).length > 0 ? (
-              filterOrders(availableOrders).map((order) => (
+            {filterOrders(podOrders).length > 0 ? (
+              filterOrders(podOrders).map((order) => (
                 <OrderCard
                   key={order.id}
                   order={order}
                   userRole={userRole}
                   onView={handleViewOrder}
                   onAction={handleOrderAction}
+                  onConfirm={handleOrderConfirm}
                   showActions={true}
                 />
               ))
             ) : (
               <Card className="text-center py-12">
-                <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Available Orders</h3>
-                <p className="text-gray-500">There are currently no orders available for pickup.</p>
+                <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No POD Orders</h3>
+                <p className="text-gray-500">There are currently no Pay on Delivery orders available.</p>
               </Card>
             )}
           </div>
         </TabsContent>
-
-        {/* My Orders Tab (Writers Only) */}
-        {!isAdmin && (
-          <TabsContent value="my-orders" className="space-y-4">
-            <div className="grid gap-4">
-              {filterOrders(myOrders).length > 0 ? (
-                filterOrders(myOrders).map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    userRole={userRole}
-                    onView={handleViewOrder}
-                    onAction={handleOrderActionLocal}
-                    showActions={true}
-                  />
-                ))
-              ) : (
-                <Card className="text-center py-12">
-                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Orders</h3>
-                  <p className="text-gray-500">You don't have any active orders at the moment.</p>
-                </Card>
-              )}
-            </div>
-          </TabsContent>
-        )}
 
         {/* Pending Approval Tab (Admins Only) */}
         {isAdmin && (
@@ -331,6 +450,7 @@ export default function OrdersPage() {
                     userRole={userRole}
                     onView={handleViewOrder}
                     onAction={handleOrderActionLocal}
+                    onConfirm={handleOrderConfirm}
                     showActions={true}
                   />
                 ))
@@ -356,6 +476,7 @@ export default function OrdersPage() {
                   userRole={userRole}
                   onView={handleViewOrder}
                   onAction={handleOrderActionLocal}
+                  onConfirm={handleOrderConfirm}
                   showActions={true}
                 />
               ))
@@ -398,14 +519,14 @@ export default function OrdersPage() {
           <div className="grid gap-4">
             {filterOrders(rejectedOrders).length > 0 ? (
               filterOrders(rejectedOrders).map((order) => (
-                                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    userRole={userRole}
-                    onView={handleViewOrder}
-                    onAction={handleOrderActionLocal}
-                    showActions={false}
-                  />
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  userRole={userRole}
+                  onView={handleViewOrder}
+                  onAction={handleOrderActionLocal}
+                  showActions={false}
+                />
               ))
             ) : (
               <Card className="text-center py-12">

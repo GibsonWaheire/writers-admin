@@ -47,7 +47,11 @@ export function OrderViewModal({
       'Pending Review': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
       'Completed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
       'Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
-      'Requires Admin Approval': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' }
+      'Requires Admin Approval': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
+      'Upload to Client': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
+      'Editor Revision': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
+      'Approved': { variant: 'default' as const, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+      'Pay Later': { variant: 'outline' as const, color: 'text-orange-600', bg: 'bg-orange-50' }
     };
 
     const config = statusConfig[status] || statusConfig['Available'];
@@ -111,12 +115,69 @@ export function OrderViewModal({
 
     if (order.status === 'In Progress') {
       return (
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => onAction('submit', order.id, notes)}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Submit Work
+          </Button>
+          <Button 
+            onClick={() => onAction('upload_to_client', order.id, notes)}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Upload to Client
+          </Button>
+        </div>
+      );
+    }
+
+    if (order.status === 'Pending Review') {
+      return (
+        <Button 
+          onClick={() => onAction('request_revision', order.id, notes)}
+          className="bg-yellow-600 hover:bg-yellow-700"
+        >
+          <AlertTriangle className="h-4 w-4 mr-2" />
+          Request Revision
+        </Button>
+      );
+    }
+
+    if (order.status === 'Editor Revision') {
+      return (
         <Button 
           onClick={() => onAction('submit', order.id, notes)}
           className="bg-blue-600 hover:bg-blue-700"
         >
           <FileText className="h-4 w-4 mr-2" />
-          Submit Work
+          Submit Revision
+        </Button>
+      );
+    }
+
+    if (order.status === 'Upload to Client') {
+      return (
+        <Button 
+          onClick={() => onAction('approve_final', order.id, notes)}
+          className="bg-indigo-600 hover:bg-indigo-700"
+        >
+          <CheckCircle className="h-4 w-4 mr-2" />
+          Mark as Final
+        </Button>
+      );
+    }
+
+    if (order.status === 'Approved') {
+      return (
+        <Button 
+          onClick={() => onAction('pay_later', order.id, notes)}
+          className="bg-orange-600 hover:bg-orange-700"
+        >
+          <DollarSign className="h-4 w-4 mr-2" />
+          Pay Later
         </Button>
       );
     }
