@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { 
   CheckCircle, 
   FileText, 
@@ -39,8 +38,25 @@ export function PODConfirmationModal({
     estimatedCompletionHours: 24,
     additionalNotes: '',
     confirmedAt: '',
-    writerId: ''
+    writerId: '',
+    showDropdown: false
   });
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setConfirmation(prev => ({ ...prev, showDropdown: false }));
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleCheckboxChange = (field: keyof PODWriterConfirmation, checked: boolean) => {
     setConfirmation(prev => ({
@@ -98,14 +114,14 @@ export function PODConfirmationModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
-        <DialogHeader className="border-b border-gray-200 pb-4">
+        <DialogHeader className="border-b border-gray-200 pb-4 sticky top-0 bg-white/95 backdrop-blur-sm z-10">
           <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
             <FileText className="h-8 w-8 text-blue-600" />
             Confirm POD Order Assignment
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-8 pt-4">
           {/* Order Summary */}
           <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 rounded-xl p-6 shadow-lg">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -192,13 +208,13 @@ export function PODConfirmationModal({
           </div>
 
           {/* Confirmation Checklist */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-blue-600" />
               Confirmation Checklist
             </h3>
             
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-all duration-200 hover:shadow-md">
                 <Checkbox
                   id="hasReadInstructions"
@@ -335,33 +351,44 @@ export function PODConfirmationModal({
           </div>
 
           {/* Additional Information */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
               <Info className="h-5 w-5 text-indigo-600" />
               Additional Information
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-sm">
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-sm relative">
                 <Label htmlFor="estimatedCompletionHours" className="font-medium text-gray-700">
                   Estimated Completion Time
                 </Label>
-                <Select 
-                  value={confirmation.estimatedCompletionHours.toString()} 
-                  onValueChange={(value) => handleInputChange('estimatedCompletionHours', parseInt(value))}
-                >
-                  <SelectTrigger className="mt-2 w-full">
-                    <SelectValue placeholder="Select completion time" />
-                  </SelectTrigger>
-                  <SelectContent position="popper" side="top" align="start" className="w-full min-w-[200px]">
-                    <SelectItem value="6">6 hours</SelectItem>
-                    <SelectItem value="12">12 hours</SelectItem>
-                    <SelectItem value="18">18 hours</SelectItem>
-                    <SelectItem value="24">24 hours</SelectItem>
-                    <SelectItem value="36">36 hours</SelectItem>
-                    <SelectItem value="48">48 hours</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="relative mt-2" ref={dropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmation(prev => ({ ...prev, showDropdown: !prev.showDropdown }))}
+                    className="w-full px-3 py-2 text-left border border-gray-300 rounded-md bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {confirmation.estimatedCompletionHours} hours
+                  </button>
+                  
+                  {confirmation.showDropdown && (
+                    <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-md shadow-lg z-[9999] max-h-48 overflow-y-auto">
+                      {[6, 12, 18, 24, 36, 48].map((hours) => (
+                        <button
+                          key={hours}
+                          type="button"
+                          onClick={() => {
+                            handleInputChange('estimatedCompletionHours', hours);
+                            setConfirmation(prev => ({ ...prev, showDropdown: false }));
+                          }}
+                          className="w-full px-3 py-2 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none first:rounded-t-md last:rounded-b-md"
+                        >
+                          {hours} hours
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <p className="text-xs text-gray-500 mt-2">
                   When do you expect to complete this order?
                 </p>
@@ -403,7 +430,7 @@ export function PODConfirmationModal({
           </div>
 
           {/* Progress Indicator */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200 shadow-lg">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200 shadow-lg mb-6">
             <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
               <span className="font-medium">Form Completion</span>
               <span className="font-semibold">{Object.values(confirmation).filter(Boolean).length - 2}/{Object.keys(confirmation).length - 2} items</span>

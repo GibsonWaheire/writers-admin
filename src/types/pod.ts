@@ -43,6 +43,7 @@ export interface PODWriterConfirmation {
   additionalNotes?: string;
   confirmedAt: string;
   writerId: string;
+  showDropdown?: boolean; // For custom dropdown state
 }
 
 export type PaperType = 
