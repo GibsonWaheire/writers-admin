@@ -28,9 +28,7 @@ export interface Order {
   writerConfirmation?: WriterConfirmation;
   earnings?: OrderEarnings;
   // Payment and delivery fields
-  paymentType: 'advance' | 'pod' | 'milestone'; // POD = Pay on Delivery
-  isPOD: boolean; // Flag for POD orders
-  podAmount?: number; // Amount to be paid on delivery
+  paymentType: 'advance' | 'milestone'; // Payment types (removed POD)
 }
 
 export type PaperType = 
@@ -58,7 +56,6 @@ export type CitationFormat =
 
 export type OrderStatus = 
   | 'Available' // Available for writers to pick
-  | 'POD Available' // POD orders available
   | 'Pending Approval' // Admin approval needed
   | 'Awaiting Confirmation' // Writer needs to confirm
   | 'Confirmed' // Writer confirmed, order is active
@@ -72,8 +69,6 @@ export type OrderStatus =
   | 'Approved' // Client approved
   | 'Awaiting Payment' // Ready for payment
   | 'Pay Later' // Payment deferred
-  | 'POD Delivered' // POD order delivered, awaiting payment
-  | 'POD Paid' // POD order payment received
   | 'Cancelled' // Order cancelled
   | 'On Hold' // Order temporarily on hold
   | 'Disputed' // Order under dispute

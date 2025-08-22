@@ -37,7 +37,6 @@ export default function OrdersPage() {
     handleOrderAction, 
     getOrdersByStatus, 
     getAvailableOrders,
-    getPODOrders,
     getWriterActiveOrders,
     getWriterOrderStats,
     getWriterOrdersByCategory,
@@ -51,8 +50,7 @@ export default function OrdersPage() {
   const writerId = user?.id || 'writer-1'; // Default for demo
 
   // Get orders by status - properly categorized
-  const availableOrders = getAvailableOrders(); // Excludes POD orders
-  const podOrders = getPODOrders(); // POD orders only
+  const availableOrders = getAvailableOrders(); // Available orders
   const pendingApprovalOrders = getOrdersByStatus('Pending Approval');
   const inProgressOrders = getOrdersByStatus('In Progress');
   const completedOrders = getOrdersByStatus('Completed');
@@ -252,7 +250,7 @@ export default function OrdersPage() {
               <div className="text-2xl font-bold text-orange-700">
                 KES {writerTotalEarnings.toLocaleString()}
               </div>
-              <p className="text-xs text-orange-600">From completed orders (excl. POD)</p>
+                              <p className="text-xs text-orange-600">From completed orders</p>
             </CardContent>
           </Card>
         </div>
@@ -323,10 +321,7 @@ export default function OrdersPage() {
             Orders ({filterOrders([...availableOrders, ...myOrders]).length})
           </TabsTrigger>
           
-          <TabsTrigger value="pod-orders" className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />
-            POD Orders ({filterOrders(podOrders).length})
-          </TabsTrigger>
+
           
           {isAdmin && (
             <TabsTrigger value="pending-approval" className="flex items-center gap-2">
@@ -399,44 +394,7 @@ export default function OrdersPage() {
           />
         </TabsContent>
 
-        {/* POD Orders Tab */}
-        <TabsContent value="pod-orders" className="space-y-4">
-          <div className="mb-4">
-            <Card className="bg-yellow-50 border-yellow-200">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
-                  <div className="text-sm text-yellow-800">
-                    <p className="font-medium">Pay on Delivery (POD) Orders</p>
-                    <p className="mt-1">These orders are paid upon delivery and completion. They do not count towards your regular earnings until payment is received.</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          
-          <div className="grid gap-4">
-            {filterOrders(podOrders).length > 0 ? (
-              filterOrders(podOrders).map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  userRole={userRole}
-                  onView={handleViewOrder}
-                  onAction={handleOrderAction}
-                  onConfirm={handleOrderConfirm}
-                  showActions={true}
-                />
-              ))
-            ) : (
-              <Card className="text-center py-12">
-                <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No POD Orders</h3>
-                <p className="text-gray-500">There are currently no Pay on Delivery orders available.</p>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
+
 
         {/* Pending Approval Tab (Admins Only) */}
         {isAdmin && (

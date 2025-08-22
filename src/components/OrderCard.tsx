@@ -44,7 +44,7 @@ export function OrderCard({
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
       'Available': { variant: 'outline' as const, color: 'text-blue-600', bg: 'bg-blue-50', icon: '🟢' },
-      'POD Available': { variant: 'outline' as const, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '💰' },
+
       'Pending Approval': { variant: 'secondary' as const, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '🟡' },
       'Awaiting Confirmation': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '⏳' },
       'Confirmed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
@@ -58,8 +58,7 @@ export function OrderCard({
       'Approved': { variant: 'default' as const, color: 'text-indigo-600', bg: 'bg-indigo-50', icon: '👍' },
       'Awaiting Payment': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '💰' },
       'Pay Later': { variant: 'outline' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '💳' },
-      'POD Delivered': { variant: 'default' as const, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '📦' },
-      'POD Paid': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '💵' },
+
       'Cancelled': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '❌' },
       'On Hold': { variant: 'secondary' as const, color: 'text-gray-600', bg: 'bg-gray-50', icon: '⏸️' },
       'Disputed': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '⚠️' },
@@ -250,16 +249,7 @@ export function OrderCard({
   return (
     <>
       <Card className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500">
-        {/* POD Warning Banner */}
-        {order.isPOD && (
-          <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2">
-            <div className="flex items-center gap-2 text-yellow-800">
-              <AlertTriangle className="h-4 w-4" />
-              <span className="text-sm font-medium">Pay on Delivery (POD) Order</span>
-              <span className="text-xs">- Payment received upon completion</span>
-            </div>
-          </div>
-        )}
+
         
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
@@ -330,13 +320,7 @@ export function OrderCard({
                 <span className="font-medium text-blue-600">KES {order.cpp?.toLocaleString() || 'N/A'}</span>
               </div>
 
-              {order.isPOD && (
-                <div className="flex items-center gap-2 text-sm">
-                  <DollarSign className="h-4 w-4 text-yellow-600" />
-                  <span className="text-gray-600">POD Amount:</span>
-                  <span className="font-medium text-yellow-600">KES {order.podAmount?.toLocaleString() || 'N/A'}</span>
-                </div>
-              )}
+
             </div>
           </div>
 

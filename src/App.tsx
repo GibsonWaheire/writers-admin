@@ -6,6 +6,7 @@ import { Layout } from "./components/Layout";
 import WriterDashboard from "./pages/WriterDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import OrdersPage from "./pages/OrdersPage";
+import PODOrdersPage from "./pages/PODOrdersPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import WalletPage from "./pages/WalletPage";
 import ReviewsPage from "./pages/ReviewsPage";
@@ -13,6 +14,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { ToastProvider } from "./contexts/ToastContext";
 import { OrderProvider } from "./contexts/OrderContext";
+import { PODProvider } from "./contexts/PODContext";
 import { WalletProvider } from "./contexts/WalletContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
@@ -72,6 +74,11 @@ function AppRouter() {
             <OrdersPage />
           </ProtectedRoute>
         } />
+        <Route path="/pod-orders" element={
+          <ProtectedRoute>
+            <PODOrdersPage />
+          </ProtectedRoute>
+        } />
         <Route path="/my-orders" element={
           <ProtectedRoute>
             <OrdersPage />
@@ -116,13 +123,15 @@ const App = () => (
     <AuthProvider>
       <ToastProvider>
         <OrderProvider>
-          <WalletProvider>
-            <TooltipProvider>
-              <BrowserRouter>
-                <AppRouter />
-              </BrowserRouter>
-            </TooltipProvider>
-          </WalletProvider>
+          <PODProvider>
+            <WalletProvider>
+              <TooltipProvider>
+                <BrowserRouter>
+                  <AppRouter />
+                </BrowserRouter>
+              </TooltipProvider>
+            </WalletProvider>
+          </PODProvider>
         </OrderProvider>
       </ToastProvider>
     </AuthProvider>

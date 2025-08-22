@@ -11,7 +11,6 @@ interface OrderContextType {
   confirmOrder: (orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => void;
   getOrdersByStatus: (status: OrderStatus) => Order[];
   getAvailableOrders: () => Order[];
-  getPODOrders: () => Order[];
   getWriterActiveOrders: (writerId: string) => Order[];
   getWriterOrderStats: (writerId: string) => {
     total: number;
@@ -70,7 +69,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'pending',
       paymentType: 'advance',
-      isPOD: false,
       clientMessages: [
         {
           id: 'msg-1',
@@ -112,7 +110,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'pending',
       paymentType: 'advance',
-      isPOD: false,
       clientMessages: [],
       uploadedFiles: [],
       additionalInstructions: 'Focus on ROI analysis and customer acquisition strategies'
@@ -137,7 +134,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'pending',
       paymentType: 'advance',
-      isPOD: false,
       clientMessages: [],
       uploadedFiles: [],
       additionalInstructions: 'Include analysis of at least 3 contemporary authors'
@@ -162,7 +158,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'pending',
       paymentType: 'advance',
-      isPOD: false,
       clientMessages: [],
       uploadedFiles: [],
       additionalInstructions: 'Include case studies and regulatory compliance requirements'
@@ -189,7 +184,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
-      isPOD: false,
       clientMessages: [
         {
           id: 'msg-2',
@@ -239,7 +233,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
-      isPOD: false,
       clientMessages: [],
       uploadedFiles: [],
       additionalInstructions: 'Focus on studies from the last 10 years and include meta-analysis'
@@ -266,7 +259,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
-      isPOD: false,
       clientMessages: [
         {
           id: 'msg-4',
@@ -310,7 +302,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
-      isPOD: false,
       clientMessages: [
         {
           id: 'msg-5',
@@ -354,7 +345,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
-      isPOD: false,
       clientMessages: [
         {
           id: 'msg-6',
@@ -388,7 +378,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
-      isPOD: false,
       clientMessages: [
         {
           id: 'msg-7',
@@ -432,7 +421,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
-      isPOD: false,
       clientMessages: [
         {
           id: 'msg-8',
@@ -444,60 +432,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       uploadedFiles: [],
       additionalInstructions: 'Include contemporary examples and case studies'
     },
-    // POD Orders (Pay on Delivery)
-    {
-      id: 'ORD-009',
-      title: 'Case Study - Digital Transformation in Banking',
-      description: 'Analysis of successful digital transformation initiatives in traditional banking sector',
-      subject: 'Business Technology',
-      discipline: 'Business',
-      paperType: 'Case Study',
-      pages: 14,
-      words: 3500,
-      format: 'Harvard',
-      price: 420,
-      priceKES: 63000,
-      cpp: 4500,
-      deadline: '2024-02-25',
-      status: 'POD Available',
-      createdAt: '2024-01-19',
-      updatedAt: '2024-01-19',
-      isOverdue: false,
-      confirmationStatus: 'pending',
-      paymentType: 'pod',
-      isPOD: true,
-      podAmount: 63000,
-      clientMessages: [],
-      uploadedFiles: [],
-      additionalInstructions: 'Focus on customer experience improvements and operational efficiency'
-    },
-    {
-      id: 'ORD-010',
-      title: 'Thesis - Machine Learning in Healthcare',
-      description: 'Comprehensive thesis on applications of machine learning in medical diagnosis and treatment',
-      subject: 'Healthcare Technology',
-      discipline: 'Computer Science',
-      paperType: 'Thesis',
-      pages: 80,
-      words: 20000,
-      format: 'APA',
-      price: 1200,
-      priceKES: 180000,
-      cpp: 2250,
-      deadline: '2024-03-15',
-      status: 'POD Available',
-      createdAt: '2024-01-20',
-      updatedAt: '2024-01-20',
-      isOverdue: false,
-      confirmationStatus: 'pending',
-      paymentType: 'pod',
-      isPOD: true,
-      podAmount: 180000,
-      clientMessages: [],
-      uploadedFiles: [],
-      additionalInstructions: 'Include ethical considerations and real-world case studies'
-    },
-    // More assigned orders for testing
     {
       id: 'ORD-011',
       title: 'Research Paper - Renewable Energy Sources',
@@ -520,7 +454,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
-      isPOD: false,
       clientMessages: [
         {
           id: 'msg-9',
@@ -636,35 +569,24 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     return orders.filter(order => order.status === status);
   }, [orders]);
 
-  // Get available orders (excluding POD orders and assigned orders)
+  // Get available orders (excluding assigned orders)
   const getAvailableOrders = useCallback(() => {
     return orders.filter(order => 
       order.status === 'Available' && 
-      !order.isPOD && 
       !order.writerId && 
       !order.assignedWriter
-    );
-  }, [orders]);
-
-  // Get POD orders separately
-  const getPODOrders = useCallback(() => {
-    return orders.filter(order => 
-      order.status === 'POD Available' || order.isPOD
     );
   }, [orders]);
 
   const getWriterActiveOrders = useCallback((writerId: string) => {
     return orders.filter(order => 
       order.writerId === writerId && 
-      ['In Progress', 'Pending Review', 'Upload to Client', 'Editor Revision', 'Approved', 'Pay Later', 'Awaiting Payment'].includes(order.status) &&
-      !order.isPOD // Exclude POD orders from active orders
+      ['In Progress', 'Pending Review', 'Upload to Client', 'Editor Revision', 'Approved', 'Pay Later', 'Awaiting Payment'].includes(order.status)
     );
   }, [orders]);
 
   const getWriterOrderStats = useCallback((writerId: string) => {
-    const writerOrders = orders.filter(order => 
-      order.writerId === writerId && !order.isPOD // Exclude POD orders from stats
-    );
+    const writerOrders = orders.filter(order => order.writerId === writerId);
     
     return {
       total: writerOrders.length,
@@ -684,9 +606,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   }, [orders]);
 
   const getWriterOrdersByCategory = useCallback((writerId: string) => {
-    const writerOrders = orders.filter(order => 
-      order.writerId === writerId && !order.isPOD // Exclude POD orders
-    );
+    const writerOrders = orders.filter(order => order.writerId === writerId);
     
     return {
       pending: writerOrders.filter(o => o.status === 'Pending Review'),
@@ -704,19 +624,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     };
   }, [orders]);
 
-  // Calculate earnings only from non-POD orders
+  // Calculate earnings for orders
   const calculateOrderEarnings = useCallback((order: Order): OrderEarnings => {
-    // POD orders don't count towards writer earnings
-    if (order.isPOD) {
-      return {
-        baseAmount: 0,
-        cppAmount: 0,
-        totalAmount: 0,
-        currency: 'KES',
-        calculatedAt: new Date().toISOString()
-      };
-    }
-
     const baseAmount = order.priceKES || (order.price * 150); // Convert USD to KES if needed
     const cppAmount = order.cpp || (baseAmount / order.pages);
     const totalAmount = baseAmount;
@@ -730,11 +639,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Get total writer earnings (excluding POD orders)
+  // Get total writer earnings
   const getWriterTotalEarnings = useCallback((writerId: string) => {
     const writerOrders = orders.filter(order => 
       order.writerId === writerId && 
-      !order.isPOD && 
       ['Completed', 'Approved', 'Awaiting Payment'].includes(order.status)
     );
     
@@ -754,7 +662,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       confirmOrder,
       getOrdersByStatus,
       getAvailableOrders,
-      getPODOrders,
       getWriterActiveOrders,
       getWriterOrderStats,
       getWriterOrdersByCategory,
