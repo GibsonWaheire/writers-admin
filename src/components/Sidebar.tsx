@@ -59,7 +59,6 @@ export function Sidebar() {
       {/* Navigation Menu */}
       <nav className="p-4 space-y-2">
         {menuItems.map((item) => {
-          const Icon = item.icon;
           const isActive = location.pathname === item.path;
           
           return (
