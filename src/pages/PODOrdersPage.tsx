@@ -1,7 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -10,7 +9,6 @@ import { usePOD } from '../contexts/PODContext';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Search, 
-  Filter, 
   DollarSign, 
   FileText, 
   Clock, 
@@ -40,27 +38,6 @@ export default function PODOrdersPage() {
   const writerPODStats = getWriterPODStats(writerId);
   const availablePODOrders = getAvailablePODOrders();
 
-  // Filter orders based on search and status
-  const filteredOrders = useMemo(() => {
-    let filtered = podOrders;
-    
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(order => order.status === statusFilter);
-    }
-    
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(order => 
-        order.title.toLowerCase().includes(term) ||
-        order.description.toLowerCase().includes(term) ||
-        order.subject.toLowerCase().includes(term) ||
-        order.discipline.toLowerCase().includes(term)
-      );
-    }
-    
-    return filtered;
-  }, [podOrders, statusFilter, searchTerm]);
-
   // Filter orders for specific tabs
   const filterOrders = (orders: typeof podOrders) => {
     let filtered = orders;
@@ -80,6 +57,24 @@ export default function PODOrdersPage() {
     }
     
     return filtered;
+  };
+
+  // Get orders for specific tabs with proper filtering
+  const getAvailableOrdersForTab = () => {
+    return filterOrders(availablePODOrders);
+  };
+
+  const getMyPODOrdersForTab = () => {
+    return filterOrders(writerPODOrders);
+  };
+
+  const getAllPODOrdersForTab = () => {
+    return filterOrders(podOrders);
+  };
+
+  const getCompletedPODOrdersForTab = () => {
+    const completedOrders = podOrders.filter(order => order.status === 'Payment Received');
+    return filterOrders(completedOrders);
   };
 
   const getStatusCount = (status: PODStatus) => {
@@ -193,7 +188,7 @@ export default function PODOrdersPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+              <Select value={statusFilter} onValueChange={(value: PODStatus | 'all') => setStatusFilter(value)}>
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
@@ -221,19 +216,19 @@ export default function PODOrdersPage() {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="available" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
-            Available ({filterOrders(availablePODOrders).length})
+            Available ({getAvailableOrdersForTab().length})
           </TabsTrigger>
           <TabsTrigger value="my-pod" className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
-            My POD Orders ({filterOrders(writerPODOrders).length})
+            My POD Orders ({getMyPODOrdersForTab().length})
           </TabsTrigger>
           <TabsTrigger value="all-pod" className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" />
-            All POD Orders ({filterOrders(podOrders).length})
+            All POD Orders ({getAllPODOrdersForTab().length})
           </TabsTrigger>
           <TabsTrigger value="completed" className="flex items-center gap-2">
             <CreditCard className="w-4 h-4" />
-            Completed ({getStatusCount('Payment Received')})
+            Completed ({getCompletedPODOrdersForTab().length})
           </TabsTrigger>
         </TabsList>
 
@@ -246,9 +241,9 @@ export default function PODOrdersPage() {
             </p>
           </div>
           
-          {filterOrders(availablePODOrders).length > 0 ? (
+          {getAvailableOrdersForTab().length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filterOrders(availablePODOrders).map((order) => (
+              {getAvailableOrdersForTab().map((order) => (
                 <PODOrderCard key={order.id} order={order} />
               ))}
             </div>
@@ -271,9 +266,9 @@ export default function PODOrdersPage() {
             </div>
           </div>
           
-          {filterOrders(writerPODOrders).length > 0 ? (
+          {getMyPODOrdersForTab().length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filterOrders(writerPODOrders).map((order) => (
+              {getMyPODOrdersForTab().map((order) => (
                 <PODOrderCard key={order.id} order={order} />
               ))}
             </div>
@@ -296,9 +291,9 @@ export default function PODOrdersPage() {
             </div>
           </div>
           
-          {filterOrders(podOrders).length > 0 ? (
+          {getAllPODOrdersForTab().length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filterOrders(podOrders).map((order) => (
+              {getAllPODOrdersForTab().map((order) => (
                 <PODOrderCard key={order.id} order={order} />
               ))}
             </div>
@@ -316,14 +311,14 @@ export default function PODOrdersPage() {
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">Completed POD Orders</h3>
             <div className="text-right">
-              <p className="text-sm text-gray-500">Total Completed: {getStatusCount('Payment Received')}</p>
+              <p className="text-sm text-gray-500">Total Completed: {getCompletedPODOrdersForTab().length}</p>
               <p className="text-sm text-gray-500">Total Revenue: KES {getCompletedPODValue().toLocaleString()}</p>
             </div>
           </div>
           
-          {filterOrders(podOrders.filter(order => order.status === 'Payment Received')).length > 0 ? (
+          {getCompletedPODOrdersForTab().length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filterOrders(podOrders.filter(order => order.status === 'Payment Received')).map((order) => (
+              {getCompletedPODOrdersForTab().map((order) => (
                 <PODOrderCard key={order.id} order={order} />
               ))}
             </div>

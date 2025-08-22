@@ -7,7 +7,7 @@ interface PODContextType {
   updatePODOrderStatus: (orderId: string, status: PODStatus) => void;
   assignPODOrderToWriter: (orderId: string, writerId: string, writerName: string) => void;
   pickPODOrder: (orderId: string, writerId: string, writerName: string) => void;
-  handlePODOrderAction: (action: string, orderId: string, notes?: string) => void;
+  handlePODOrderAction: (action: string, orderId: string) => void;
   getPODOrdersByStatus: (status: PODStatus) => PODOrder[];
   getAvailablePODOrders: () => PODOrder[];
   getWriterPODOrders: (writerId: string) => PODOrder[];
@@ -155,7 +155,7 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
     ));
   }, []);
 
-  const handlePODOrderAction = useCallback((action: string, orderId: string, notes?: string) => {
+  const handlePODOrderAction = useCallback((action: string, orderId: string) => {
     setPODOrders(prev => prev.map(order => {
       if (order.id !== orderId) return order;
       
@@ -212,12 +212,15 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
 
   const getAvailablePODOrders = useCallback(() => {
     return podOrders.filter(order => 
-      order.status === 'Available' && !order.writerId && !order.assignedWriter
+      order.status === 'Available' && !order.writerId
     );
   }, [podOrders]);
 
   const getWriterPODOrders = useCallback((writerId: string) => {
-    return podOrders.filter(order => order.writerId === writerId);
+    return podOrders.filter(order => 
+      order.writerId === writerId && 
+      ['Assigned', 'In Progress', 'Ready for Delivery', 'Delivered', 'Payment Received'].includes(order.status)
+    );
   }, [podOrders]);
 
   const getWriterPODStats = useCallback((writerId: string) => {

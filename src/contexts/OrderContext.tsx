@@ -502,7 +502,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const pickOrder = useCallback((orderId: string, writerId: string) => {
     setOrders(prev => prev.map(order => 
       order.id === orderId 
-        ? { ...order, writerId, status: 'In Progress', updatedAt: new Date().toISOString() }
+        ? { ...order, writerId, status: 'Awaiting Confirmation', updatedAt: new Date().toISOString() }
         : order
     ));
   }, []);

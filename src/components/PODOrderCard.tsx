@@ -77,6 +77,8 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
     if (user) {
       // Use the pickPODOrder function to assign the order to the writer
       pickPODOrder(order.id, user.id, user.name || 'Unknown Writer');
+      // Close the confirmation modal
+      setIsConfirmationModalOpen(false);
     }
   };
 
