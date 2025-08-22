@@ -93,7 +93,7 @@ export function InvoiceCard({ invoice, onDownload }: InvoiceCardProps) {
             <div className="flex items-center gap-2 text-sm">
               <DollarSign className="h-4 w-4 text-green-600" />
               <span className="text-gray-600">Amount:</span>
-              <span className="font-bold text-green-600 text-lg">${invoice.amount}</span>
+              <span className="font-bold text-green-600">KES {(invoice.order.pages * 350).toLocaleString()}</span>
             </div>
             
             {invoice.paymentMethod && (

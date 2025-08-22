@@ -337,13 +337,13 @@ export function OrderCard({
               <div className="flex items-center gap-2 text-sm">
                 <DollarSign className="h-4 w-4 text-green-600" />
                 <span className="text-gray-600">Total Price:</span>
-                <span className="font-bold text-green-600">KES {order.totalPriceKES?.toLocaleString() || order.priceKES?.toLocaleString() || 'N/A'}</span>
+                <span className="font-bold text-green-600">KES {(order.pages * 350).toLocaleString()}</span>
               </div>
 
               <div className="flex items-center gap-2 text-sm">
                 <DollarSign className="h-4 w-4 text-blue-600" />
                 <span className="text-gray-600">CPP:</span>
-                <span className="font-medium text-blue-600">KES {order.cpp?.toLocaleString() || 'N/A'}</span>
+                <span className="font-medium text-blue-600">KES 350</span>
               </div>
 
               {order.fineAmount && order.fineAmount > 0 && (

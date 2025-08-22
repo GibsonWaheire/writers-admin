@@ -12,8 +12,7 @@ import {
   UserCheck,
   AlertCircle,
   Eye,
-  UserPlus,
-  Star
+  UserPlus
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -49,7 +48,7 @@ export default function AdminDashboard() {
     },
     {
       title: "Total Revenue",
-      value: "$45,230",
+      value: "KES 45,230",
       icon: DollarSign,
       change: "+23% vs last month",
       changeType: "positive" as const
@@ -69,7 +68,7 @@ export default function AdminDashboard() {
       title: "Business Strategy Analysis",
       writer: "John Smith",
       pages: 20,
-      price: "$600",
+      price: "KES 7,000",
       deadline: "2024-01-24",
       status: "Pending Review",
       priority: "High"
@@ -79,7 +78,7 @@ export default function AdminDashboard() {
       title: "Literature Review - Medicine",
       writer: "Sarah Johnson",
       pages: 15,
-      price: "$450",
+      price: "KES 5,250",
       deadline: "2024-01-26",
       status: "In Progress",
       priority: "Medium"
@@ -89,7 +88,7 @@ export default function AdminDashboard() {
       title: "Technical Documentation",
       writer: "Unassigned",
       pages: 12,
-      price: "$360",
+      price: "KES 4,200",
       deadline: "2024-01-28",
       status: "Available",
       priority: "Low"

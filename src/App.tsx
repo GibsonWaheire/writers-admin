@@ -57,64 +57,80 @@ function AppRouter() {
 
   // If user is authenticated, show dashboard routes
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={
-          user?.role === 'admin' ? 
-            <Navigate to="/admin" replace /> : 
-            <Navigate to="/writer" replace />
-        } />
-        <Route path="/writer" element={
-          <ProtectedRoute requiredRole="writer">
+    <Routes>
+      <Route path="/" element={
+        user?.role === 'admin' ? 
+          <Navigate to="/admin" replace /> : 
+          <Navigate to="/writer" replace />
+      } />
+      <Route path="/writer" element={
+        <ProtectedRoute requiredRole="writer">
+          <Layout>
             <WriterDashboard />
-          </ProtectedRoute>
-        } />
-        <Route path="/orders" element={
-          <ProtectedRoute>
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/orders" element={
+        <ProtectedRoute>
+          <Layout>
             <OrdersPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/pod-orders" element={
-          <ProtectedRoute>
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/pod-orders" element={
+        <ProtectedRoute>
+          <Layout>
             <PODOrdersPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/my-orders" element={
-          <ProtectedRoute>
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/my-orders" element={
+        <ProtectedRoute>
+          <Layout>
             <OrdersPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/wallet" element={
-          <ProtectedRoute>
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/wallet" element={
+        <ProtectedRoute>
+          <Layout>
             <WalletPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/reviews" element={
-          <ProtectedRoute>
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/reviews" element={
+        <ProtectedRoute>
+          <Layout>
             <ReviewsPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/messages" element={
-          <ProtectedRoute>
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/messages" element={
+        <ProtectedRoute>
+          <Layout>
             <div className="p-6">
               <h1 className="text-2xl font-bold">Messages</h1>
               <p>Messages functionality coming soon...</p>
             </div>
-          </ProtectedRoute>
-        } />
-        <Route path="/invoices" element={
-          <ProtectedRoute>
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/invoices" element={
+        <ProtectedRoute>
+          <Layout>
             <InvoicesPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin" element={
-          <ProtectedRoute requiredRole="admin">
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
             <AdminDashboard />
-          </ProtectedRoute>
-        } />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Layout>
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
 

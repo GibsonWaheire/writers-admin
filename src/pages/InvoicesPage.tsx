@@ -69,6 +69,15 @@ export default function InvoicesPage() {
     }
   ]);
 
+  // Sample orders data - in a real app, this would come from an orders context
+  const [orders] = useState([
+    { id: 'ORD-001', pages: 10 },
+    { id: 'ORD-002', pages: 5 },
+    { id: 'ORD-003', pages: 8 },
+    { id: 'ORD-004', pages: 12 },
+    { id: 'ORD-005', pages: 7 }
+  ]);
+
   // Filter invoices based on search and filters
   const filterInvoices = (invoiceList: Invoice[]) => {
     return invoiceList.filter(invoice => {
@@ -117,9 +126,19 @@ export default function InvoicesPage() {
 
   // Calculate statistics
   const totalInvoices = invoices.length;
-  const totalAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
-  const paidAmount = invoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0);
-  const pendingAmount = invoices.filter(inv => inv.status === 'pending').reduce((sum, inv) => sum + inv.amount, 0);
+  const totalAmount = invoices.reduce((sum, inv) => {
+    // Calculate amount using new CPP: 350 KES per page
+    const order = orders.find(o => o.id === inv.orderId);
+    return sum + (order ? order.pages * 350 : 0);
+  }, 0);
+  const paidAmount = invoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => {
+    const order = orders.find(o => o.id === inv.orderId);
+    return sum + (order ? order.pages * 350 : 0);
+  }, 0);
+  const pendingAmount = invoices.filter(inv => inv.status === 'pending').reduce((sum, inv) => {
+    const order = orders.find(o => o.id === inv.orderId);
+    return sum + (order ? order.pages * 350 : 0);
+  }, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -156,7 +175,7 @@ export default function InvoicesPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalAmount.toLocaleString()}</div>
+            <div className="text-2xl font-bold">KES {totalAmount.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               Combined invoice value
             </p>
@@ -169,7 +188,7 @@ export default function InvoicesPage() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">${paidAmount.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-600">KES {paidAmount.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               Successfully collected
             </p>
@@ -182,7 +201,7 @@ export default function InvoicesPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">${pendingAmount.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-yellow-600">KES {pendingAmount.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               Awaiting payment
             </p>

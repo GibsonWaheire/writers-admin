@@ -353,9 +353,16 @@ export function OrderViewModal({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Price:</span>
-                    <span className="font-bold text-green-600">${order.price}</span>
+                  <div className="flex items-center gap-2 text-sm">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                    <span className="text-gray-600">Total Price:</span>
+                    <span className="font-bold text-green-600">KES {(order.pages * 350).toLocaleString()}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-sm">
+                    <DollarSign className="h-4 w-4 text-blue-600" />
+                    <span className="text-gray-600">CPP:</span>
+                    <span className="font-medium text-blue-600">KES 350</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Deadline:</span>

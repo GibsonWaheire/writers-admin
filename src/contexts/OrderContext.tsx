@@ -657,12 +657,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   // Calculate earnings for orders
   const calculateOrderEarnings = useCallback((order: Order): OrderEarnings => {
-    const baseAmount = order.priceKES || (order.price * 150); // Convert USD to KES if needed
-    const cppAmount = order.cpp || (baseAmount / order.pages);
-    const totalAmount = baseAmount;
+    // New CPP calculation: 350 KES per page
+    const cppAmount = 350;
+    const totalAmount = order.pages * cppAmount;
     
     return {
-      baseAmount,
+      baseAmount: totalAmount,
       cppAmount,
       totalAmount,
       currency: 'KES',
@@ -678,7 +678,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     );
     
     return writerOrders.reduce((total, order) => {
-      return total + (order.priceKES || 0);
+      // Calculate earnings using new CPP: 350 KES per page
+      return total + (order.pages * 350);
     }, 0);
   }, [orders]);
 

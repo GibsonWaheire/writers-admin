@@ -107,7 +107,7 @@ export function OrderConfirmationModal({
   };
 
   const calculateEarnings = () => {
-    const baseAmount = order.priceKES || (order.price * 150); // Convert USD to KES if needed
+    const baseAmount = order.pages * 350; // New CPP: 350 KES per page
     const cppAmount = order.cpp || (baseAmount / order.pages);
     const totalAmount = baseAmount;
     

@@ -43,18 +43,18 @@ export default function WriterDashboard() {
   const stats = [
     {
       title: "Wallet Balance",
-      value: `$${wallet.availableBalance.toLocaleString()}`,
+      value: `KES ${wallet.availableBalance.toLocaleString()}`,
       icon: DollarSign,
-      change: `+$${thisMonthEarnings.toLocaleString()} this month`,
+      change: `+KES ${thisMonthEarnings.toLocaleString()} this month`,
       changeType: thisMonthEarnings > 0 ? "positive" as const : "neutral" as const,
       gradient: true,
       details: {
         description: "Your current available balance for withdrawals and spending.",
         items: [
-          { label: "Available Balance", value: `$${wallet.availableBalance.toLocaleString()}`, icon: DollarSign },
-          { label: "Pending Earnings", value: `$${wallet.pendingEarnings.toLocaleString()}`, icon: Clock },
-          { label: "Total Earned", value: `$${wallet.totalEarned.toLocaleString()}`, icon: TrendingUp },
-          { label: "Total Withdrawn", value: `$${wallet.totalWithdrawn.toLocaleString()}`, icon: ArrowRight }
+          { label: "Available Balance", value: `KES ${wallet.availableBalance.toLocaleString()}`, icon: DollarSign },
+          { label: "Pending Earnings", value: `KES ${wallet.pendingEarnings.toLocaleString()}`, icon: Clock },
+          { label: "Total Earned", value: `KES ${wallet.totalEarned.toLocaleString()}`, icon: TrendingUp },
+          { label: "Total Withdrawn", value: `KES ${wallet.totalWithdrawn.toLocaleString()}`, icon: ArrowRight }
         ],
         action: {
           label: "Go to Wallet",
@@ -130,8 +130,8 @@ export default function WriterDashboard() {
             const diffDays = Math.ceil((now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
             return diffDays <= 7;
           }).length.toString(), icon: Calendar },
-          { label: "Total Earnings", value: `$${totalEarnings.toLocaleString()}`, icon: DollarSign },
-          { label: "Average per Order", value: `$${completedOrders.length > 0 ? Math.round(totalEarnings / completedOrders.length) : 0}`, icon: TrendingUp }
+          { label: "Total Earnings", value: `KES ${totalEarnings.toLocaleString()}`, icon: DollarSign },
+          { label: "Average per Order", value: `KES ${completedOrders.length > 0 ? Math.round(totalEarnings / completedOrders.length) : 0}`, icon: TrendingUp }
         ],
         action: {
           label: "View Completed Orders",
@@ -161,17 +161,17 @@ export default function WriterDashboard() {
     },
     {
       title: "This Month Earnings",
-      value: `$${thisMonthEarnings.toLocaleString()}`,
+      value: `KES ${thisMonthEarnings.toLocaleString()}`,
       icon: TrendingUp,
       change: earningsChange !== 0 ? `${earningsChange > 0 ? '+' : ''}${earningsChange}% from last month` : "Starting fresh!",
       changeType: earningsChange > 0 ? "positive" as const : earningsChange < 0 ? "negative" as const : "neutral" as const,
       details: {
         description: "Your earnings performance for the current month.",
         items: [
-          { label: "This Month", value: `$${thisMonthEarnings.toLocaleString()}`, icon: TrendingUp },
-          { label: "Last Month", value: `$${lastMonthEarnings.toLocaleString()}`, icon: Calendar },
+          { label: "This Month", value: `KES ${thisMonthEarnings.toLocaleString()}`, icon: TrendingUp },
+          { label: "Last Month", value: `KES ${lastMonthEarnings.toLocaleString()}`, icon: Calendar },
           { label: "Change", value: `${earningsChange > 0 ? '+' : ''}${earningsChange}%`, icon: ArrowRight },
-          { label: "Projected Annual", value: `$${(thisMonthEarnings * 12).toLocaleString()}`, icon: DollarSign }
+          { label: "Projected Annual", value: `KES ${(thisMonthEarnings * 12).toLocaleString()}`, icon: DollarSign }
         ],
         action: {
           label: "View Earnings Report",

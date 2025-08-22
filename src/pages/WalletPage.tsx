@@ -22,25 +22,25 @@ export default function WalletPage() {
   const walletStats = [
     { 
       label: "Available Balance", 
-      value: `$${wallet.availableBalance.toLocaleString()}`, 
-      change: `+$${thisMonthEarnings.toLocaleString()} this month`,
+      value: `KES ${wallet.availableBalance.toLocaleString()}`, 
+      change: `+KES ${thisMonthEarnings.toLocaleString()} this month`,
       changeType: thisMonthEarnings > 0 ? "positive" : "neutral"
     },
     { 
       label: "Pending Earnings", 
-      value: `$${wallet.pendingEarnings.toLocaleString()}`, 
+      value: `KES ${wallet.pendingEarnings.toLocaleString()}`, 
       change: "3 orders",
       changeType: "neutral"
     },
     { 
       label: "Total Earned", 
-      value: `$${wallet.totalEarned.toLocaleString()}`, 
+      value: `KES ${wallet.totalEarned.toLocaleString()}`, 
       change: `${earningsChange > 0 ? '+' : ''}${earningsChange}% this month`,
       changeType: earningsChange > 0 ? "positive" : earningsChange < 0 ? "negative" : "neutral"
     },
     { 
       label: "Total Withdrawn", 
-      value: `$${wallet.totalWithdrawn.toLocaleString()}`, 
+      value: `KES ${wallet.totalWithdrawn.toLocaleString()}`, 
       change: "Last: Dec 15",
       changeType: "neutral"
     }

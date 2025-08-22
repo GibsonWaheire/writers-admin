@@ -203,16 +203,12 @@ export function AvailableOrdersTable({
                     </TableCell>
                     
                     <TableCell className="py-4">
-                      <div className="space-y-1 text-sm">
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-green-600" />
-                          <span className="text-gray-600">Price:</span>
-                          <span className="font-bold text-green-600">KES {order.priceKES?.toLocaleString()}</span>
+                      <div className="space-y-2">
+                        <div className="text-lg font-bold text-green-600">
+                          KES {(order.pages * 350).toLocaleString()}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-blue-600" />
-                          <span className="text-gray-600">CPP:</span>
-                          <span className="font-medium text-blue-600">KES {order.cpp?.toLocaleString()}</span>
+                        <div className="text-sm text-gray-500">
+                          {order.pages} pages × KES 350
                         </div>
                       </div>
                     </TableCell>

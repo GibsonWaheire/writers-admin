@@ -122,7 +122,7 @@ export default function OrdersPage() {
 
   // Calculate statistics
   const totalOrders = orders.length;
-  const totalValue = orders.reduce((sum, order) => sum + order.price, 0);
+  const totalValue = orders.reduce((sum, order) => sum + (order.pages * 350), 0);
   const overdueOrders = orders.filter(order => new Date(order.deadline) < new Date()).length;
 
   return (
@@ -164,7 +164,7 @@ export default function OrdersPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">KES {totalValue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               Combined order value
             </p>
