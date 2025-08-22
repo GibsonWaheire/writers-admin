@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
@@ -135,9 +135,9 @@ export function PODConfirmationModal({
             </div>
             POD Order Assignment Confirmation
           </DialogTitle>
-          <p className="text-gray-600 mt-2">
+          <DialogDescription className="text-gray-600 mt-2">
             Please carefully review and confirm your understanding of this POD order before proceeding
-          </p>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">

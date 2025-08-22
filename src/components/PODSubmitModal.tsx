@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
@@ -76,9 +76,9 @@ export function PODSubmitModal({
             </div>
             Submit POD Order for Delivery
           </DialogTitle>
-          <p className="text-gray-600 mt-2">
+          <DialogDescription className="text-gray-600 mt-2">
             Upload completed work and provide delivery information for this POD order
-          </p>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
