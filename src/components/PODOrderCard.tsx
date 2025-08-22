@@ -12,7 +12,7 @@ import { usePOD } from '../contexts/PODContext';
 import { PODConfirmationModal } from './PODConfirmationModal';
 import { PODReassignmentModal } from './PODReassignmentModal';
 import { PODSubmitModal } from './PODSubmitModal';
-import type { PODOrder, PODStatus } from '../types/pod';
+import type { PODOrder, PODStatus, PODWriterConfirmation } from '../types/pod';
 import { 
   FileText, 
   DollarSign, 
@@ -67,14 +67,36 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
   const canDeliver = order.status === 'In Progress' && order.writerId === user?.id;
   const canRecordPayment = order.status === 'Delivered' && order.writerId === user?.id;
 
+  // Calculate remaining time in hours
+  const getRemainingTime = () => {
+    const now = new Date();
+    const deadline = new Date(order.deadline);
+    const diffTime = deadline.getTime() - now.getTime();
+    const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
+    
+    if (diffHours < 0) {
+      return { text: `Overdue by ${Math.abs(diffHours)} hours`, color: 'text-red-600', bg: 'bg-red-50' };
+    } else if (diffHours === 0) {
+      return { text: 'Due within the hour', color: 'text-orange-600', bg: 'bg-orange-50' };
+    } else if (diffHours <= 6) {
+      return { text: `Due in ${diffHours} hours`, color: 'text-yellow-600', bg: 'bg-yellow-50' };
+    } else {
+      return { text: `Due in ${diffHours} hours`, color: 'text-green-600', bg: 'bg-green-50' };
+    }
+  };
+
+  const remainingTime = getRemainingTime();
 
 
   const handlePickOrder = () => {
     setIsConfirmationModalOpen(true);
   };
 
-  const handleConfirmPickOrder = () => {
+  const handleConfirmPickOrder = (confirmation: PODWriterConfirmation) => {
     if (user) {
+      // Store the confirmation data (you might want to save this to a database)
+      console.log('POD Order Confirmation:', confirmation);
+      
       // Use the pickPODOrder function to assign the order to the writer
       pickPODOrder(order.id, user.id, user.name || 'Unknown Writer');
       // Close the confirmation modal
@@ -171,9 +193,9 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold text-green-600">
-              KES {order.podAmount.toLocaleString()}
+              KES {(order.pages * 350).toLocaleString()}
             </div>
-            <div className="text-sm text-gray-500">POD Amount</div>
+            <div className="text-sm text-gray-500">POD Amount ({order.pages} pages × KES 350)</div>
           </div>
         </div>
       </CardHeader>
@@ -193,9 +215,12 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
             <FileText className="w-4 h-4 text-gray-500" />
             <span className="text-gray-600">{order.pages} pages</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-600">{new Date(order.deadline).toLocaleDateString()}</span>
+          <div className="flex items-center gap-2 text-sm">
+            <Calendar className="h-4 w-4 text-gray-500" />
+            <span className="text-gray-600">Deadline:</span>
+            <span className={`font-medium ${remainingTime.color}`}>
+              {remainingTime.text}
+            </span>
           </div>
         </div>
 
@@ -342,7 +367,7 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
                   </div>
                   <div className="bg-green-50 p-3 rounded-lg">
                     <p className="text-sm text-green-800">
-                      <strong>Amount to collect:</strong> KES {order.podAmount.toLocaleString()}
+                      <strong>Amount to collect:</strong> KES {(order.pages * 350).toLocaleString()}
                     </p>
                   </div>
                   <Button onClick={handleSubmitPayment}>

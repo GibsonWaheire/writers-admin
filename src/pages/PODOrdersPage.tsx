@@ -24,8 +24,7 @@ export default function PODOrdersPage() {
   const { 
     podOrders, 
     getAvailablePODOrders, 
-    getWriterPODOrders,
-    getWriterPODStats 
+    getWriterPODOrders 
   } = usePOD();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,7 +34,6 @@ export default function PODOrdersPage() {
   // Get writer-specific data
   const writerId = user?.id || 'writer-1';
   const writerPODOrders = getWriterPODOrders(writerId);
-  const writerPODStats = getWriterPODStats(writerId);
   const availablePODOrders = getAvailablePODOrders();
 
   // Filter orders for specific tabs
@@ -81,8 +79,15 @@ export default function PODOrdersPage() {
     return podOrders.filter(order => order.status === status).length;
   };
 
+  // Get total POD value using new CPP calculation
   const getTotalPODValue = () => {
-    return podOrders.reduce((total, order) => total + order.podAmount, 0);
+    return podOrders.reduce((total, order) => total + (order.pages * 350), 0);
+  };
+
+  // Get available POD orders total value
+  const getAvailablePODValue = () => {
+    return availablePODOrders
+      .reduce((total, order) => total + (order.pages * 350), 0);
   };
 
   const getCompletedPODValue = () => {
@@ -237,7 +242,7 @@ export default function PODOrdersPage() {
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">Available POD Orders</h3>
             <p className="text-sm text-gray-500">
-              Total Value: KES {availablePODOrders.reduce((sum, order) => sum + order.podAmount, 0).toLocaleString()}
+              Total Value: KES {getAvailablePODValue().toLocaleString()}
             </p>
           </div>
           
@@ -260,10 +265,9 @@ export default function PODOrdersPage() {
         <TabsContent value="my-pod" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">My POD Orders</h3>
-            <div className="text-right">
-              <p className="text-sm text-gray-500">Total Assigned: {writerPODStats.total}</p>
-              <p className="text-sm text-gray-500">Total Value: KES {writerPODOrders.reduce((sum, order) => sum + order.podAmount, 0).toLocaleString()}</p>
-            </div>
+            <p className="text-sm text-gray-500">
+              Total Value: KES {writerPODOrders.reduce((sum, order) => sum + (order.pages * 350), 0).toLocaleString()}
+            </p>
           </div>
           
           {getMyPODOrdersForTab().length > 0 ? (

@@ -139,7 +139,7 @@ export function PODReassignmentModal({
                   <div className="w-3 h-3 bg-purple-500 rounded-full shadow-sm"></div>
                   <span className="text-gray-600 font-medium"><strong>POD Amount:</strong></span>
                 </div>
-                <p className="font-semibold text-gray-900 ml-6 text-base">KES {order.podAmount.toLocaleString()}</p>
+                <p className="font-semibold text-gray-900 ml-6 text-base">KES {(order.pages * 350).toLocaleString()}</p>
               </div>
             </div>
           </div>

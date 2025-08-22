@@ -1,37 +1,25 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Input } from './ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { 
-  AlertTriangle, 
   CheckCircle, 
-  DollarSign, 
   FileText, 
-  Calendar,
-  User
+  AlertTriangle, 
+  Clock, 
+  Upload,
+  Info
 } from 'lucide-react';
-import type { PODOrder } from '../types/pod';
+import type { PODOrder, PODWriterConfirmation } from '../types/pod';
 
 interface PODConfirmationModalProps {
   order: PODOrder;
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
-}
-
-interface PODConfirmation {
-  hasReadInstructions: boolean;
-  hasUnderstoodRequirements: boolean;
-  canMeetDeadline: boolean;
-  hasNoConflicts: boolean;
-  understandsPODTerms: boolean;
-  canHandleDelivery: boolean;
-  hasTransportation: boolean;
-  additionalNotes?: string;
-  estimatedDeliveryDate?: string;
+  onConfirm: (confirmation: PODWriterConfirmation) => void;
 }
 
 export function PODConfirmationModal({ 
@@ -40,185 +28,129 @@ export function PODConfirmationModal({
   onClose, 
   onConfirm 
 }: PODConfirmationModalProps) {
-  const [confirmation, setConfirmation] = useState<PODConfirmation>({
+  const [confirmation, setConfirmation] = useState<PODWriterConfirmation>({
+    id: '',
     hasReadInstructions: false,
     hasUnderstoodRequirements: false,
     canMeetDeadline: false,
     hasNoConflicts: false,
     understandsPODTerms: false,
-    canHandleDelivery: false,
-    hasTransportation: false,
+    canSubmitWork: false,
+    estimatedCompletionHours: 24,
     additionalNotes: '',
-    estimatedDeliveryDate: ''
+    confirmedAt: '',
+    writerId: ''
   });
 
-  const [errors, setErrors] = useState<string[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleCheckboxChange = (field: keyof PODConfirmation, checked: boolean) => {
+  const handleCheckboxChange = (field: keyof PODWriterConfirmation, checked: boolean) => {
     setConfirmation(prev => ({
       ...prev,
       [field]: checked
     }));
   };
 
-  const handleInputChange = (field: keyof PODConfirmation, value: string) => {
+  const handleInputChange = (field: keyof PODWriterConfirmation, value: string | number) => {
     setConfirmation(prev => ({
       ...prev,
       [field]: value
     }));
   };
 
-  const validateConfirmation = (): boolean => {
-    const newErrors: string[] = [];
-    
-    // Check if deadline is within 24 hours
+  const handleSubmit = () => {
+    const now = new Date().toISOString();
+    const finalConfirmation: PODWriterConfirmation = {
+      ...confirmation,
+      id: `conf-${Date.now()}`,
+      confirmedAt: now,
+      writerId: 'writer-1' // This should come from auth context
+    };
+    onConfirm(finalConfirmation);
+  };
+
+  const isFormValid = 
+    confirmation.hasReadInstructions &&
+    confirmation.hasUnderstoodRequirements &&
+    confirmation.canMeetDeadline &&
+    confirmation.hasNoConflicts &&
+    confirmation.understandsPODTerms &&
+    confirmation.canSubmitWork &&
+    confirmation.estimatedCompletionHours > 0;
+
+  const formatDeadline = (deadline: string) => {
+    const deadlineDate = new Date(deadline);
     const now = new Date();
-    const deadline = new Date(order.deadline);
-    const diffTime = deadline.getTime() - now.getTime();
-    const diffHours = diffTime / (1000 * 60 * 60);
+    const diffTime = deadlineDate.getTime() - now.getTime();
+    const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
     
-    if (diffHours > 24) {
-      newErrors.push('POD orders must have a deadline within 24 hours. This order cannot be assigned.');
-      return false; // Early return for deadline validation
-    }
-    
-    if (!confirmation.hasReadInstructions) {
-      newErrors.push('You must read and understand the order instructions');
-    }
-    if (!confirmation.hasUnderstoodRequirements) {
-      newErrors.push('You must understand the order requirements');
-    }
-    if (!confirmation.canMeetDeadline) {
-      newErrors.push('You must confirm you can meet the deadline');
-    }
-    if (!confirmation.hasNoConflicts) {
-      newErrors.push('You must confirm you have no conflicts');
-    }
-    if (!confirmation.understandsPODTerms) {
-      newErrors.push('You must understand the POD terms and conditions');
-    }
-    if (!confirmation.canHandleDelivery) {
-      newErrors.push('You must confirm you can handle delivery');
-    }
-    if (!confirmation.hasTransportation) {
-      newErrors.push('You must confirm you have transportation for delivery');
-    }
-
-    setErrors(newErrors);
-    return newErrors.length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (validateConfirmation()) {
-      setIsSubmitting(true);
-      try {
-        await onConfirm();
-        onClose();
-      } finally {
-        setIsSubmitting(false);
-      }
+    if (diffHours < 0) {
+      return { text: `Overdue by ${Math.abs(diffHours)} hours`, color: 'text-red-600', bg: 'bg-red-50' };
+    } else if (diffHours === 0) {
+      return { text: 'Due within the hour', color: 'text-orange-600', bg: 'bg-orange-50' };
+    } else if (diffHours <= 6) {
+      return { text: `Due in ${diffHours} hours`, color: 'text-yellow-600', bg: 'bg-yellow-50' };
+    } else {
+      return { text: `Due in ${diffHours} hours`, color: 'text-green-600', bg: 'bg-green-50' };
     }
   };
 
-  const isFormValid = Object.values(confirmation).every(value => 
-    typeof value === 'boolean' ? value : true
-  );
+  const deadlineStatus = formatDeadline(order.deadline);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
         <DialogHeader className="border-b border-gray-200 pb-4">
-          <DialogTitle className="flex items-center gap-3 text-2xl font-bold text-gray-900">
-            <div className="p-2 bg-green-100 rounded-full">
-              <CheckCircle className="h-6 w-6 text-green-600" />
-            </div>
-            POD Order Assignment Confirmation
+          <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <FileText className="h-8 w-8 text-blue-600" />
+            Confirm POD Order Assignment
           </DialogTitle>
-          <DialogDescription className="text-gray-600 mt-2">
-            Please carefully review and confirm your understanding of this POD order before proceeding
-          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Order Summary */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
-            <h3 className="font-bold text-gray-900 mb-4 text-lg flex items-center gap-2">
-              <FileText className="h-5 w-5 text-blue-600" />
-              Order Summary
-            </h3>
-            <div className="grid grid-cols-2 gap-6 text-sm">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileText className="h-4 w-4 text-blue-600" />
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs uppercase tracking-wide">Title</span>
-                  <p className="font-semibold text-gray-900">{order.title}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <User className="h-4 w-4 text-green-600" />
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs uppercase tracking-wide">Subject</span>
-                  <p className="font-semibold text-gray-900">{order.subject}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <FileText className="h-4 w-4 text-purple-600" />
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs uppercase tracking-wide">Pages</span>
-                  <p className="font-semibold text-gray-900">{order.pages}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <Calendar className="h-4 w-4 text-orange-600" />
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs uppercase tracking-wide">Deadline</span>
-                  <p className="font-semibold text-gray-900">{new Date(order.deadline).toLocaleDateString()}</p>
-                  {(() => {
-                    const now = new Date();
-                    const deadline = new Date(order.deadline);
-                    const diffTime = deadline.getTime() - now.getTime();
-                    const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
-                    
-                    if (diffHours <= 0) {
-                      return <span className="text-red-600 text-xs font-medium">⚠️ OVERDUE</span>;
-                    } else if (diffHours <= 6) {
-                      return <span className="text-red-600 text-xs font-medium">🚨 URGENT: {diffHours}h left</span>;
-                    } else if (diffHours <= 12) {
-                      return <span className="text-orange-600 text-xs font-medium">⚠️ Due in {diffHours}h</span>;
-                    } else if (diffHours <= 24) {
-                      return <span className="text-green-600 text-xs font-medium">✅ Valid POD deadline</span>;
-                    } else {
-                      return <span className="text-red-600 text-xs font-medium">❌ Invalid: {diffHours}h &gt; 24h limit</span>;
-                    }
-                  })()}
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-blue-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <DollarSign className="h-5 w-5 text-green-600" />
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-3">{order.title}</h3>
+                <p className="text-gray-600 text-sm mb-4">{order.description}</p>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700">Paper Type:</span>
+                    <p className="text-gray-600">{order.paperType}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500 text-xs uppercase tracking-wide">POD Amount</span>
-                    <p className="text-2xl font-bold text-green-600">
-                      KES {order.podAmount.toLocaleString()}
-                    </p>
+                    <span className="font-medium text-gray-700">Format:</span>
+                    <p className="text-gray-600">{order.format}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Pages:</span>
+                    <p className="text-gray-600">{order.pages}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Words:</span>
+                    <p className="text-gray-600">{order.words.toLocaleString()}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-gray-500 text-xs uppercase tracking-wide">Payment Terms</span>
-                  <p className="text-sm font-medium text-gray-700">Pay on Delivery</p>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-600 mb-2">
+                    KES {(order.pages * 350).toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {order.pages} pages × KES 350 CPP
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium ${deadlineStatus.bg} ${deadlineStatus.color}`}>
+                    <Clock className="h-4 w-4" />
+                    {deadlineStatus.text}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {order.deadlineHours === 24 ? '24-hour deadline' : '48-hour deadline'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -231,28 +163,28 @@ export function PODConfirmationModal({
                 <AlertTriangle className="h-6 w-6 text-amber-600" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-amber-800 mb-3 text-lg">⚠️ Critical: Pay on Delivery (POD) Terms</h3>
+                <h3 className="font-bold text-amber-800 mb-3 text-lg">⚠️ Important: POD Order Terms</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="flex items-start gap-2">
                     <div className="w-2 h-2 bg-amber-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <span className="text-amber-800 font-medium">No advance payment will be made</span>
+                    <span className="text-amber-800 font-medium">Submit completed work as file upload</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <div className="w-2 h-2 bg-amber-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <span className="text-amber-800 font-medium">Payment collected upon successful delivery</span>
+                    <span className="text-amber-800 font-medium">No physical delivery required</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <div className="w-2 h-2 bg-amber-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <span className="text-amber-800 font-medium">You are responsible for delivery logistics</span>
+                    <span className="text-amber-800 font-medium">Payment processed after work approval</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <div className="w-2 h-2 bg-amber-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <span className="text-amber-800 font-medium">Payment must be collected in full</span>
+                    <span className="text-amber-800 font-medium">Strict deadline enforcement</span>
                   </div>
                 </div>
                 <div className="mt-4 p-3 bg-amber-100 rounded-lg border border-amber-200">
                   <p className="text-amber-800 font-semibold text-sm">
-                    🚨 Risk Warning: Failure to collect payment may result in loss of earnings and account penalties.
+                    🚨 Note: POD orders have strict deadlines. Ensure you can complete the work within the specified hours.
                   </p>
                 </div>
               </div>
@@ -325,13 +257,16 @@ export function PODConfirmationModal({
                 />
                 <div className="flex-1">
                   <Label htmlFor="canMeetDeadline" className="font-semibold text-gray-900 cursor-pointer">
-                    I can complete this order by the deadline
+                    I can complete this order within {order.deadlineHours} hours
                   </Label>
                   <div className="mt-2 p-3 bg-orange-50 rounded-lg border border-orange-200">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-orange-600" />
+                      <Clock className="h-4 w-4 text-orange-600" />
                       <span className="font-medium text-orange-800">Deadline:</span>
-                      <span className="text-orange-700 font-semibold">{new Date(order.deadline).toLocaleDateString()}</span>
+                      <span className="text-orange-700 font-semibold">{order.deadlineHours} hours from assignment</span>
+                    </div>
+                    <div className="mt-2 text-xs text-orange-600">
+                      Current deadline: {new Date(order.deadline).toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -369,7 +304,7 @@ export function PODConfirmationModal({
                   </Label>
                   <div className="mt-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
                     <p className="text-sm text-amber-800">
-                      <span className="font-medium">Key Terms:</span> No advance payment, payment collected upon delivery, you are responsible for payment collection.
+                      <span className="font-medium">Key Terms:</span> File upload submission, no physical delivery, payment after approval, strict deadline enforcement.
                     </p>
                   </div>
                 </div>
@@ -377,38 +312,22 @@ export function PODConfirmationModal({
 
               <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
                 <Checkbox
-                  id="canHandleDelivery"
-                  checked={confirmation.canHandleDelivery}
-                  onCheckedChange={(checked) => handleCheckboxChange('canHandleDelivery', checked as boolean)}
+                  id="canSubmitWork"
+                  checked={confirmation.canSubmitWork}
+                  onCheckedChange={(checked) => handleCheckboxChange('canSubmitWork', checked as boolean)}
                   className="mt-1"
                 />
                 <div className="flex-1">
-                  <Label htmlFor="canHandleDelivery" className="font-semibold text-gray-900 cursor-pointer">
-                    I can handle the physical delivery of this order
-                  </Label>
-                  <div className="mt-2 p-3 bg-red-50 rounded-lg border border-red-200">
-                    <p className="text-sm text-red-800">
-                      <span className="font-medium">Responsibility:</span> You will be responsible for delivering the completed work to the client and collecting payment.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
-                <Checkbox
-                  id="hasTransportation"
-                  checked={confirmation.hasTransportation}
-                  onCheckedChange={(checked) => handleCheckboxChange('hasTransportation', checked as boolean)}
-                  className="mt-1"
-                />
-                <div className="flex-1">
-                  <Label htmlFor="hasTransportation" className="font-semibold text-gray-900 cursor-pointer">
-                    I have reliable transportation for delivery
+                  <Label htmlFor="canSubmitWork" className="font-semibold text-gray-900 cursor-pointer">
+                    I can submit the completed work as a file upload
                   </Label>
                   <div className="mt-2 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
-                    <p className="text-sm text-indigo-800">
-                      <span className="font-medium">Requirement:</span> Ensure you can reach the client location for delivery using reliable transportation.
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <Upload className="h-4 w-4 text-indigo-600" />
+                      <span className="text-sm text-indigo-800">
+                        <span className="font-medium">Requirement:</span> Submit completed work as PDF, DOC, or DOCX file through the platform.
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -418,25 +337,33 @@ export function PODConfirmationModal({
           {/* Additional Information */}
           <div className="space-y-4">
             <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-              <FileText className="h-5 w-5 text-indigo-600" />
+              <Info className="h-5 w-5 text-indigo-600" />
               Additional Information
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <Label htmlFor="estimatedDeliveryDate" className="font-medium text-gray-700">
-                  Estimated Delivery Date
+                <Label htmlFor="estimatedCompletionHours" className="font-medium text-gray-700">
+                  Estimated Completion Time
                 </Label>
-                <Input
-                  id="estimatedDeliveryDate"
-                  type="date"
-                  value={confirmation.estimatedDeliveryDate}
-                  onChange={(e) => handleInputChange('estimatedDeliveryDate', e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="mt-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                />
+                <Select 
+                  value={confirmation.estimatedCompletionHours.toString()} 
+                  onValueChange={(value) => handleInputChange('estimatedCompletionHours', parseInt(value))}
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Select completion time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="6">6 hours</SelectItem>
+                    <SelectItem value="12">12 hours</SelectItem>
+                    <SelectItem value="18">18 hours</SelectItem>
+                    <SelectItem value="24">24 hours</SelectItem>
+                    <SelectItem value="36">36 hours</SelectItem>
+                    <SelectItem value="48">48 hours</SelectItem>
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-gray-500 mt-2">
-                  When do you expect to deliver the completed work?
+                  When do you expect to complete this order?
                 </p>
               </div>
 
@@ -448,66 +375,50 @@ export function PODConfirmationModal({
                   id="additionalNotes"
                   value={confirmation.additionalNotes}
                   onChange={(e) => handleInputChange('additionalNotes', e.target.value)}
-                  placeholder="Any questions, concerns, or additional information..."
+                  placeholder="Any questions, clarifications, or additional notes..."
                   className="mt-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   rows={3}
                 />
                 <p className="text-xs text-gray-500 mt-2">
-                  Optional: Provide context about your delivery plans or any concerns.
+                  Optional: Add any questions or clarifications you need
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Error Messages */}
-          {errors.length > 0 && (
-            <div className="bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200 rounded-xl p-6">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-red-100 rounded-full">
-                  <AlertTriangle className="h-6 w-6 text-red-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-red-800 mb-3 text-lg">Please Address the Following Issues:</h3>
-                  <div className="space-y-2">
-                    {errors.map((error, index) => (
-                      <div key={index} className="flex items-start gap-2">
-                        <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
-                        <span className="text-red-800 font-medium">{error}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Action Buttons */}
-          <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
-            <Button 
-              variant="outline" 
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-6 py-2 border-gray-300 text-gray-700 hover:bg-gray-50"
-            >
+          <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+            <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
+            
             <Button 
               onClick={handleSubmit}
-              disabled={!isFormValid || isSubmitting}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-200"
+              disabled={!isFormValid}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-5 w-5 mr-2" />
-                  Confirm & Pick Order
-                </>
-              )}
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Confirm Assignment
             </Button>
+          </div>
+
+          {/* Progress Indicator */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+              <span>Form Completion</span>
+              <span>{Object.values(confirmation).filter(Boolean).length - 2}/{Object.keys(confirmation).length - 2} items</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ 
+                  width: `${((Object.values(confirmation).filter(Boolean).length - 2) / (Object.keys(confirmation).length - 2)) * 100}%` 
+                }}
+              ></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              All required items must be checked to confirm assignment
+            </p>
           </div>
         </div>
       </DialogContent>

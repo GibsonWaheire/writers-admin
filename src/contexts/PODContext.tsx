@@ -28,31 +28,34 @@ interface PODContextType {
   recordPayment: (orderId: string, payment: Omit<PODPayment, 'id'>) => void;
   getPODDeliveries: (orderId?: string) => PODDelivery[];
   getPODPayments: (orderId?: string) => PODPayment[];
+  calculatePODAmount: (pages: number) => number;
+  getTotalPODValue: () => number;
 }
 
 const PODContext = createContext<PODContextType | undefined>(undefined);
 
 export function PODProvider({ children }: { children: React.ReactNode }) {
-  const [podOrders, setPODOrders] = useState<PODOrder[]>([
+  const [pODOrders, setPODOrders] = useState<PODOrder[]>([
     {
       id: 'POD-001',
-      title: 'Case Study - Digital Transformation in Banking',
-      description: 'Analysis of successful digital transformation initiatives in traditional banking sector',
-      subject: 'Business Technology',
+      title: 'Business Strategy Analysis - Retail Sector',
+      description: 'Comprehensive analysis of retail business strategies including market positioning, competitive analysis, and growth recommendations',
+      subject: 'Business Strategy',
       discipline: 'Business',
-      paperType: 'Case Study',
-      pages: 14,
-      words: 3500,
-      format: 'Harvard',
-      price: 420,
-      priceKES: 63000,
-      cpp: 4500,
-      deadline: '2024-02-25',
+      paperType: 'Business Plan',
+      pages: 18,
+      words: 4500,
+      format: 'APA',
+      price: 0, // No longer used - using CPP calculation
+      priceKES: 0, // No longer used - using CPP calculation
+      cpp: 350, // New CPP: 350 KES per page
+      deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
+      deadlineHours: 24, // 24-hour deadline
       status: 'Available',
       createdAt: '2024-01-19',
       updatedAt: '2024-01-19',
       isOverdue: false,
-      podAmount: 63000,
+      podAmount: 18 * 350, // 18 pages × 350 KES = 6,300 KES
       clientMessages: [],
       uploadedFiles: [],
       additionalInstructions: 'Focus on customer experience improvements and operational efficiency'
@@ -67,15 +70,16 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
       pages: 80,
       words: 20000,
       format: 'APA',
-      price: 1200,
-      priceKES: 180000,
-      cpp: 2250,
-      deadline: '2024-03-15',
+      price: 0, // No longer used - using CPP calculation
+      priceKES: 0, // No longer used - using CPP calculation
+      cpp: 350, // New CPP: 350 KES per page
+      deadline: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(), // 48 hours from now
+      deadlineHours: 48, // 48-hour deadline
       status: 'Available',
       createdAt: '2024-01-20',
       updatedAt: '2024-01-20',
       isOverdue: false,
-      podAmount: 180000,
+      podAmount: 80 * 350, // 80 pages × 350 KES = 28,000 KES
       clientMessages: [],
       uploadedFiles: [],
       additionalInstructions: 'Include ethical considerations and real-world case studies'
@@ -90,15 +94,16 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
       pages: 25,
       words: 6250,
       format: 'Chicago',
-      price: 750,
-      priceKES: 112500,
-      cpp: 4500,
-      deadline: '2024-03-20',
+      price: 0, // No longer used - using CPP calculation
+      priceKES: 0, // No longer used - using CPP calculation
+      cpp: 350, // New CPP: 350 KES per page
+      deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
+      deadlineHours: 24, // 24-hour deadline
       status: 'Available',
       createdAt: '2024-01-25',
       updatedAt: '2024-01-25',
       isOverdue: false,
-      podAmount: 112500,
+      podAmount: 25 * 350, // 25 pages × 350 KES = 8,750 KES
       clientMessages: [],
       uploadedFiles: [],
       additionalInstructions: 'Include 10-year financial projections and environmental impact assessment'
@@ -109,15 +114,36 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
   const [payments, setPayments] = useState<PODPayment[]>([]);
 
   const addPODOrder = useCallback((order: Omit<PODOrder, 'id' | 'createdAt' | 'updatedAt' | 'isOverdue'>) => {
+    // Calculate POD amount using new CPP: 350 KES per page
+    const calculatedPodAmount = order.pages * 350;
+    
+    // Calculate deadline based on hours
+    const deadlineDate = new Date(Date.now() + (order.deadlineHours * 60 * 60 * 1000));
+    
     const newOrder: PODOrder = {
       ...order,
       id: `POD-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      isOverdue: new Date(order.deadline) < new Date()
+      isOverdue: false,
+      podAmount: calculatedPodAmount,
+      cpp: 350, // Set CPP to 350 KES per page
+      price: 0, // No longer used
+      priceKES: 0, // No longer used
+      deadline: deadlineDate.toISOString() // Set deadline based on hours
     };
     setPODOrders(prev => [...prev, newOrder]);
   }, []);
+
+  // Function to calculate POD amount for any order
+  const calculatePODAmount = useCallback((pages: number) => {
+    return pages * 350; // 350 KES per page
+  }, []);
+
+  // Function to get total POD value using new CPP calculation
+  const getTotalPODValue = useCallback(() => {
+    return pODOrders.reduce((total, order) => total + (order.pages * 350), 0);
+  }, [pODOrders]);
 
   const updatePODOrderStatus = useCallback((orderId: string, status: PODStatus) => {
     setPODOrders(prev => prev.map(order => 
@@ -207,24 +233,24 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const getPODOrdersByStatus = useCallback((status: PODStatus) => {
-    return podOrders.filter(order => order.status === status);
-  }, [podOrders]);
+    return pODOrders.filter(order => order.status === status);
+  }, [pODOrders]);
 
   const getAvailablePODOrders = useCallback(() => {
-    return podOrders.filter(order => 
+    return pODOrders.filter(order => 
       order.status === 'Available' && !order.writerId
     );
-  }, [podOrders]);
+  }, [pODOrders]);
 
   const getWriterPODOrders = useCallback((writerId: string) => {
-    return podOrders.filter(order => 
+    return pODOrders.filter(order => 
       order.writerId === writerId && 
       ['Assigned', 'In Progress', 'Ready for Delivery', 'Delivered', 'Payment Received'].includes(order.status)
     );
-  }, [podOrders]);
+  }, [pODOrders]);
 
   const getWriterPODStats = useCallback((writerId: string) => {
-    const writerOrders = podOrders.filter(order => order.writerId === writerId);
+    const writerOrders = pODOrders.filter(order => order.writerId === writerId);
     
     return {
       total: writerOrders.length,
@@ -239,7 +265,7 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
       disputed: writerOrders.filter(o => o.status === 'Disputed').length,
       refunded: writerOrders.filter(o => o.status === 'Refunded').length,
     };
-  }, [podOrders]);
+  }, [pODOrders]);
 
   const recordDelivery = useCallback((orderId: string, delivery: Omit<PODDelivery, 'id'>) => {
     const newDelivery: PODDelivery = {
@@ -279,7 +305,7 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <PODContext.Provider value={{
-      podOrders,
+      podOrders: pODOrders,
       addPODOrder,
       updatePODOrderStatus,
       assignPODOrderToWriter,
@@ -292,7 +318,9 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
       recordDelivery,
       recordPayment,
       getPODDeliveries,
-      getPODPayments
+      getPODPayments,
+      calculatePODAmount,
+      getTotalPODValue
     }}>
       {children}
     </PODContext.Provider>

@@ -78,9 +78,9 @@ export default function OrdersPage() {
       if (filterPriceRange) {
         const [min, max] = filterPriceRange.split('-').map(Number);
         if (max) {
-          matchesPrice = order.price >= min && order.price <= max;
+          matchesPrice = (order.pages * 350) >= min && (order.pages * 350) <= max;
         } else {
-          matchesPrice = order.price >= min;
+          matchesPrice = (order.pages * 350) >= min;
         }
       }
       

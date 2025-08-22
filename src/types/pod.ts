@@ -12,6 +12,7 @@ export interface PODOrder {
   priceKES: number; // Price in Kenyan Shillings
   cpp: number; // Cost Per Page
   deadline: string;
+  deadlineHours: number; // New: Deadline in hours (24 or 48)
   status: PODStatus;
   assignedWriter?: string;
   writerId?: string;
@@ -27,6 +28,21 @@ export interface PODOrder {
   paymentReceivedAt?: string; // When payment was received
   deliveryNotes?: string; // Notes about the delivery
   clientSignature?: string; // Client signature or confirmation
+}
+
+// New POD-specific writer confirmation interface
+export interface PODWriterConfirmation {
+  id: string;
+  hasReadInstructions: boolean;
+  hasUnderstoodRequirements: boolean;
+  canMeetDeadline: boolean;
+  hasNoConflicts: boolean;
+  understandsPODTerms: boolean;
+  canSubmitWork: boolean;
+  estimatedCompletionHours: number; // When they expect to complete (in hours)
+  additionalNotes?: string;
+  confirmedAt: string;
+  writerId: string;
 }
 
 export type PaperType = 

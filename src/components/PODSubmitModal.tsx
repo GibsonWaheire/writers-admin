@@ -134,9 +134,9 @@ export function PODSubmitModal({
                   </div>
                   <div>
                     <span className="text-gray-500 text-xs uppercase tracking-wide">POD Amount</span>
-                    <p className="text-2xl font-bold text-green-600">
-                      KES {order.podAmount.toLocaleString()}
-                    </p>
+                    <div className="text-2xl font-bold text-green-600">
+                      KES {(order.pages * 350).toLocaleString()}
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">

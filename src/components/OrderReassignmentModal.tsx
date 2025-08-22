@@ -139,7 +139,7 @@ export function OrderReassignmentModal({
                   <div className="w-3 h-3 bg-purple-500 rounded-full shadow-sm"></div>
                   <span className="text-gray-600 font-medium"><strong>Price:</strong></span>
                 </div>
-                <p className="font-semibold text-gray-900 ml-6 text-base">KES {order.priceKES?.toLocaleString() || order.price?.toLocaleString() || 'N/A'}</p>
+                <p className="font-semibold text-gray-900 ml-6 text-base">KES {(order.pages * 350).toLocaleString()}</p>
               </div>
             </div>
           </div>

@@ -278,7 +278,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span>Writer: {order.writer}</span>
                     <span>{order.pages} pages</span>
-                    <span>{order.price}</span>
+                    <span>KES {(order.pages * 350).toLocaleString()}</span>
                     <span>Due: {order.deadline}</span>
                   </div>
                 </div>

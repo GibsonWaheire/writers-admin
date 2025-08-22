@@ -35,7 +35,7 @@ export default function WriterDashboard() {
   const writerStats = getWriterOrderStats(currentWriterId);
   
   // Calculate real statistics
-  const totalEarnings = completedOrders.reduce((sum, order) => sum + order.price, 0);
+  const totalEarnings = completedOrders.reduce((sum, order) => sum + (order.pages * 350), 0);
   const thisMonthEarnings = getMonthlyEarnings();
   const lastMonthEarnings = getMonthlyEarnings(new Date().getMonth() - 1);
   const earningsChange = lastMonthEarnings > 0 ? Math.round(((thisMonthEarnings - lastMonthEarnings) / lastMonthEarnings) * 100) : 0;

@@ -5,12 +5,10 @@ import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { 
   Search, 
-  BookOpen, 
-  FileText, 
-  DollarSign,
-  Eye,
-  CheckCircle
-} from 'lucide-react';
+  Eye, 
+  CheckCircle, 
+  BookOpen
+} from "lucide-react";
 import { OrderConfirmationModal } from './OrderConfirmationModal';
 import type { Order, WriterConfirmation, WriterQuestion } from '../types/order';
 
@@ -49,9 +47,9 @@ export function AvailableOrdersTable({
     if (filterPriceRange) {
       const [min, max] = filterPriceRange.split('-').map(Number);
       if (max) {
-        matchesPrice = order.priceKES >= min && order.priceKES <= max;
+        matchesPrice = (order.pages * 350) >= min && (order.pages * 350) <= max;
       } else {
-        matchesPrice = order.priceKES >= min;
+        matchesPrice = (order.pages * 350) >= min;
       }
     }
     
@@ -180,7 +178,7 @@ export function AvailableOrdersTable({
                     <TableCell className="py-4">
                       <div className="space-y-1 text-sm">
                         <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-blue-600" />
+                          <BookOpen className="h-4 w-4 text-blue-600" />
                           <span className="text-gray-600">Type:</span>
                           <span className="font-medium">{order.paperType}</span>
                         </div>
@@ -190,12 +188,12 @@ export function AvailableOrdersTable({
                           <span className="font-medium">{order.format}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-purple-600" />
+                          <BookOpen className="h-4 w-4 text-purple-600" />
                           <span className="text-gray-600">Pages:</span>
                           <span className="font-medium">{order.pages}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-indigo-600" />
+                          <BookOpen className="h-4 w-4 text-indigo-600" />
                           <span className="text-gray-600">Words:</span>
                           <span className="font-medium">{order.words.toLocaleString()}</span>
                         </div>
@@ -269,7 +267,7 @@ export function AvailableOrdersTable({
                             size="sm"
                             className="bg-blue-50 border-blue-200 text-blue-700"
                           >
-                            <FileText className="h-4 w-4 mr-2" />
+                            <BookOpen className="h-4 w-4 mr-2" />
                             My Order
                           </Button>
                         )}
