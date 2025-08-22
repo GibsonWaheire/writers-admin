@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -9,6 +9,7 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useAuth } from '../contexts/AuthContext';
 import { usePOD } from '../contexts/PODContext';
+import { PODConfirmationModal } from './PODConfirmationModal';
 import type { PODOrder, PODStatus } from '../types/pod';
 import { 
   FileText, 
@@ -43,9 +44,10 @@ const getStatusConfig = (status: PODStatus) => {
 
 export function PODOrderCard({ order }: PODOrderCardProps) {
   const { user } = useAuth();
-  const { handlePODOrderAction, recordDelivery, recordPayment } = usePOD();
+  const { handlePODOrderAction, recordDelivery, recordPayment, pickPODOrder } = usePOD();
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
@@ -63,8 +65,13 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
 
 
   const handlePickOrder = () => {
+    setIsConfirmationModalOpen(true);
+  };
+
+  const handleConfirmPickOrder = () => {
     if (user) {
-      handlePODOrderAction('pick', order.id);
+      // Use the pickPODOrder function to assign the order to the writer
+      pickPODOrder(order.id, user.id, user.name || 'Unknown Writer');
     }
   };
 
@@ -324,6 +331,14 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
           </div>
         </div>
       </CardContent>
+
+      {/* POD Confirmation Modal */}
+      <PODConfirmationModal
+        order={order}
+        isOpen={isConfirmationModalOpen}
+        onClose={() => setIsConfirmationModalOpen(false)}
+        onConfirm={handleConfirmPickOrder}
+      />
     </Card>
   );
 }

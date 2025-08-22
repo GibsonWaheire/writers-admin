@@ -148,7 +148,7 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
             ...order, 
             writerId, 
             assignedWriter: writerName,
-            status: 'In Progress', 
+            status: 'Assigned', 
             updatedAt: new Date().toISOString() 
           }
         : order
@@ -163,6 +163,9 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
       const updatedAt = new Date().toISOString();
       
       switch (action) {
+        case 'pick':
+          newStatus = 'Assigned';
+          break;
         case 'start_working':
           newStatus = 'In Progress';
           break;
