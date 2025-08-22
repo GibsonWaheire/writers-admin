@@ -14,7 +14,10 @@ import {
   Users,
   CheckCircle,
   XCircle,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw,
+  Award,
+  BarChart3
 } from "lucide-react";
 import { OrderCard } from "../components/OrderCard";
 import { OrderViewModal } from "../components/OrderViewModal";
@@ -56,6 +59,9 @@ export default function OrdersPage() {
   const inProgressOrders = getOrdersByStatus('In Progress');
   const completedOrders = getOrdersByStatus('Completed');
   const rejectedOrders = getOrdersByStatus('Rejected');
+  const editorRevisionOrders = getOrdersByStatus('Editor Revision');
+  const submittedToAdminOrders = getOrdersByStatus('Submitted to Admin');
+  const adminApprovedOrders = getOrdersByStatus('Admin Approved');
 
   // Get writer-specific orders and stats (excluding POD orders)
   const myOrders = getWriterActiveOrders(writerId);
@@ -123,10 +129,33 @@ export default function OrdersPage() {
   const disciplines = Array.from(new Set(orders.map(order => order.discipline))).sort();
   const paperTypes = Array.from(new Set(orders.map(order => order.paperType))).sort();
 
-  // Calculate statistics
-  const totalOrders = orders.length;
-  const totalValue = orders.reduce((sum, order) => sum + (order.pages * 350), 0);
-  const overdueOrders = orders.filter(order => new Date(order.deadline) < new Date()).length;
+  // Calculate performance metrics
+  const calculatePerformanceMetrics = () => {
+    const myCompletedOrders = myOrders.filter(order => 
+      ['Completed', 'Admin Approved', 'Client Approved'].includes(order.status)
+    );
+    const myRevisionOrders = myOrders.filter(order => order.status === 'Editor Revision');
+    
+    const totalPages = myCompletedOrders.reduce((sum, order) => sum + order.pages, 0);
+    const avgCompletionTime = myCompletedOrders.length > 0 ? 
+      myCompletedOrders.reduce((sum, order) => {
+        const start = new Date(order.createdAt);
+        const end = new Date(order.updatedAt);
+        return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24); // days
+      }, 0) / myCompletedOrders.length : 0;
+    
+    const revisionRate = myCompletedOrders.length > 0 ? 
+      (myRevisionOrders.length / (myCompletedOrders.length + myRevisionOrders.length)) * 100 : 0;
+    
+    return {
+      totalPages,
+      avgCompletionTime: Math.round(avgCompletionTime * 10) / 10,
+      revisionRate: Math.round(revisionRate * 10) / 10,
+      qualityScore: Math.max(0, 100 - revisionRate * 10) // Higher score for fewer revisions
+    };
+  };
+
+  const performanceMetrics = calculatePerformanceMetrics();
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -146,62 +175,121 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalOrders}</div>
-            <p className="text-xs text-muted-foreground">
-              Across all statuses
-            </p>
-          </CardContent>
-        </Card>
+      {/* Writer Performance & Revision Cards */}
+      {!isAdmin && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Revision Required Card */}
+          <Card className="bg-red-50 border-red-200 hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-red-700">Revisions Required</CardTitle>
+              <RefreshCw className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-700">{writerStats.editorRevision}</div>
+              <p className="text-xs text-red-600">
+                {writerStats.editorRevision > 0 ? 'Needs attention' : 'All good'}
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">KES {totalValue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              Combined order value
-            </p>
-          </CardContent>
-        </Card>
+          {/* Quality Score Card */}
+          <Card className="bg-green-50 border-green-200 hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-green-700">Quality Score</CardTitle>
+              <Award className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-700">{performanceMetrics.qualityScore}%</div>
+              <p className="text-xs text-green-600">
+                {performanceMetrics.qualityScore >= 90 ? 'Excellent' : 
+                 performanceMetrics.qualityScore >= 80 ? 'Good' : 
+                 performanceMetrics.qualityScore >= 70 ? 'Fair' : 'Needs improvement'}
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{overdueOrders}</div>
-            <p className="text-xs text-muted-foreground">
-              Past deadline
-            </p>
-          </CardContent>
-        </Card>
+          {/* Average Completion Time */}
+          <Card className="bg-blue-50 border-blue-200 hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-blue-700">Avg. Completion</CardTitle>
+              <Clock className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-700">{performanceMetrics.avgCompletionTime}d</div>
+              <p className="text-xs text-blue-600">Days per order</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Writers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {Array.from(new Set(orders.filter(o => o.writerId).map(o => o.writerId))).length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Currently assigned
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          {/* Total Pages Completed */}
+          <Card className="bg-purple-50 border-purple-200 hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-purple-700">Pages Completed</CardTitle>
+              <FileText className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-700">{performanceMetrics.totalPages}</div>
+              <p className="text-xs text-purple-700">Total pages written</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Admin Overview Cards */}
+      {isAdmin && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Orders Under Review */}
+          <Card className="bg-yellow-50 border-yellow-200 hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-yellow-700">Under Review</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-700">
+                {submittedToAdminOrders.length + pendingApprovalOrders.length}
+              </div>
+              <p className="text-xs text-yellow-600">Awaiting admin action</p>
+            </CardContent>
+          </Card>
+
+          {/* Revision Requests */}
+          <Card className="bg-red-50 border-red-200 hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-red-700">Revision Requests</CardTitle>
+              <RefreshCw className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-700">{editorRevisionOrders.length}</div>
+              <p className="text-xs text-red-600">Need writer attention</p>
+            </CardContent>
+          </Card>
+
+          {/* Approved Orders */}
+          <Card className="bg-green-50 border-green-200 hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-green-700">Approved</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-700">{adminApprovedOrders.length}</div>
+              <p className="text-xs text-green-600">Ready for client</p>
+            </CardContent>
+          </Card>
+
+          {/* System Health */}
+          <Card className="bg-blue-50 border-blue-200 hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-blue-700">System Health</CardTitle>
+              <BarChart3 className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-700">
+                {Math.round((completedOrders.length / Math.max(orders.length, 1)) * 100)}%
+              </div>
+              <p className="text-xs text-blue-600">Completion rate</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Writer-specific Statistics (for writers) */}
       {!isAdmin && (
@@ -259,7 +347,7 @@ export default function OrdersPage() {
               <div className="text-2xl font-bold text-orange-700">
                 KES {writerTotalEarnings.toLocaleString()}
               </div>
-                              <p className="text-xs text-orange-600">From completed orders</p>
+              <p className="text-xs text-orange-600">From completed orders</p>
             </CardContent>
           </Card>
         </div>
@@ -324,13 +412,11 @@ export default function OrdersPage() {
 
       {/* Orders Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="orders" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Orders ({filterOrders([...availableOrders, ...myOrders]).length})
           </TabsTrigger>
-          
-
           
           {isAdmin && (
             <TabsTrigger value="pending-approval" className="flex items-center gap-2">
@@ -342,6 +428,11 @@ export default function OrdersPage() {
           <TabsTrigger value="assigned" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Assigned ({filterOrders(inProgressOrders).length})
+          </TabsTrigger>
+
+          <TabsTrigger value="revisions" className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Revisions ({filterOrders(editorRevisionOrders).length})
           </TabsTrigger>
           
           <TabsTrigger value="completed" className="flex items-center gap-2">
@@ -403,8 +494,6 @@ export default function OrdersPage() {
           />
         </TabsContent>
 
-
-
         {/* Pending Approval Tab (Admins Only) */}
         {isAdmin && (
           <TabsContent value="pending-approval" className="space-y-4">
@@ -452,6 +541,31 @@ export default function OrdersPage() {
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Assigned Orders</h3>
                 <p className="text-gray-500">No orders are currently in progress.</p>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Revisions Tab - NEW */}
+        <TabsContent value="revisions" className="space-y-4">
+          <div className="grid gap-4">
+            {filterOrders(editorRevisionOrders).length > 0 ? (
+              filterOrders(editorRevisionOrders).map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  userRole={userRole}
+                  onView={handleViewOrder}
+                  onAction={handleOrderActionLocal}
+                  onConfirm={handleOrderConfirm}
+                  showActions={true}
+                />
+              ))
+            ) : (
+              <Card className="text-center py-12">
+                <RefreshCw className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Revisions Required</h3>
+                <p className="text-gray-500">All your orders are up to standard.</p>
               </Card>
             )}
           </div>
