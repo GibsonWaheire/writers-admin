@@ -22,6 +22,7 @@ import {
 import { OrderConfirmationModal } from './OrderConfirmationModal';
 import { OrderReassignmentModal } from './OrderReassignmentModal';
 import { SubmitToAdminModal } from './SubmitToAdminModal';
+import { SubmitRevisionModal } from './SubmitRevisionModal';
 import type { Order, OrderStatus, WriterConfirmation, WriterQuestion } from '../types/order';
 
 interface OrderCardProps {
@@ -44,28 +45,21 @@ export function OrderCard({
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showReassignmentModal, setShowReassignmentModal] = useState(false);
   const [showSubmitToAdminModal, setShowSubmitToAdminModal] = useState(false);
+  const [showSubmitRevisionModal, setShowSubmitRevisionModal] = useState(false);
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
       'Available': { variant: 'outline' as const, color: 'text-blue-600', bg: 'bg-blue-50', icon: '🟢' },
-      'Pending Approval': { variant: 'secondary' as const, color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '🟡' },
-      'Awaiting Confirmation': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '⏳' },
-      'Confirmed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
+      'Assigned': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '👤' },
       'In Progress': { variant: 'default' as const, color: 'text-blue-600', bg: 'bg-blue-50', icon: '🔵' },
-      'Submitted to Admin': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50', icon: '📤' },
-      'Under Admin Review': { variant: 'secondary' as const, color: 'text-blue-600', bg: 'bg-blue-50', icon: '👁️' },
-      'Admin Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
-      'Admin Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '❌' },
-      'Client Review': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '👀' },
-      'Client Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '👍' },
-      'Client Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '❌' },
-      'Completed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
+      'Submitted': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50', icon: '📤' },
+      'Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
       'Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '❌' },
-      'Requires Admin Approval': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50', icon: '⚠️' },
-      'Editor Revision': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50', icon: '✏️' },
-      'Awaiting Payment': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '💰' },
-      'Pay Later': { variant: 'outline' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '💳' },
-      'Reassigned': { variant: 'secondary' as const, color: 'text-gray-600', bg: 'bg-gray-50', icon: '🔄' },
+      'Revision': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '✏️' },
+      'Resubmitted': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50', icon: '📝' },
+      'Completed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '🎉' },
+      'Late': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '⏰' },
+      'Auto-Reassigned': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '🔄' },
       'Cancelled': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '❌' },
       'On Hold': { variant: 'secondary' as const, color: 'text-gray-600', bg: 'bg-gray-50', icon: '⏸️' },
       'Disputed': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '⚠️' },
@@ -115,7 +109,7 @@ export function OrderCard({
         );
       }
       
-      if (order.status === 'Awaiting Confirmation') {
+      if (order.status === 'Assigned') {
         return (
           <div className="flex gap-2">
             <Button 
@@ -154,10 +148,10 @@ export function OrderCard({
         );
       }
 
-      if (order.status === 'Submitted to Admin') {
+      if (order.status === 'Submitted') {
         return (
           <Button 
-            onClick={() => onAction?.('admin_reject', order.id)}
+            onClick={() => onAction?.('request_revision', order.id)}
             size="sm"
             className="bg-yellow-600 hover:bg-yellow-700"
           >
@@ -167,10 +161,10 @@ export function OrderCard({
         );
       }
 
-      if (order.status === 'Editor Revision') {
+      if (order.status === 'Revision') {
         return (
           <Button 
-            onClick={() => onAction?.('submit', order.id)}
+            onClick={() => setShowSubmitRevisionModal(true)}
             size="sm"
             className="bg-blue-600 hover:bg-blue-700"
           >
@@ -180,20 +174,20 @@ export function OrderCard({
         );
       }
 
-      if (order.status === 'Admin Approved') {
+      if (order.status === 'Approved') {
         return (
           <Button 
-            onClick={() => onAction?.('client_approve', order.id)}
+            onClick={() => onAction?.('complete', order.id)}
             size="sm"
             className="bg-indigo-600 hover:bg-indigo-700"
           >
             <ThumbsUp className="h-4 w-4 mr-2" />
-            Client Approve
+            Mark Complete
           </Button>
         );
       }
 
-      if (order.status === 'Client Approved') {
+      if (order.status === 'Completed') {
         return (
           <Button 
             onClick={() => onAction?.('pay_later', order.id)}
@@ -220,7 +214,7 @@ export function OrderCard({
         );
       }
       
-      if (order.status === 'Pending Approval') {
+      if (order.status === 'Submitted') {
         return (
           <div className="flex gap-2">
             <Button 
@@ -270,6 +264,20 @@ export function OrderCard({
       onAction('submit_to_admin', order.id, submission);
     }
     setShowSubmitToAdminModal(false);
+  };
+
+  const handleSubmitRevision = (submission: {
+    files: import('../types/order').UploadedFile[];
+    notes: string;
+    revisionNotes?: string;
+  }) => {
+    if (onAction) {
+      onAction('resubmit', order.id, {
+        ...submission,
+        revisionNotes: submission.revisionNotes
+      });
+    }
+    setShowSubmitRevisionModal(false);
   };
 
   return (
@@ -430,6 +438,14 @@ export function OrderCard({
         isOpen={showSubmitToAdminModal}
         onClose={() => setShowSubmitToAdminModal(false)}
         onSubmit={handleSubmitToAdmin}
+      />
+
+      {/* Submit Revision Modal */}
+      <SubmitRevisionModal
+        order={order}
+        isOpen={showSubmitRevisionModal}
+        onClose={() => setShowSubmitRevisionModal(false)}
+        onSubmit={handleSubmitRevision}
       />
     </>
   );

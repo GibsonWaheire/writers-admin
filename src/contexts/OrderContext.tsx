@@ -1,14 +1,11 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import type { Order, OrderStatus, WriterConfirmation, WriterQuestion, OrderEarnings } from '../types/order';
+import type { Order, OrderStatus, WriterConfirmation, WriterQuestion } from '../types/order';
 
 interface OrderContextType {
   orders: Order[];
-  addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'updatedAt' | 'isOverdue'>) => void;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
-  assignOrderToWriter: (orderId: string, writerId: string) => void;
-  pickOrder: (orderId: string, writerId: string) => void;
   handleOrderAction: (action: string, orderId: string, additionalData?: Record<string, unknown>) => void;
   confirmOrder: (orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => void;
+  pickOrder: (orderId: string, writerId: string, writerName: string) => void;
   getOrdersByStatus: (status: OrderStatus) => Order[];
   getAvailableOrders: () => Order[];
   getWriterActiveOrders: (writerId: string) => Order[];
@@ -17,31 +14,39 @@ interface OrderContextType {
     pending: number;
     available: number;
     inProgress: number;
-    uploadToClient: number;
-    editorRevision: number;
+    submitted: number;
     approved: number;
-    payLater: number;
+    revision: number;
     completed: number;
     rejected: number;
-    awaitingConfirmation: number;
-    confirmed: number;
-    awaitingPayment: number;
+    autoReassigned: number;
+    cancelled: number;
+    onHold: number;
+    disputed: number;
+    refunded: number;
   };
   getWriterOrdersByCategory: (writerId: string) => {
     pending: Order[];
     available: Order[];
     inProgress: Order[];
-    uploadToClient: Order[];
-    editorRevision: Order[];
+    submitted: Order[];
     approved: Order[];
-    payLater: Order[];
+    revision: Order[];
     completed: Order[];
     rejected: Order[];
-    awaitingConfirmation: Order[];
-    confirmed: Order[];
-    awaitingPayment: Order[];
+    autoReassigned: Order[];
+    cancelled: Order[];
+    onHold: Order[];
+    disputed: Order[];
+    refunded: Order[];
   };
-  calculateOrderEarnings: (order: Order) => OrderEarnings;
+  calculateOrderEarnings: (order: Order) => {
+    baseAmount: number;
+    cppAmount: number;
+    totalAmount: number;
+    currency: string;
+    calculatedAt: string;
+  };
   getWriterTotalEarnings: (writerId: string) => number;
 }
 
@@ -51,8 +56,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([
     {
       id: 'ORD-001',
-      title: 'Research Paper on Climate Change Impact',
-      description: 'Comprehensive analysis of climate change effects on coastal regions and marine ecosystems',
+      title: 'Research Paper on Climate Change',
+      description: 'Comprehensive analysis of climate change impacts on coastal communities',
       subject: 'Environmental Science',
       discipline: 'Environmental Science',
       paperType: 'Research Paper',
@@ -61,10 +66,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       format: 'APA',
       price: 450,
       priceKES: 67500,
-      cpp: 350,
+      cpp: 4500,
       totalPriceKES: 67500,
       deadline: '2024-02-15',
       status: 'Available',
+      assignedWriter: undefined,
+      writerId: undefined,
       createdAt: '2024-01-15',
       updatedAt: '2024-01-15',
       isOverdue: false,
@@ -74,114 +81,29 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         {
           id: 'msg-1',
           sender: 'client',
-          message: 'Please include recent studies from 2023-2024 and focus on Pacific region',
+          message: 'Need this for academic publication',
           timestamp: '2024-01-15T10:00:00Z'
         }
       ],
-      uploadedFiles: [
-        {
-          id: 'file-1',
-          filename: 'requirements.pdf',
-          originalName: 'Research_Requirements.pdf',
-          size: 2048576,
-          type: 'application/pdf',
-          url: '/files/requirements.pdf',
-          uploadedAt: '2024-01-15T10:00:00Z'
-        }
-      ],
-      additionalInstructions: 'Include at least 20 peer-reviewed sources and 3-4 graphs/charts'
-    },
-    {
-      id: 'ORD-012',
-      title: 'Business Strategy Analysis - Digital Marketing',
-      description: 'Strategic analysis of digital marketing approaches for e-commerce businesses',
-      subject: 'Business Strategy',
-      discipline: 'Business',
-      paperType: 'Business Plan',
-      pages: 12,
-      words: 3000,
-      format: 'Harvard',
-      price: 360,
-      priceKES: 54000,
-      cpp: 350,
-      totalPriceKES: 54000,
-      deadline: '2024-03-01',
-      status: 'Available',
-      createdAt: '2024-01-22',
-      updatedAt: '2024-01-22',
-      isOverdue: false,
-      confirmationStatus: 'pending',
-      paymentType: 'advance',
-      clientMessages: [],
       uploadedFiles: [],
-      additionalInstructions: 'Focus on ROI analysis and customer acquisition strategies'
-    },
-    {
-      id: 'ORD-013',
-      title: 'Academic Essay - Modern Literature Analysis',
-      description: 'Critical analysis of contemporary literature and its impact on society',
-      subject: 'Literature',
-      discipline: 'English Literature',
-      paperType: 'Essay',
-      pages: 8,
-      words: 2000,
-      format: 'MLA',
-      price: 240,
-      priceKES: 36000,
-      cpp: 350,
-      totalPriceKES: 36000,
-      deadline: '2024-02-28',
-      status: 'Available',
-      createdAt: '2024-01-23',
-      updatedAt: '2024-01-23',
-      isOverdue: false,
-      confirmationStatus: 'pending',
-      paymentType: 'advance',
-      clientMessages: [],
-      uploadedFiles: [],
-      additionalInstructions: 'Include analysis of at least 3 contemporary authors'
-    },
-    {
-      id: 'ORD-014',
-      title: 'Technical Report - Cybersecurity in Healthcare',
-      description: 'Comprehensive report on cybersecurity challenges and solutions in healthcare sector',
-      subject: 'Cybersecurity',
-      discipline: 'Computer Science',
-      paperType: 'Report',
-      pages: 20,
-      words: 5000,
-      format: 'IEEE',
-      price: 600,
-      priceKES: 90000,
-      cpp: 350,
-      totalPriceKES: 90000,
-      deadline: '2024-03-10',
-      status: 'Available',
-      createdAt: '2024-01-24',
-      updatedAt: '2024-01-24',
-      isOverdue: false,
-      confirmationStatus: 'pending',
-      paymentType: 'advance',
-      clientMessages: [],
-      uploadedFiles: [],
-      additionalInstructions: 'Include case studies and regulatory compliance requirements'
+      additionalInstructions: 'Include recent studies from 2020-2024'
     },
     {
       id: 'ORD-002',
-      title: 'Marketing Analysis Report for Tech Startup',
-      description: 'Market research and competitive analysis for emerging tech company in AI space',
-      subject: 'Business Marketing',
-      discipline: 'Business',
-      paperType: 'Marketing Analysis',
-      pages: 8,
-      words: 2000,
-      format: 'Harvard',
-      price: 280,
+      title: 'Business Plan for Tech Startup',
+      description: 'Comprehensive business plan for a mobile app development startup',
+      subject: 'Business',
+      discipline: 'Business Administration',
+      paperType: 'Business Plan',
+      pages: 12,
+      words: 3000,
+      format: 'APA',
+      price: 360,
       priceKES: 42000,
       cpp: 350,
       totalPriceKES: 42000,
       deadline: '2024-02-10',
-      status: 'Submitted to Admin',
+      status: 'Submitted',
       assignedWriter: 'John Doe',
       writerId: 'writer-1',
       createdAt: '2024-01-16',
@@ -229,6 +151,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       price: 360,
       priceKES: 54000,
       cpp: 4500,
+      totalPriceKES: 54000,
       deadline: '2024-02-20',
       status: 'In Progress',
       assignedWriter: 'John Doe',
@@ -238,7 +161,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
-      totalPriceKES: 54000,
       clientMessages: [],
       uploadedFiles: [],
       additionalInstructions: 'Focus on studies from the last 10 years and include meta-analysis'
@@ -256,8 +178,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       price: 320,
       priceKES: 48000,
       cpp: 4800,
+      totalPriceKES: 48000,
       deadline: '2024-02-05',
-      status: 'Submitted to Admin',
+      status: 'Submitted',
       assignedWriter: 'John Doe',
       writerId: 'writer-1',
       createdAt: '2024-01-18',
@@ -265,7 +188,6 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
-      totalPriceKES: 48000,
       clientMessages: [
         {
           id: 'msg-4',
@@ -277,11 +199,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       uploadedFiles: [
         {
           id: 'file-3',
-          filename: 'api_spec.json',
-          originalName: 'API_Specification.json',
-          size: 512000,
-          type: 'application/json',
-          url: '/files/api_spec.json',
+          filename: 'api_docs.pdf',
+          originalName: 'API_Documentation.pdf',
+          size: 2097152,
+          type: 'application/pdf',
+          url: '/files/api_docs.pdf',
           uploadedAt: '2024-01-18T11:00:00Z'
         }
       ],
@@ -289,248 +211,67 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     },
     {
       id: 'ORD-005',
-      title: 'Business Plan for Sustainable Energy Startup',
-      description: 'Comprehensive business plan for renewable energy company focusing on solar solutions',
+      title: 'Case Study - Digital Transformation',
+      description: 'Analysis of successful digital transformation in traditional retail companies',
       subject: 'Business',
-      discipline: 'Business',
-      paperType: 'Business Plan',
-      pages: 20,
-      words: 5000,
-      format: 'Chicago',
-      price: 600,
-      priceKES: 90000,
-      cpp: 4500,
-      deadline: '2024-01-30',
-      status: 'Completed',
-      assignedWriter: 'John Doe',
-      writerId: 'writer-1',
-      createdAt: '2024-01-10',
-      updatedAt: '2024-01-25',
+      discipline: 'Business Strategy',
+      paperType: 'Case Study',
+      pages: 8,
+      words: 2000,
+      format: 'Harvard',
+      price: 240,
+      priceKES: 28000,
+      cpp: 350,
+      totalPriceKES: 28000,
+      deadline: '2024-02-12',
+      status: 'Revision',
+      assignedWriter: 'Jane Smith',
+      writerId: 'writer-2',
+      createdAt: '2024-01-19',
+      updatedAt: '2024-01-19',
       isOverdue: false,
       confirmationStatus: 'confirmed',
       paymentType: 'advance',
-      totalPriceKES: 90000,
       clientMessages: [
         {
           id: 'msg-5',
-          sender: 'client',
-          message: 'Excellent work! The financial projections are very detailed.',
-          timestamp: '2024-01-25T16:00:00Z'
+          sender: 'admin',
+          message: 'Please revise the methodology section and add more recent examples',
+          timestamp: '2024-01-19T15:00:00Z'
         }
       ],
       uploadedFiles: [
         {
           id: 'file-4',
-          filename: 'business_plan.pdf',
-          originalName: 'Business_Plan.pdf',
-          size: 3145728,
+          filename: 'case_study_v1.pdf',
+          originalName: 'Digital_Transformation_Case_Study.pdf',
+          size: 1572864,
           type: 'application/pdf',
-          url: '/files/business_plan.pdf',
-          uploadedAt: '2024-01-25T16:00:00Z'
+          url: '/files/case_study_v1.pdf',
+          uploadedAt: '2024-01-19T15:00:00Z'
         }
       ],
-      additionalInstructions: 'Include 5-year financial projections and market analysis'
-    },
-    {
-      id: 'ORD-006',
-      title: 'Academic Essay on Shakespearean Literature',
-      description: 'Critical analysis of themes in Hamlet and Macbeth with modern interpretations',
-      subject: 'Literature',
-      discipline: 'English Literature',
-      paperType: 'Essay',
-      pages: 6,
-      words: 1500,
-      format: 'MLA',
-      price: 180,
-      priceKES: 27000,
-      cpp: 4500,
-      deadline: '2024-01-28',
-      status: 'Completed',
-      assignedWriter: 'John Doe',
-      writerId: 'writer-1',
-      createdAt: '2024-01-10',
-      updatedAt: '2024-01-25',
-      isOverdue: false,
-      confirmationStatus: 'confirmed',
-      paymentType: 'advance',
-      totalPriceKES: 27000,
-      clientMessages: [
-        {
-          id: 'msg-6',
-          sender: 'client',
-          message: 'Great analysis of the themes!',
-          timestamp: '2024-01-25T14:00:00Z'
-        }
-      ],
-      uploadedFiles: [],
-      additionalInstructions: 'Focus on character development and tragic elements'
-    },
-    {
-      id: 'ORD-007',
-      title: 'Data Analysis Report - E-commerce Trends',
-      description: 'Statistical analysis of online shopping patterns during holiday seasons',
-      subject: 'Data Science',
-      discipline: 'Statistics',
-      paperType: 'Report',
-      pages: 10,
-      words: 2500,
-      format: 'APA',
-      price: 320,
-      priceKES: 48000,
-      cpp: 4800,
-      deadline: '2024-02-01',
-      status: 'Editor Revision',
-      assignedWriter: 'John Doe',
-      writerId: 'writer-1',
-      createdAt: '2024-01-18',
-      updatedAt: '2024-01-20',
-      isOverdue: false,
-      confirmationStatus: 'confirmed',
-      paymentType: 'advance',
-      totalPriceKES: 48000,
-      clientMessages: [
-        {
-          id: 'msg-7',
-          sender: 'client',
-          message: 'Need this for our marketing team presentation',
-          timestamp: '2024-01-18T09:00:00Z'
-        }
-      ],
-      uploadedFiles: [
-        {
-          id: 'file-5',
-          filename: 'sales_data.csv',
-          originalName: 'Sales_Data_2023.csv',
-          size: 1048576,
-          type: 'text/csv',
-          url: '/files/sales_data.csv',
-          uploadedAt: '2024-01-18T09:00:00Z'
-        }
-      ],
-      additionalInstructions: 'Include visualizations and statistical significance tests'
-    },
-    {
-      id: 'ORD-008',
-      title: 'Philosophy Essay - Ethics in Technology',
-      description: 'Examination of ethical implications of artificial intelligence in modern society',
-      subject: 'Philosophy',
-      discipline: 'Philosophy',
-      paperType: 'Essay',
-      pages: 8,
-      words: 2000,
-      format: 'Chicago',
-      price: 240,
-      priceKES: 36000,
-      cpp: 4500,
-      deadline: '2024-02-10',
-      status: 'Client Approved',
-      assignedWriter: 'John Doe',
-      writerId: 'writer-1',
-      createdAt: '2024-01-20',
-      updatedAt: '2024-01-22',
-      isOverdue: false,
-      confirmationStatus: 'confirmed',
-      paymentType: 'advance',
-      totalPriceKES: 36000,
-      clientMessages: [
-        {
-          id: 'msg-8',
-          sender: 'client',
-          message: 'Please address both utilitarian and deontological perspectives',
-          timestamp: '2024-01-20T11:00:00Z'
-        }
-      ],
-      uploadedFiles: [],
-      additionalInstructions: 'Include contemporary examples and case studies'
-    },
-    {
-      id: 'ORD-011',
-      title: 'Research Paper - Renewable Energy Sources',
-      description: 'Comprehensive analysis of solar, wind, and hydroelectric energy sources',
-      subject: 'Energy Studies',
-      discipline: 'Engineering',
-      paperType: 'Research Paper',
-      pages: 18,
-      words: 4500,
-      format: 'IEEE',
-      price: 540,
-      priceKES: 81000,
-      cpp: 4500,
-      deadline: '2024-02-28',
-      status: 'Rejected',
-      assignedWriter: 'John Doe',
-      writerId: 'writer-1',
-      createdAt: '2024-01-21',
-      updatedAt: '2024-01-22',
-      isOverdue: false,
-      confirmationStatus: 'confirmed',
-      paymentType: 'advance',
-      totalPriceKES: 81000,
-      clientMessages: [
-        {
-          id: 'msg-9',
-          sender: 'client',
-          message: 'The analysis was not comprehensive enough for our requirements',
-          timestamp: '2024-01-22T10:00:00Z'
-        }
-      ],
-      uploadedFiles: [],
-      additionalInstructions: 'Include detailed cost-benefit analysis and environmental impact assessment'
+      additionalInstructions: 'Focus on companies that successfully adapted to e-commerce'
     }
   ]);
-
-  const addOrder = useCallback((order: Omit<Order, 'id' | 'createdAt' | 'updatedAt' | 'isOverdue'>) => {
-    const newOrder: Order = {
-      ...order,
-      id: `ORD-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isOverdue: new Date(order.deadline) < new Date()
-    };
-    setOrders(prev => [...prev, newOrder]);
-  }, []);
-
-  const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
-    setOrders(prev => prev.map(order => 
-      order.id === orderId 
-        ? { ...order, status, updatedAt: new Date().toISOString() }
-        : order
-    ));
-  }, []);
-
-  const assignOrderToWriter = useCallback((orderId: string, writerId: string) => {
-    setOrders(prev => prev.map(order => 
-      order.id === orderId 
-        ? { ...order, writerId, status: 'In Progress', updatedAt: new Date().toISOString() }
-        : order
-    ));
-  }, []);
-
-  const pickOrder = useCallback((orderId: string, writerId: string) => {
-    setOrders(prev => prev.map(order => 
-      order.id === orderId 
-        ? { ...order, writerId, status: 'Awaiting Confirmation', updatedAt: new Date().toISOString() }
-        : order
-    ));
-  }, []);
 
   const handleOrderAction = useCallback((action: string, orderId: string, additionalData?: Record<string, unknown>) => {
     setOrders(prev => prev.map(order => {
       if (order.id !== orderId) return order;
-      
+
       let newStatus = order.status;
       const updatedAt = new Date().toISOString();
       const updates: Record<string, unknown> = { updatedAt };
       
       switch (action) {
         case 'pick':
-          newStatus = 'Awaiting Confirmation';
+          newStatus = 'Assigned';
+          updates.writerId = additionalData?.writerId || 'unknown';
+          updates.assignedWriter = additionalData?.writerName || 'Unknown Writer';
           break;
-        case 'confirm':
-          newStatus = 'Confirmed';
-          break;
-        case 'submit_to_admin':
-          newStatus = 'Submitted to Admin';
+          
+        case 'submit':
+          newStatus = 'Submitted';
           updates.submittedToAdminAt = new Date().toISOString();
           if (additionalData?.files && Array.isArray(additionalData.files)) {
             updates.uploadedFiles = [...order.uploadedFiles, ...additionalData.files];
@@ -539,48 +280,110 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             updates.adminReviewNotes = additionalData.notes;
           }
           break;
-        case 'admin_approve':
-          newStatus = 'Admin Approved';
+          
+        case 'approve':
+          newStatus = 'Approved';
+          updates.adminReviewedAt = new Date().toISOString();
+          updates.adminReviewedBy = additionalData?.adminId || 'admin';
+          if (additionalData?.notes) {
+            updates.adminReviewNotes = additionalData.notes;
+          }
+          // Add payment to writer's wallet
+          if (order.writerId) {
+            // This will be handled by the wallet context integration
+            // const orderAmount = order.pages * 350;
+          }
+          break;
+          
+        case 'reject':
+          newStatus = 'Rejected';
+          updates.adminReviewedAt = new Date().toISOString();
+          updates.adminReviewedBy = additionalData?.adminId || 'admin';
+          if (additionalData?.notes) {
+            updates.adminReviewNotes = additionalData.notes;
+          }
+          // Apply 10% fine for rejection
+          if (order.writerId) {
+            const orderAmount = order.pages * 350;
+            const fineAmount = orderAmount * 0.1;
+            updates.fineAmount = (order.fineAmount || 0) + fineAmount;
+            updates.fineReason = 'Order rejected by admin';
+            if (!updates.fineHistory) updates.fineHistory = [];
+            (updates.fineHistory as Array<{
+              amount: number;
+              reason: string;
+              appliedAt: string;
+              type: 'late' | 'rejection' | 'auto-reassignment';
+            }>).push({
+              amount: fineAmount,
+              reason: 'Order rejected by admin',
+              appliedAt: new Date().toISOString(),
+              type: 'rejection'
+            });
+          }
+          break;
+          
+        case 'request_revision':
+          newStatus = 'Revision';
           updates.adminReviewedAt = new Date().toISOString();
           updates.adminReviewedBy = additionalData?.adminId || 'admin';
           if (additionalData?.notes) {
             updates.adminReviewNotes = additionalData.notes;
           }
           break;
-        case 'admin_reject':
-          newStatus = 'Admin Rejected';
-          updates.adminReviewedAt = new Date().toISOString();
-          updates.adminReviewedBy = additionalData?.adminId || 'admin';
+          
+        case 'resubmit':
+          newStatus = 'Resubmitted';
+          updates.submittedToAdminAt = new Date().toISOString();
+          updates.revisionSubmittedAt = new Date().toISOString();
+          if (additionalData?.files && Array.isArray(additionalData.files)) {
+            updates.uploadedFiles = [...order.uploadedFiles, ...additionalData.files];
+          }
+          if (additionalData?.revisionNotes) {
+            updates.revisionResponseNotes = additionalData.revisionNotes;
+          }
           if (additionalData?.notes) {
             updates.adminReviewNotes = additionalData.notes;
           }
           break;
-        case 'client_approve':
-          newStatus = 'Client Approved';
-          break;
-        case 'client_reject':
-          newStatus = 'Client Rejected';
-          break;
-        case 'reassign':
-          newStatus = 'Reassigned';
-          updates.reassignmentReason = additionalData?.reason || 'No reason provided';
-          updates.reassignedAt = new Date().toISOString();
-          updates.reassignedBy = additionalData?.writerId || 'unknown';
-          updates.writerId = undefined;
-          updates.assignedWriter = undefined;
-          break;
-        case 'assign':
-          newStatus = 'In Progress';
-          break;
-        case 'editor_revision':
-          newStatus = 'Editor Revision';
-          break;
+          
         case 'complete':
           newStatus = 'Completed';
           break;
+          
+        case 'reassign':
+          newStatus = 'Auto-Reassigned';
+          updates.reassignmentReason = additionalData?.reason || 'No reason provided';
+          updates.reassignedAt = new Date().toISOString();
+          updates.reassignedBy = additionalData?.writerId || 'unknown';
+          updates.originalWriterId = order.writerId;
+          updates.writerId = undefined;
+          updates.assignedWriter = undefined;
+          // Apply 10% fine for auto-reassignment
+          if (order.originalWriterId) {
+            const orderAmount = order.pages * 350;
+            const fineAmount = orderAmount * 0.1;
+            updates.fineAmount = (order.fineAmount || 0) + fineAmount;
+            updates.fineReason = 'Order automatically reassigned due to lateness';
+            if (!updates.fineHistory) updates.fineHistory = [];
+            (updates.fineHistory as Array<{
+              amount: number;
+              reason: string;
+              appliedAt: string;
+              type: 'late' | 'rejection' | 'auto-reassignment';
+            }>).push({
+              amount: fineAmount,
+              reason: 'Order automatically reassigned due to lateness',
+              appliedAt: new Date().toISOString(),
+              type: 'auto-reassignment'
+            });
+          }
+          break;
+          
         case 'cancel':
           newStatus = 'Cancelled';
           break;
+          
         case 'put_on_hold':
           newStatus = 'On Hold';
           break;
@@ -595,7 +398,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       if (order.id !== orderId) return order;
       return {
         ...order,
-        status: 'Awaiting Payment',
+        status: 'In Progress',
         confirmation: confirmation,
         questions: questions,
         updatedAt: new Date().toISOString()
@@ -619,7 +422,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const getWriterActiveOrders = useCallback((writerId: string) => {
     return orders.filter(order => 
       order.writerId === writerId && 
-      ['Awaiting Confirmation', 'Confirmed', 'In Progress', 'Submitted to Admin', 'Under Admin Review', 'Admin Approved', 'Client Review', 'Client Approved', 'Editor Revision', 'Awaiting Payment', 'Pay Later'].includes(order.status)
+      ['Assigned', 'In Progress', 'Submitted', 'Approved', 'Revision', 'Resubmitted'].includes(order.status)
     );
   }, [orders]);
 
@@ -628,18 +431,19 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     
     return {
       total: writerOrders.length,
-      pending: writerOrders.filter(o => o.status === 'Under Admin Review').length,
+      pending: writerOrders.filter(o => o.status === 'Submitted').length,
       available: writerOrders.filter(o => o.status === 'Available').length,
       inProgress: writerOrders.filter(o => o.status === 'In Progress').length,
-      uploadToClient: writerOrders.filter(o => o.status === 'Submitted to Admin').length,
-      editorRevision: writerOrders.filter(o => o.status === 'Editor Revision').length,
-      approved: writerOrders.filter(o => o.status === 'Admin Approved').length,
-      payLater: writerOrders.filter(o => o.status === 'Pay Later').length,
+      submitted: writerOrders.filter(o => o.status === 'Submitted').length,
+      approved: writerOrders.filter(o => o.status === 'Approved').length,
+      revision: writerOrders.filter(o => o.status === 'Revision').length,
       completed: writerOrders.filter(o => o.status === 'Completed').length,
       rejected: writerOrders.filter(o => o.status === 'Rejected').length,
-      awaitingConfirmation: writerOrders.filter(o => o.status === 'Awaiting Confirmation').length,
-      confirmed: writerOrders.filter(o => o.status === 'Confirmed').length,
-      awaitingPayment: writerOrders.filter(o => o.status === 'Awaiting Payment').length,
+      autoReassigned: writerOrders.filter(o => o.status === 'Auto-Reassigned').length,
+      cancelled: writerOrders.filter(o => o.status === 'Cancelled').length,
+      onHold: writerOrders.filter(o => o.status === 'On Hold').length,
+      disputed: writerOrders.filter(o => o.status === 'Disputed').length,
+      refunded: writerOrders.filter(o => o.status === 'Refunded').length,
     };
   }, [orders]);
 
@@ -647,23 +451,24 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     const writerOrders = orders.filter(order => order.writerId === writerId);
     
     return {
-      pending: writerOrders.filter(o => o.status === 'Under Admin Review'),
+      pending: writerOrders.filter(o => o.status === 'Submitted'),
       available: writerOrders.filter(o => o.status === 'Available'),
       inProgress: writerOrders.filter(o => o.status === 'In Progress'),
-      uploadToClient: writerOrders.filter(o => o.status === 'Submitted to Admin'),
-      editorRevision: writerOrders.filter(o => o.status === 'Editor Revision'),
-      approved: writerOrders.filter(o => o.status === 'Admin Approved'),
-      payLater: writerOrders.filter(o => o.status === 'Pay Later'),
+      submitted: writerOrders.filter(o => o.status === 'Submitted'),
+      approved: writerOrders.filter(o => o.status === 'Approved'),
+      revision: writerOrders.filter(o => o.status === 'Revision'),
       completed: writerOrders.filter(o => o.status === 'Completed'),
       rejected: writerOrders.filter(o => o.status === 'Rejected'),
-      awaitingConfirmation: writerOrders.filter(o => o.status === 'Awaiting Confirmation'),
-      confirmed: writerOrders.filter(o => o.status === 'Confirmed'),
-      awaitingPayment: writerOrders.filter(o => o.status === 'Awaiting Payment'),
+      autoReassigned: writerOrders.filter(o => o.status === 'Auto-Reassigned'),
+      cancelled: writerOrders.filter(o => o.status === 'Cancelled'),
+      onHold: writerOrders.filter(o => o.status === 'On Hold'),
+      disputed: writerOrders.filter(o => o.status === 'Disputed'),
+      refunded: writerOrders.filter(o => o.status === 'Refunded'),
     };
   }, [orders]);
 
   // Calculate earnings for orders
-  const calculateOrderEarnings = useCallback((order: Order): OrderEarnings => {
+  const calculateOrderEarnings = useCallback((order: Order) => {
     // New CPP calculation: 350 KES per page
     const cppAmount = 350;
     const totalAmount = order.pages * cppAmount;
@@ -677,15 +482,19 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Get total writer earnings
+  // Pick an order (assign to writer)
+  const pickOrder = useCallback((orderId: string, writerId: string, writerName: string) => {
+    handleOrderAction('pick', orderId, { writerId, writerName });
+  }, [handleOrderAction]);
+
+  // Get writer's total earnings
   const getWriterTotalEarnings = useCallback((writerId: string) => {
     const writerOrders = orders.filter(order => 
       order.writerId === writerId && 
-      ['Completed', 'Approved', 'Awaiting Payment'].includes(order.status)
+      ['Completed', 'Approved'].includes(order.status)
     );
     
     return writerOrders.reduce((total, order) => {
-      // Calculate earnings using new CPP: 350 KES per page
       return total + (order.pages * 350);
     }, 0);
   }, [orders]);
@@ -693,12 +502,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   return (
     <OrderContext.Provider value={{
       orders,
-      addOrder,
-      updateOrderStatus,
-      assignOrderToWriter,
-      pickOrder,
       handleOrderAction,
       confirmOrder,
+      pickOrder,
       getOrdersByStatus,
       getAvailableOrders,
       getWriterActiveOrders,

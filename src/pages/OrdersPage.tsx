@@ -55,13 +55,13 @@ export default function OrdersPage() {
 
   // Get orders by status - properly categorized
   const availableOrders = getAvailableOrders(); // Available orders
-  const pendingApprovalOrders = getOrdersByStatus('Pending Approval');
+  const pendingApprovalOrders = getOrdersByStatus('Submitted');
   const inProgressOrders = getOrdersByStatus('In Progress');
   const completedOrders = getOrdersByStatus('Completed');
   const rejectedOrders = getOrdersByStatus('Rejected');
-  const editorRevisionOrders = getOrdersByStatus('Editor Revision');
-  const submittedToAdminOrders = getOrdersByStatus('Submitted to Admin');
-  const adminApprovedOrders = getOrdersByStatus('Admin Approved');
+  const editorRevisionOrders = getOrdersByStatus('Revision');
+  const submittedToAdminOrders = getOrdersByStatus('Submitted');
+  const adminApprovedOrders = getOrdersByStatus('Approved');
 
   // Get writer-specific orders and stats (excluding POD orders)
   const myOrders = getWriterActiveOrders(writerId);
@@ -114,7 +114,7 @@ export default function OrdersPage() {
 
   const handleOrderConfirm = (orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
     // First, pick the order to assign it to the current writer
-    pickOrder(orderId, writerId);
+    pickOrder(orderId, writerId, user?.name || 'Unknown Writer');
     
     // Then confirm the order with the confirmation data
     confirmOrder(orderId, confirmation, questions);
@@ -132,9 +132,9 @@ export default function OrdersPage() {
   // Calculate performance metrics
   const calculatePerformanceMetrics = () => {
     const myCompletedOrders = myOrders.filter(order => 
-      ['Completed', 'Admin Approved', 'Client Approved'].includes(order.status)
+      ['Completed', 'Approved'].includes(order.status)
     );
-    const myRevisionOrders = myOrders.filter(order => order.status === 'Editor Revision');
+    const myRevisionOrders = myOrders.filter(order => order.status === 'Revision');
     
     const totalPages = myCompletedOrders.reduce((sum, order) => sum + order.pages, 0);
     const avgCompletionTime = myCompletedOrders.length > 0 ? 
@@ -185,9 +185,9 @@ export default function OrdersPage() {
               <RefreshCw className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-700">{writerStats.editorRevision}</div>
+              <div className="text-2xl font-bold text-red-700">{writerStats.revision}</div>
               <p className="text-xs text-red-600">
-                {writerStats.editorRevision > 0 ? 'Needs attention' : 'All good'}
+                {writerStats.revision > 0 ? 'Needs attention' : 'All good'}
               </p>
             </CardContent>
           </Card>

@@ -58,16 +58,16 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
           writerId: order.writerId,
           writerName: order.assignedWriter || 'Unknown Writer',
           amount: totalAmountKES,
-          status: order.status === 'Awaiting Payment' ? 'pending' : 'paid',
+          status: order.status === 'Approved' ? 'pending' : 'paid',
           createdAt: order.updatedAt,
-          paidAt: order.status === 'Awaiting Payment' ? undefined : order.updatedAt,
-          paymentMethod: order.status === 'Awaiting Payment' ? undefined : 'Platform Transfer',
+          paidAt: order.status === 'Approved' ? undefined : order.updatedAt,
+          paymentMethod: order.status === 'Approved' ? undefined : 'Platform Transfer',
           orderType: 'regular',
           pages: order.pages,
           totalAmountKES,
           writerEarnings,
           platformFee,
-          paymentStatus: order.status === 'Awaiting Payment' ? 'pending' : 'paid',
+          paymentStatus: order.status === 'Approved' ? 'pending' : 'paid',
           dueDate: order.deadline
         });
       }

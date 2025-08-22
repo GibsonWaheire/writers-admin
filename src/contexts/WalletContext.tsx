@@ -28,6 +28,7 @@ export interface WalletData {
 interface WalletContextType {
   wallet: WalletData;
   addEarning: (orderId: string, amount: number, description: string, orderType: 'regular' | 'pod') => void;
+  applyFine: (orderId: string, amount: number, reason: string, fineType: 'late' | 'rejection' | 'auto-reassignment') => void;
   requestWithdrawal: (amount: number, paymentMethod: string) => void;
   getMonthlyEarnings: (month?: number, year?: number) => number;
   getPendingOrdersCount: () => number;
@@ -67,12 +68,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     // Calculate earnings from regular orders
     orders.forEach(order => {
-      if (order.writerId && ['Completed', 'Admin Approved', 'Client Approved', 'Awaiting Payment'].includes(order.status)) {
+      if (order.writerId && ['Completed', 'Approved'].includes(order.status)) {
         const orderAmount = order.pages * 350; // 350 KES per page
         regularEarnings += orderAmount;
         
         // Add transaction for completed orders
-        if (['Completed', 'Admin Approved', 'Client Approved'].includes(order.status)) {
+        if (['Completed'].includes(order.status)) {
           newTransactions.push({
             id: `TXN-${order.id}`,
             type: 'earning',
@@ -83,7 +84,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             orderId: order.id,
             orderType: 'regular'
           });
-        } else if (order.status === 'Awaiting Payment') {
+        } else if (order.status === 'Approved') {
           pendingEarnings += orderAmount;
         }
       }
@@ -165,6 +166,26 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const applyFine = useCallback((orderId: string, amount: number, reason: string, _fineType: 'late' | 'rejection' | 'auto-reassignment') => {
+    const newTransaction: Transaction = {
+      id: `TXN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+      type: 'refund', // Using refund type for fines (negative amount)
+      description: `Fine: ${reason}`,
+      amount: -amount, // Negative amount for fines
+      date: new Date().toISOString().split('T')[0],
+      status: 'completed',
+      orderId,
+      orderType: 'regular'
+    };
+
+    setWallet(prev => ({
+      ...prev,
+      availableBalance: Math.max(0, prev.availableBalance - amount), // Ensure balance doesn't go negative
+      totalEarned: prev.totalEarned, // Fines don't affect total earned
+      transactions: [newTransaction, ...prev.transactions]
+    }));
+  }, []);
+
   const requestWithdrawal = useCallback((amount: number, paymentMethod: string) => {
     if (amount > wallet.availableBalance) {
       throw new Error('Insufficient balance');
@@ -204,7 +225,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const getPendingOrdersCount = useCallback(() => {
     const pendingRegular = orders.filter(order => 
-      order.writerId && order.status === 'Awaiting Payment'
+      order.writerId && order.status === 'Approved'
     ).length;
     
     const pendingPOD = podOrders.filter(podOrder => 
@@ -219,7 +240,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     
     // Regular orders pending payment
     orders.forEach(order => {
-      if (order.writerId && order.status === 'Awaiting Payment') {
+      if (order.writerId && order.status === 'Approved') {
         pending += order.pages * 350;
       }
     });
@@ -261,6 +282,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     <WalletContext.Provider value={{
       wallet,
       addEarning,
+      applyFine,
       requestWithdrawal,
       getMonthlyEarnings,
       getPendingOrdersCount,

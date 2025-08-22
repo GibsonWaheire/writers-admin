@@ -31,8 +31,15 @@ export interface Order {
   paymentType: 'advance' | 'milestone'; // Payment types (removed POD)
   // Pricing and fines
   totalPriceKES: number; // Total price in KES
-  fineAmount?: number; // Fine amount if applicable
-  fineReason?: string; // Reason for fine
+  // Fine tracking
+  fineAmount?: number; // Total fines applied to this order
+  fineReason?: string; // Reason for fine (late, rejection, etc.)
+  fineHistory?: Array<{
+    amount: number;
+    reason: string;
+    appliedAt: string;
+    type: 'late' | 'rejection' | 'auto-reassignment';
+  }>;
   // Reassignment tracking
   reassignmentReason?: string; // Reason for reassignment
   reassignedAt?: string; // When order was reassigned
@@ -42,6 +49,16 @@ export interface Order {
   adminReviewNotes?: string; // Admin's review notes
   adminReviewedAt?: string; // When admin reviewed
   adminReviewedBy?: string; // Who reviewed the order
+  // Revision tracking
+  revisionSubmittedAt?: string; // When revision was submitted
+  revisionResponseNotes?: string; // Writer's response to revision feedback
+  // Late submission tracking
+  isLate?: boolean; // Whether order is past deadline
+  hoursLate?: number; // How many hours past deadline
+  lastFineApplied?: string; // When last fine was applied
+  // Auto-reassignment tracking
+  autoReassignedAt?: string; // When automatically reassigned
+  originalWriterId?: string; // Original writer before reassignment
 }
 
 export type PaperType = 
@@ -69,24 +86,16 @@ export type CitationFormat =
 
 export type OrderStatus = 
   | 'Available' // Available for writers to pick
-  | 'Pending Approval' // Admin approval needed
-  | 'Awaiting Confirmation' // Writer needs to confirm
-  | 'Confirmed' // Writer confirmed, order is active
+  | 'Assigned' // Writer has picked the order
   | 'In Progress' // Writer is working on it
-  | 'Submitted to Admin' // Submitted for admin review
-  | 'Under Admin Review' // Admin is reviewing
-  | 'Admin Approved' // Admin approved, ready for client
-  | 'Admin Rejected' // Admin rejected, needs revision
-  | 'Client Review' // Client is reviewing
-  | 'Client Approved' // Client approved
-  | 'Client Rejected' // Client rejected, needs revision
-  | 'Completed' // Order completed
-  | 'Rejected' // Order rejected
-  | 'Requires Admin Approval' // Needs admin review
-  | 'Editor Revision' // Needs revision
-  | 'Awaiting Payment' // Ready for payment
-  | 'Pay Later' // Payment deferred
-  | 'Reassigned' // Order was reassigned by writer
+  | 'Submitted' // Writer has submitted work for review
+  | 'Approved' // Admin approved, payment added to wallet
+  | 'Rejected' // Admin rejected, fine applied, no payment
+  | 'Revision' // Admin requested revision
+  | 'Resubmitted' // Writer resubmitted after revision
+  | 'Completed' // Order completed successfully
+  | 'Late' // Order is past deadline
+  | 'Auto-Reassigned' // Automatically reassigned after 24h late
   | 'Cancelled' // Order cancelled
   | 'On Hold' // Order temporarily on hold
   | 'Disputed' // Order under dispute

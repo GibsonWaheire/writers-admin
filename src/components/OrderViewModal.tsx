@@ -44,24 +44,16 @@ export function OrderViewModal({
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
       'Available': { variant: 'outline' as const, color: 'text-blue-600', bg: 'bg-blue-50' },
-      'Pending Approval': { variant: 'secondary' as const, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-      'Awaiting Confirmation': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
-      'Confirmed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
+      'Assigned': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
       'In Progress': { variant: 'default' as const, color: 'text-blue-600', bg: 'bg-blue-50' },
-      'Submitted to Admin': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
-      'Under Admin Review': { variant: 'secondary' as const, color: 'text-blue-600', bg: 'bg-blue-50' },
-      'Admin Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
-      'Admin Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
-      'Client Review': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
-      'Client Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
-      'Client Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
-      'Completed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
+      'Submitted': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
+      'Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
       'Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
-      'Requires Admin Approval': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
-      'Editor Revision': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
-      'Awaiting Payment': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
-      'Pay Later': { variant: 'outline' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
-      'Reassigned': { variant: 'secondary' as const, color: 'text-gray-600', bg: 'bg-gray-50' },
+      'Revision': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
+      'Resubmitted': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
+      'Completed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
+      'Late': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
+      'Auto-Reassigned': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
       'Cancelled': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
       'On Hold': { variant: 'secondary' as const, color: 'text-gray-600', bg: 'bg-gray-50' },
       'Disputed': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
@@ -148,22 +140,22 @@ export function OrderViewModal({
       );
     }
 
-    if (order.status === 'Awaiting Confirmation') {
+    if (order.status === 'Assigned') {
       return (
         <Button 
-            onClick={() => onAction('request_revision', order.id, { notes })}
+            onClick={() => onAction('confirm', order.id, { notes })}
             className="bg-yellow-600 hover:bg-yellow-700"
           >
             <AlertTriangle className="h-4 w-4 mr-2" />
-            Request Revision
+            Confirm Order
           </Button>
       );
     }
 
-    if (order.status === 'Editor Revision') {
+    if (order.status === 'Revision') {
       return (
         <Button 
-          onClick={() => onAction('submit', order.id, { notes })}
+          onClick={() => onAction('resubmit', order.id, { notes })}
           className="bg-blue-600 hover:bg-blue-700"
         >
           <FileText className="h-4 w-4 mr-2" />
@@ -172,14 +164,14 @@ export function OrderViewModal({
       );
     }
 
-    if (order.status === 'Awaiting Payment') {
+    if (order.status === 'Approved') {
       return (
         <Button 
-          onClick={() => onAction('pay_later', order.id, { notes })}
+          onClick={() => onAction('complete', order.id, { notes })}
           className="bg-orange-600 hover:bg-orange-700"
         >
           <DollarSign className="h-4 w-4 mr-2" />
-          Pay Later
+          Mark Complete
         </Button>
       );
     }
@@ -210,7 +202,7 @@ export function OrderViewModal({
       );
     }
 
-    if (order.status === 'Pending Approval') {
+    if (order.status === 'Submitted') {
       return (
         <div className="flex gap-2">
           <Button 

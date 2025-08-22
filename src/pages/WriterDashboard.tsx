@@ -298,7 +298,7 @@ export default function WriterDashboard() {
                     <div className="flex items-center gap-3">
                       <Badge variant={getStatusBadge(order.status)} className="flex items-center gap-1">
                         {order.status === "In Progress" && <span className="w-2 h-2 bg-blue-500 rounded-full"></span>}
-                        {order.status === "Pending Approval" && <span className="text-yellow-600">👁️</span>}
+                        {order.status === "Submitted" && <span className="text-yellow-600">👁️</span>}
                         {order.status === "Available" && <span className="text-green-600">🔓</span>}
                         {order.status}
                       </Badge>
