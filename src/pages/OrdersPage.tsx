@@ -94,7 +94,13 @@ export default function OrdersPage() {
   };
 
   const handleOrderActionLocal = (action: string, orderId: string, additionalData?: Record<string, unknown>) => {
-    handleOrderAction(action, orderId, additionalData);
+    if (action === 'confirm_order' && additionalData?.confirmation && additionalData?.questions) {
+      // Handle order confirmation the same way as the main Pick Order button
+      confirmOrder(orderId, additionalData.confirmation as WriterConfirmation, additionalData.questions as WriterQuestion[]);
+    } else {
+      // Handle other actions normally
+      handleOrderAction(action, orderId, additionalData);
+    }
     setIsModalOpen(false);
     setSelectedOrder(null);
   };

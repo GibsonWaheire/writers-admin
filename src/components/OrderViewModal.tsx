@@ -5,6 +5,7 @@ import { Badge } from './ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { OrderConfirmationModal } from './OrderConfirmationModal';
 import { 
   DollarSign, 
   FileText, 
@@ -17,14 +18,14 @@ import {
   BookOpen,
   FileType
 } from 'lucide-react';
-import type { Order, OrderStatus } from '../types/order';
+import type { Order, OrderStatus, WriterConfirmation, WriterQuestion } from '../types/order';
 
 interface OrderViewModalProps {
   isOpen: boolean;
   onClose: () => void;
   order: Order;
   userRole: 'writer' | 'admin';
-  onAction: (action: string, orderId: string, notes?: string) => void;
+  onAction: (action: string, orderId: string, additionalData?: Record<string, unknown>) => void;
   activeOrdersCount?: number;
 }
 
@@ -38,20 +39,33 @@ export function OrderViewModal({
 }: OrderViewModalProps) {
   const [activeTab, setActiveTab] = useState('details');
   const [notes, setNotes] = useState('');
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
       'Available': { variant: 'outline' as const, color: 'text-blue-600', bg: 'bg-blue-50' },
       'Pending Approval': { variant: 'secondary' as const, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+      'Awaiting Confirmation': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
+      'Confirmed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
       'In Progress': { variant: 'default' as const, color: 'text-blue-600', bg: 'bg-blue-50' },
-      'Pending Review': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
+      'Submitted to Admin': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
+      'Under Admin Review': { variant: 'secondary' as const, color: 'text-blue-600', bg: 'bg-blue-50' },
+      'Admin Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
+      'Admin Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
+      'Client Review': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
+      'Client Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
+      'Client Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
       'Completed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
       'Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
       'Requires Admin Approval': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
-      'Upload to Client': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
       'Editor Revision': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
-      'Approved': { variant: 'default' as const, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-      'Pay Later': { variant: 'outline' as const, color: 'text-orange-600', bg: 'bg-orange-50' }
+      'Awaiting Payment': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
+      'Pay Later': { variant: 'outline' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
+      'Reassigned': { variant: 'secondary' as const, color: 'text-gray-600', bg: 'bg-gray-50' },
+      'Cancelled': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
+      'On Hold': { variant: 'secondary' as const, color: 'text-gray-600', bg: 'bg-gray-50' },
+      'Disputed': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
+      'Refunded': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' }
     };
 
     const config = statusConfig[status] || statusConfig['Available'];
@@ -92,7 +106,7 @@ export function OrderViewModal({
       if (activeOrdersCount < 3) {
         return (
           <Button 
-            onClick={() => onAction('pick', order.id)}
+            onClick={() => setShowConfirmationModal(true)}
             className="bg-green-600 hover:bg-green-700"
           >
             <CheckCircle className="h-4 w-4 mr-2" />
@@ -102,7 +116,7 @@ export function OrderViewModal({
       } else {
         return (
           <Button 
-            onClick={() => onAction('request_approval', order.id, notes)}
+            onClick={() => onAction('request_approval', order.id, { notes })}
             variant="outline"
             className="border-yellow-500 text-yellow-600 hover:bg-yellow-50"
           >
@@ -117,14 +131,14 @@ export function OrderViewModal({
       return (
         <div className="flex gap-2">
           <Button 
-            onClick={() => onAction('submit', order.id, notes)}
+            onClick={() => onAction('submit', order.id, { notes })}
             className="bg-blue-600 hover:bg-blue-700"
           >
             <FileText className="h-4 w-4 mr-2" />
             Submit Work
           </Button>
           <Button 
-            onClick={() => onAction('upload_to_client', order.id, notes)}
+            onClick={() => onAction('upload_to_client', order.id, { notes })}
             className="bg-green-600 hover:bg-green-700"
           >
             <Download className="h-4 w-4 mr-2" />
@@ -134,22 +148,22 @@ export function OrderViewModal({
       );
     }
 
-    if (order.status === 'Pending Review') {
+    if (order.status === 'Awaiting Confirmation') {
       return (
         <Button 
-          onClick={() => onAction('request_revision', order.id, notes)}
-          className="bg-yellow-600 hover:bg-yellow-700"
-        >
-          <AlertTriangle className="h-4 w-4 mr-2" />
-          Request Revision
-        </Button>
+            onClick={() => onAction('request_revision', order.id, { notes })}
+            className="bg-yellow-600 hover:bg-yellow-700"
+          >
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            Request Revision
+          </Button>
       );
     }
 
     if (order.status === 'Editor Revision') {
       return (
         <Button 
-          onClick={() => onAction('submit', order.id, notes)}
+          onClick={() => onAction('submit', order.id, { notes })}
           className="bg-blue-600 hover:bg-blue-700"
         >
           <FileText className="h-4 w-4 mr-2" />
@@ -158,22 +172,10 @@ export function OrderViewModal({
       );
     }
 
-    if (order.status === 'Upload to Client') {
+    if (order.status === 'Awaiting Payment') {
       return (
         <Button 
-          onClick={() => onAction('approve_final', order.id, notes)}
-          className="bg-indigo-600 hover:bg-indigo-700"
-        >
-          <CheckCircle className="h-4 w-4 mr-2" />
-          Mark as Final
-        </Button>
-      );
-    }
-
-    if (order.status === 'Approved') {
-      return (
-        <Button 
-          onClick={() => onAction('pay_later', order.id, notes)}
+          onClick={() => onAction('pay_later', order.id, { notes })}
           className="bg-orange-600 hover:bg-orange-700"
         >
           <DollarSign className="h-4 w-4 mr-2" />
@@ -185,12 +187,20 @@ export function OrderViewModal({
     return null;
   };
 
+  const handleOrderConfirm = (confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
+    // Call the confirmOrder function to match the main Pick Order button workflow
+    // This will set the order status to "Awaiting Payment" and move it to assigned orders
+    onAction('confirm_order', order.id, { confirmation, questions });
+    // Close the confirmation modal
+    setShowConfirmationModal(false);
+  };
+
   const renderAdminActions = () => {
     if (order.status === 'Available') {
       return (
         <div className="flex gap-2">
           <Button 
-            onClick={() => onAction('assign', order.id, notes)}
+            onClick={() => onAction('assign', order.id, { notes })}
             className="bg-blue-600 hover:bg-blue-700"
           >
             <User className="h-4 w-4 mr-2" />
@@ -204,14 +214,14 @@ export function OrderViewModal({
       return (
         <div className="flex gap-2">
           <Button 
-            onClick={() => onAction('approve', order.id, notes)}
+            onClick={() => onAction('approve', order.id, { notes })}
             className="bg-green-600 hover:bg-green-700"
           >
             <CheckCircle className="h-4 w-4 mr-2" />
             Approve
           </Button>
           <Button 
-            onClick={() => onAction('reject', order.id, notes)}
+            onClick={() => onAction('reject', order.id, { notes })}
             variant="destructive"
           >
             <XCircle className="h-4 w-4 mr-2" />
@@ -225,7 +235,7 @@ export function OrderViewModal({
       return (
         <div className="flex gap-2">
           <Button 
-            onClick={() => onAction('reassign', order.id, notes)}
+            onClick={() => onAction('reassign', order.id, { notes })}
             variant="outline"
           >
             <User className="h-4 w-4 mr-2" />
@@ -506,6 +516,12 @@ export function OrderViewModal({
           </TabsContent>
         </Tabs>
       </div>
+      <OrderConfirmationModal
+        isOpen={showConfirmationModal}
+        onClose={() => setShowConfirmationModal(false)}
+        order={order}
+        onConfirm={handleOrderConfirm}
+      />
     </Modal>
   );
 }
