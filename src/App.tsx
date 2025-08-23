@@ -29,7 +29,7 @@ import { ReviewsProvider } from './contexts/ReviewsContext';
 import { FinancialProvider } from './contexts/FinancialContext';
 import { AnalyticsProvider } from './contexts/AnalyticsContext';
 import { UsersProvider } from './contexts/UsersContext';
-import { NotificationProvider } from './contexts/NotificationContext';
+import { NotificationProvider as AppNotificationProvider } from './contexts/NotificationContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import MessagesPage from './pages/MessagesPage';
 
@@ -213,7 +213,7 @@ const App = () => (
                     <AnalyticsProvider>
                       <MessagesProvider>
                         <InvoicesProvider>
-                          <NotificationProvider>
+                          <AppNotificationProvider>
                             <SettingsProvider>
                               <TooltipProvider>
                                 <BrowserRouter>
@@ -221,7 +221,7 @@ const App = () => (
                                 </BrowserRouter>
                               </TooltipProvider>
                             </SettingsProvider>
-                          </NotificationProvider>
+                          </AppNotificationProvider>
                         </InvoicesProvider>
                       </MessagesProvider>
                     </AnalyticsProvider>

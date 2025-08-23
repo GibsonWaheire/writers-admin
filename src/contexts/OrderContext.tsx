@@ -458,6 +458,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           }
           updates.assignedAt = new Date().toISOString();
           updates.assignedBy = 'admin';
+          updates.assignmentPriority = additionalData?.priority || 'medium';
+          updates.assignmentDeadline = additionalData?.deadline;
+          updates.requiresConfirmation = additionalData?.requireConfirmation || false;
+          
+          console.log('🔄 OrderContext: Order assigned with enhanced data:', {
+            orderId,
+            writerId: updates.writerId,
+            writerName: updates.assignedWriter,
+            priority: updates.assignmentPriority,
+            deadline: updates.assignmentDeadline,
+            requiresConfirmation: updates.requiresConfirmation
+          });
           break;
           
         case 'make_available':

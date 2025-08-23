@@ -403,6 +403,9 @@
     "transactionLogs": []
   },
   "notifications": [],
+  "notificationPreferences": [],
+  "assignmentHistory": [],
+  "assignmentConfirmations": [],
   "messages": [],
   "settings": {}
 }

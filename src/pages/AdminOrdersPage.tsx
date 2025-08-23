@@ -156,24 +156,32 @@ export default function AdminOrdersPage() {
     setSelectedOrder(null);
   };
 
-  const handleAssignToWriter = (writerId: string, notes?: string) => {
+  const handleAssignToWriter = (writerId: string, options: {
+    notes?: string;
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    deadline?: string;
+    requireConfirmation?: boolean;
+  }) => {
     if (orderToAssign) {
       // Get the actual writer name from the writers data
       const writer = writers.find(w => w.id === writerId);
       const writerName = writer?.name || 'Unknown Writer';
       
-      console.log('🔄 Admin assigning order:', {
+      console.log('🔄 Admin assigning order with enhanced options:', {
         orderId: orderToAssign.id,
         writerId,
         writerName,
-        notes,
+        options,
         writer
       });
       
       handleOrderAction('assign', orderToAssign.id, { 
         writerId, 
         writerName,
-        notes 
+        notes: options.notes,
+        priority: options.priority,
+        deadline: options.deadline,
+        requireConfirmation: options.requireConfirmation
       });
       setShowAssignmentModal(false);
       setOrderToAssign(null);

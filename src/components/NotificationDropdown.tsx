@@ -1,259 +1,228 @@
-import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Bell, X, CheckCheck, Trash2, Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Bell, Check, X, ExternalLink, Settings } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { useNotifications } from '../contexts/NotificationContext';
-import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import type { Notification } from '../types/notification';
 
 export function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'unread'>('all');
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  
-  const {
-    notifications,
-    unreadCount,
-    markAsRead,
-    markAllAsRead,
-    clearNotification,
-    clearAllNotifications,
-    getUnreadNotifications
-  } = useNotifications();
+  const { user } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
+  const navigate = useNavigate();
+
+  // Filter notifications for current user
+  const userNotifications = notifications.filter(n => n.userId === user?.id).slice(0, 10);
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.notification-dropdown')) {
         setIsOpen(false);
       }
-    }
+    };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredNotifications = filter === 'unread' 
-    ? getUnreadNotifications() 
-    : notifications;
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.isRead) {
+      await markAsRead(notification.id);
+    }
+    
+    if (notification.actionUrl) {
+      navigate(notification.actionUrl);
+    }
+    
+    setIsOpen(false);
+  };
 
+  const handleMarkAllRead = async () => {
+    if (user?.id) {
+      await markAllAsRead(user.id);
+    }
+  };
 
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'text-red-600 bg-red-50';
+      case 'high': return 'text-orange-600 bg-orange-50';
+      case 'medium': return 'text-blue-600 bg-blue-50';
+      default: return 'text-gray-600 bg-gray-50';
+    }
+  };
 
-  const formatTime = (timestamp: string) => {
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'order_assigned': return '🎯';
+      case 'order_completed': return '✅';
+      case 'order_approved': return '👍';
+      case 'order_rejected': return '❌';
+      case 'payment_received': return '💰';
+      case 'assignment_confirmed': return '✔️';
+      case 'assignment_declined': return '❌';
+      default: return '📢';
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
     const now = new Date();
-    const notifTime = new Date(timestamp);
-    const diffMs = now.getTime() - notifTime.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return notifTime.toLocaleDateString();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    
+    return date.toLocaleDateString();
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      {/* Notification Bell Button */}
+    <div className="notification-dropdown relative">
       <Button
         variant="ghost"
         size="sm"
-        className="relative p-2 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200"
+        className="relative"
         onClick={() => setIsOpen(!isOpen)}
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center bg-red-500 text-white">
+          <Badge 
+            variant="destructive" 
+            className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center p-0"
+          >
             {unreadCount > 99 ? '99+' : unreadCount}
           </Badge>
         )}
       </Button>
 
-      {/* Dropdown Panel */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-[80vh] flex flex-col">
-          {/* Header */}
-          <div className="p-4 border-b border-gray-200">
+        <Card className="absolute right-0 top-full mt-2 w-96 max-h-96 overflow-hidden shadow-xl border z-50">
+          <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
-                <p className="text-sm text-gray-500">
-                  {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsOpen(false)}
-                className="p-1 hover:bg-gray-100"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Filter and Action Buttons */}
-            <div className="flex items-center justify-between mt-3">
-              <div className="flex space-x-2">
-                <Button
-                  variant={filter === 'all' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setFilter('all')}
-                  className="text-xs px-3 py-1"
-                >
-                  All
-                </Button>
-                <Button
-                  variant={filter === 'unread' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setFilter('unread')}
-                  className="text-xs px-3 py-1"
-                >
-                  Unread ({unreadCount})
-                </Button>
-              </div>
-
-              <div className="flex space-x-1">
+              <CardTitle className="text-lg">Notifications</CardTitle>
+              <div className="flex items-center gap-2">
                 {unreadCount > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={markAllAsRead}
-                    className="p-1 hover:bg-gray-100"
-                    title="Mark all as read"
+                    onClick={handleMarkAllRead}
+                    className="text-xs"
                   >
-                    <CheckCheck className="h-4 w-4" />
+                    <Check className="h-3 w-3 mr-1" />
+                    Mark all read
                   </Button>
                 )}
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={clearAllNotifications}
-                  className="p-1 hover:bg-gray-100 hover:text-red-600"
-                  title="Clear all notifications"
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate('/settings?tab=notifications');
+                  }}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Settings className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-          </div>
-
-          {/* Notifications List */}
-          <div className="flex-1 overflow-y-auto max-h-96">
-            {filteredNotifications.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-sm">
-                  {filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
-                </p>
+          </CardHeader>
+          
+          <CardContent className="p-0">
+            {userNotifications.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No notifications yet</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
-                {filteredNotifications.map((notification) => (
+              <div className="max-h-80 overflow-y-auto">
+                {userNotifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={cn(
-                      "p-4 hover:bg-gray-50 transition-colors cursor-pointer relative",
-                      !notification.isRead && "bg-blue-50/30"
-                    )}
-                    onClick={() => {
-                      if (!notification.isRead) {
-                        markAsRead(notification.id);
-                      }
-                    }}
+                    className={`p-4 border-b hover:bg-gray-50 cursor-pointer transition-colors ${
+                      !notification.isRead ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                    }`}
+                    onClick={() => handleNotificationClick(notification)}
                   >
-                    {/* Priority Indicator */}
-                    <div
-                      className={cn(
-                        "absolute left-0 top-0 bottom-0 w-1",
-                        notification.priority === 'urgent' && "bg-red-500",
-                        notification.priority === 'high' && "bg-orange-500",
-                        notification.priority === 'medium' && "bg-blue-500",
-                        notification.priority === 'low' && "bg-gray-400"
-                      )}
-                    />
-
-                    <div className="flex items-start space-x-3 pl-3">
-                      {/* Icon */}
-                      <div className="flex-shrink-0">
-                        <span className="text-xl">{notification.icon}</span>
-                      </div>
-
-                      {/* Content */}
+                    <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className={cn(
-                              "text-sm font-medium text-gray-900",
-                              !notification.isRead && "font-semibold"
-                            )}>
-                              {notification.title}
-                            </p>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-2">
-                              {formatTime(notification.timestamp)}
-                            </p>
-                          </div>
-
-                          {/* Actions */}
-                          <div className="flex items-center space-x-1 ml-2">
-                            {!notification.isRead && (
-                              <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                clearNotification(notification.id);
-                              }}
-                              className="p-1 hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">{getNotificationIcon(notification.type)}</span>
+                          <h4 className="font-medium text-sm truncate">
+                            {notification.title}
+                          </h4>
+                          {!notification.isRead && (
+                            <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0" />
+                          )}
+                        </div>
+                        
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                          {notification.message}
+                        </p>
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">
+                            {formatTimeAgo(notification.createdAt)}
+                          </span>
+                          
+                          <div className="flex items-center gap-2">
+                            <Badge 
+                              variant="secondary" 
+                              className={`text-xs ${getPriorityColor(notification.priority)}`}
                             >
-                              <X className="h-3 w-3" />
-                            </Button>
+                              {notification.priority}
+                            </Badge>
+                            
+                            {notification.actionUrl && (
+                              <ExternalLink className="h-3 w-3 text-gray-400" />
+                            )}
                           </div>
                         </div>
-
-                        {/* Action Button */}
-                        {notification.actionUrl && notification.actionLabel && (
-                          <Link
-                            to={notification.actionUrl}
-                            onClick={() => setIsOpen(false)}
-                            className="inline-flex items-center mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium"
-                          >
-                            {notification.actionLabel} →
-                          </Link>
-                        )}
                       </div>
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="p-1 h-6 w-6 opacity-0 group-hover:opacity-100 hover:bg-red-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(notification.id);
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-
-          {/* Footer */}
-          {filteredNotifications.length > 0 && (
-            <>
-              <Separator />
-              <div className="p-3 bg-gray-50">
+            
+            {userNotifications.length > 0 && (
+              <div className="p-3 border-t bg-gray-50">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full text-xs text-gray-600 hover:text-gray-800"
-                  onClick={() => setIsOpen(false)}
+                  className="w-full text-xs"
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate('/notifications');
+                  }}
                 >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Notification Settings
+                  View all notifications
                 </Button>
               </div>
-            </>
-          )}
-        </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

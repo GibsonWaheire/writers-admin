@@ -11,6 +11,12 @@ import type {
   WithdrawalRequest, 
   TransactionLog 
 } from '../types/financial';
+import type { 
+  Notification, 
+  NotificationPreferences, 
+  AssignmentHistory, 
+  AssignmentConfirmation 
+} from '../types/notification';
 
 // Database structure interface
 interface Database {
@@ -36,7 +42,10 @@ interface Database {
     withdrawalRequests: WithdrawalRequest[];
     transactionLogs: TransactionLog[];
   };
-  notifications: any[];
+  notifications: Notification[];
+  notificationPreferences: NotificationPreferences[];
+  assignmentHistory: AssignmentHistory[];
+  assignmentConfirmations: AssignmentConfirmation[];
   messages: any[];
   settings: Record<string, any>;
 }

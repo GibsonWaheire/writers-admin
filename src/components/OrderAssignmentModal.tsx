@@ -11,10 +11,18 @@ import {
   Users, 
   BookOpen, 
   Search,
-  Star
+  Star,
+  Clock,
+  Award,
+  Target,
+  AlertTriangle,
+  CheckCircle,
+  Zap
 } from 'lucide-react';
 import { useUsers } from '../contexts/UsersContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import type { Order } from '../types/order';
+import type { SmartAssignmentSuggestion } from '../types/notification';
 
 interface Writer {
   id: string;
@@ -33,7 +41,12 @@ interface OrderAssignmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   order: Order;
-  onAssign: (writerId: string, notes?: string) => void;
+  onAssign: (writerId: string, options: {
+    notes?: string;
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    deadline?: string;
+    requireConfirmation?: boolean;
+  }) => void;
   onMakeAvailable: (notes?: string) => void;
 }
 
@@ -45,11 +58,16 @@ export function OrderAssignmentModal({
   onMakeAvailable 
 }: OrderAssignmentModalProps) {
   const { writers } = useUsers();
+  const { getSmartAssignmentSuggestions } = useNotifications();
   const [selectedWriterId, setSelectedWriterId] = useState<string>('');
   const [assignmentNotes, setAssignmentNotes] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSpecialty, setFilterSpecialty] = useState<string>('all');
-  const [assignmentType, setAssignmentType] = useState<'specific' | 'available'>('specific');
+  const [assignmentType, setAssignmentType] = useState<'specific' | 'available' | 'smart'>('smart');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
+  const [customDeadline, setCustomDeadline] = useState('');
+  const [requireConfirmation, setRequireConfirmation] = useState(true);
+  const [showSmartSuggestions, setShowSmartSuggestions] = useState(true);
 
   // Filter writers based on search and specialty
   // Convert writers to the format expected by the component
@@ -99,10 +117,18 @@ export function OrderAssignmentModal({
     return <Badge variant="secondary" className="text-xs">{writer.activeOrders}/{writer.maxOrders} Active</Badge>;
   };
 
+  // Get smart assignment suggestions
+  const smartSuggestions = getSmartAssignmentSuggestions(order, writers);
+  
   // Handle specific writer assignment
   const handleAssignToWriter = () => {
     if (selectedWriterId && selectedWriter) {
-      onAssign(selectedWriterId, assignmentNotes);
+      onAssign(selectedWriterId, {
+        notes: assignmentNotes,
+        priority,
+        deadline: customDeadline || undefined,
+        requireConfirmation
+      });
       onClose();
     }
   };
@@ -120,7 +146,11 @@ export function OrderAssignmentModal({
       setAssignmentNotes('');
       setSearchTerm('');
       setFilterSpecialty('all');
-      setAssignmentType('specific');
+      setAssignmentType('smart');
+      setPriority('medium');
+      setCustomDeadline('');
+      setRequireConfirmation(true);
+      setShowSmartSuggestions(true);
     }
   }, [isOpen]);
 
