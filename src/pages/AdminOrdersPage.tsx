@@ -278,13 +278,35 @@ export default function AdminOrdersPage() {
             Manage and monitor all writing orders, assign writers, and review submissions
           </p>
         </div>
-        <Button 
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={() => setShowUploadModal(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Upload New Order
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => setShowUploadModal(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Upload New Order
+          </Button>
+          
+          {/* Test button for debugging */}
+          <Button 
+            variant="outline"
+            onClick={() => {
+              console.log('🧪 Testing make_available functionality...');
+              const testOrder = orders.find(o => o.id === 'ORD-TEST-003');
+              if (testOrder) {
+                console.log('🧪 Test order found:', testOrder);
+                handleOrderAction('make_available', 'ORD-TEST-003', { 
+                  notes: 'Test make available',
+                  source: 'test_button'
+                });
+              } else {
+                console.log('🧪 Test order not found');
+              }
+            }}
+          >
+            🧪 Test Make Available
+          </Button>
+        </div>
       </div>
 
       {/* Admin Metrics Overview */}
