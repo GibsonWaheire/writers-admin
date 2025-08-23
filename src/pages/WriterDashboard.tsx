@@ -15,6 +15,9 @@ import {
 import { OrderViewModal } from "../components/OrderViewModal";
 import { useOrders } from "../contexts/OrderContext";
 import { useWallet } from "../contexts/WalletContext";
+import { useReviews } from "../contexts/ReviewsContext";
+import { useFinancial } from "../contexts/FinancialContext";
+import { useAnalytics } from "../contexts/AnalyticsContext";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Order } from "../types/order";
@@ -24,6 +27,9 @@ export default function WriterDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { orders, getWriterActiveOrders, getWriterOrderStats, getAvailableOrders } = useOrders();
   const { wallet, getMonthlyEarnings } = useWallet();
+  const { getWriterStats: getReviewStats } = useReviews();
+  const { getWriterFinancials } = useFinancial();
+  const { getWriterPerformance } = useAnalytics();
   const navigate = useNavigate();
   
   // Get writer-specific data (assuming current writer ID is 'writer-1')
@@ -35,8 +41,13 @@ export default function WriterDashboard() {
   );
   const writerStats = getWriterOrderStats(currentWriterId);
   
+  // Get integrated data from new systems
+  const reviewStats = getReviewStats(currentWriterId);
+  const financialData = getWriterFinancials(currentWriterId);
+  const performanceData = getWriterPerformance(currentWriterId);
+  
   // Calculate real statistics
-  const totalEarnings = completedOrders.reduce((sum, order) => sum + (order.pages * 350), 0);
+  const totalEarnings = financialData.totalEarned;
   const thisMonthEarnings = getMonthlyEarnings();
   const lastMonthEarnings = getMonthlyEarnings(new Date().getMonth() - 1);
   const earningsChange = lastMonthEarnings > 0 ? Math.round(((thisMonthEarnings - lastMonthEarnings) / lastMonthEarnings) * 100) : 0;
@@ -135,8 +146,8 @@ export default function WriterDashboard() {
             const diffDays = Math.ceil((now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
             return diffDays <= 7;
           }).length.toString(), icon: Calendar },
-          { label: "Total Earnings", value: `KES ${totalEarnings.toLocaleString()}`, icon: DollarSign },
-          { label: "Average per Order", value: `KES ${completedOrders.length > 0 ? Math.round(totalEarnings / completedOrders.length) : 0}`, icon: TrendingUp }
+          { label: "Total Earnings", value: `KES ${financialData.totalEarned.toLocaleString()}`, icon: DollarSign },
+          { label: "Average per Order", value: `KES ${Math.round(financialData.averageOrderValue)}`, icon: TrendingUp }
         ],
         action: {
           label: "View Completed Orders",
@@ -146,17 +157,17 @@ export default function WriterDashboard() {
     },
     {
       title: "Average Rating",
-      value: "4.8",
+      value: reviewStats.averageRating > 0 ? reviewStats.averageRating.toFixed(1) : "N/A",
       icon: Star,
-      change: "↑ 0.2 from last month",
-      changeType: "positive" as const,
+      change: `${reviewStats.totalReviews} reviews`,
+      changeType: "neutral" as const,
       details: {
         description: "Your performance rating based on client feedback and order completion.",
         items: [
-          { label: "Current Rating", value: "4.8/5.0", icon: Star },
-          { label: "Total Reviews", value: "24", icon: FileText },
-          { label: "5-Star Reviews", value: "20", icon: Star },
-          { label: "Client Satisfaction", value: "96%", icon: CheckCircle }
+          { label: "Current Rating", value: `${reviewStats.averageRating.toFixed(1)}/5.0`, icon: Star },
+          { label: "Total Reviews", value: reviewStats.totalReviews.toString(), icon: FileText },
+          { label: "Recent Reviews", value: reviewStats.recentReviews.length.toString(), icon: Star },
+          { label: "Success Rate", value: `${performanceData.completionRate.toFixed(1)}%`, icon: CheckCircle }
         ],
         action: {
           label: "View All Reviews",
