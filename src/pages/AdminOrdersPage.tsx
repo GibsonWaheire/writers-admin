@@ -24,6 +24,7 @@ import { OrderCard } from "../components/OrderCard";
 import { OrderViewModal } from "../components/OrderViewModal";
 import { OrderAssignmentModal } from "../components/OrderAssignmentModal";
 import { AdminOrdersTable } from "../components/AdminOrdersTable";
+import { UploadNewOrderModal } from "../components/UploadNewOrderModal";
 import { useOrders } from "../contexts/OrderContext";
 import { useAuth } from "../contexts/AuthContext";
 import type { Order } from "../types/order";
@@ -34,6 +35,7 @@ export default function AdminOrdersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [orderToAssign, setOrderToAssign] = useState<Order | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [activeTab, setActiveTab] = useState("under-review");
   const [filterDiscipline, setFilterDiscipline] = useState<string>("");
   const [filterPaperType, setFilterPaperType] = useState<string>("");
@@ -46,7 +48,8 @@ export default function AdminOrdersPage() {
     getAvailableOrders,
     getWriterActiveOrders,
     getWriterOrderStats,
-    getWriterTotalEarnings
+    getWriterTotalEarnings,
+    createOrder
   } = useOrders();
   const { user } = useAuth();
   
@@ -205,6 +208,17 @@ export default function AdminOrdersPage() {
     }
   };
 
+  // Handle create order
+  const handleCreateOrder = async (orderData: Partial<Order>) => {
+    try {
+      await createOrder(orderData);
+      setShowUploadModal(false);
+      // Order will be automatically available for writers
+    } catch (error) {
+      console.error('Error creating order:', error);
+    }
+  };
+
   // Get unique disciplines and paper types for filters
   const disciplines = Array.from(new Set(orders.map(order => order.discipline))).sort();
   const paperTypes = Array.from(new Set(orders.map(order => order.paperType))).sort();
@@ -241,7 +255,10 @@ export default function AdminOrdersPage() {
             Manage and monitor all writing orders, assign writers, and review submissions
           </p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
+        <Button 
+          className="bg-blue-600 hover:bg-blue-700"
+          onClick={() => setShowUploadModal(true)}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Upload New Order
         </Button>
@@ -711,6 +728,13 @@ export default function AdminOrdersPage() {
           onMakeAvailable={handleMakeAvailable}
         />
       )}
+
+      {/* Upload New Order Modal */}
+      <UploadNewOrderModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onSubmit={handleCreateOrder}
+      />
     </div>
   );
 }

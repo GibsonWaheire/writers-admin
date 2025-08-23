@@ -21,7 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
 import { useMessages } from '../contexts/MessagesContext';
 
-const menuItems = [
+const writerMenuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/writer', emoji: '📊' },
   { icon: FileText, label: 'Orders', path: '/orders', emoji: '📝' },
   { icon: DollarSign, label: 'POD Orders', path: '/pod-orders', emoji: '💰' },
@@ -29,6 +29,16 @@ const menuItems = [
   { icon: Star, label: 'Reviews', path: '/reviews', emoji: '⭐' },
   { icon: MessageSquare, label: 'Messages', path: '/messages', emoji: '💬' },
   { icon: Receipt, label: 'Invoices', path: '/invoices', emoji: '📜' },
+];
+
+const adminMenuItems = [
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/admin', emoji: '📊' },
+  { icon: FileText, label: 'Orders', path: '/admin/orders', emoji: '📝' },
+  { icon: DollarSign, label: 'Writers', path: '/admin/writers', emoji: '👥' },
+  { icon: Star, label: 'Reviews', path: '/admin/reviews', emoji: '⭐' },
+  { icon: Wallet, label: 'Financial', path: '/admin/financial', emoji: '💰' },
+  { icon: MessageSquare, label: 'Users', path: '/admin/users', emoji: '👤' },
+  { icon: Receipt, label: 'Analytics', path: '/admin/analytics', emoji: '📈' },
 ];
 
 export function Sidebar() {
@@ -43,6 +53,9 @@ export function Sidebar() {
   const { unreadCount } = useMessages();
 
   const currentWriterId = user?.id || 'writer-1';
+  const isAdmin = user?.role === 'admin';
+  const menuItems = isAdmin ? adminMenuItems : writerMenuItems;
+  
   const writerOrders = orders.filter(order => order.writerId === currentWriterId);
   
   const activeOrders = writerOrders.filter(order => 
@@ -63,6 +76,7 @@ export function Sidebar() {
 
   const isActive = (path: string) => {
     if (path === '/writer' && location.pathname === '/') return true;
+    if (path === '/admin' && location.pathname === '/admin') return true;
     return location.pathname === path;
   };
 
@@ -101,7 +115,9 @@ export function Sidebar() {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         {!isCollapsed && (
-          <h2 className="text-xl font-bold text-gray-800">Writer Admin</h2>
+          <h2 className="text-xl font-bold text-gray-800">
+            {isAdmin ? 'Admin Panel' : 'Writer Admin'}
+          </h2>
         )}
         <Button
           variant="ghost"
@@ -126,16 +142,33 @@ export function Sidebar() {
       {!isCollapsed && (
         <div className="p-4 border-t border-gray-200 space-y-3">
           <div className="text-sm text-gray-600">
-            <div className="flex justify-between">
-              <span>Active Orders:</span>
-              <span className="font-medium text-blue-600">{activeOrders}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Balance:</span>
-              <span className="font-medium text-green-600">
-                KES {wallet.availableBalance.toLocaleString()}
-              </span>
-            </div>
+            {isAdmin ? (
+              <>
+                <div className="flex justify-between">
+                  <span>Total Orders:</span>
+                  <span className="font-medium text-blue-600">{orders.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Pending Reviews:</span>
+                  <span className="font-medium text-yellow-600">
+                    {orders.filter(o => o.status === 'Submitted').length}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between">
+                  <span>Active Orders:</span>
+                  <span className="font-medium text-blue-600">{activeOrders}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Balance:</span>
+                  <span className="font-medium text-green-600">
+                    KES {wallet.availableBalance.toLocaleString()}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

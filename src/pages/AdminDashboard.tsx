@@ -92,7 +92,7 @@ export default function AdminDashboard() {
     navigate(route);
   };
 
-  const handleViewOrder = (_orderId: string) => {
+  const handleViewOrder = () => {
     navigate('/admin/orders');
   };
 
@@ -134,19 +134,6 @@ export default function AdminDashboard() {
           changeType="positive"
           gradient={true}
           onClick={() => navigate('/admin/orders')}
-          details={{
-            description: "Complete overview of all orders in the system",
-            items: [
-              { label: "Total Orders", value: stats.totalOrders.toString(), icon: FileText },
-              { label: "Active Orders", value: getOrdersByStatus('In Progress').length.toString(), icon: Clock },
-              { label: "Available Orders", value: getOrdersByStatus('Available').length.toString(), icon: CheckCircle },
-              { label: "Submitted Orders", value: stats.pendingReviews.toString(), icon: AlertTriangle }
-            ],
-            action: {
-              label: "View All Orders",
-              onClick: () => navigate('/admin/orders')
-            }
-          }}
         />
         <StatCard
           title="Active Writers"
@@ -155,18 +142,6 @@ export default function AdminDashboard() {
           change={`${stats.activeWriters} writers`}
           changeType="positive"
           onClick={() => navigate('/admin/writers')}
-          details={{
-            description: "Writers currently working on orders",
-            items: [
-              { label: "Active Writers", value: stats.activeWriters.toString(), icon: Users },
-              { label: "Total Writers", value: stats.activeWriters.toString(), icon: UserCheck },
-              { label: "Average Rating", value: stats.writerSatisfaction, icon: Star }
-            ],
-            action: {
-              label: "Manage Writers",
-              onClick: () => navigate('/admin/writers')
-            }
-          }}
         />
         <StatCard
           title="Pending Reviews"
@@ -175,18 +150,6 @@ export default function AdminDashboard() {
           change={`${stats.pendingReviews} urgent`}
           changeType="neutral"
           onClick={() => navigate('/admin/orders')}
-          details={{
-            description: "Orders awaiting admin review and approval",
-            items: [
-              { label: "Submitted Orders", value: getOrdersByStatus('Submitted').length.toString(), icon: Clock },
-              { label: "Revision Requests", value: getOrdersByStatus('Revision').length.toString(), icon: AlertTriangle },
-              { label: "Average Review Time", value: "24 hours", icon: Clock }
-            ],
-            action: {
-              label: "Review Orders",
-              onClick: () => navigate('/admin/orders')
-            }
-          }}
         />
         <StatCard
           title="Completed Orders"
@@ -195,18 +158,6 @@ export default function AdminDashboard() {
           change={`${stats.completedOrders} done`}
           changeType="positive"
           onClick={() => navigate('/admin/orders')}
-          details={{
-            description: "Successfully completed and approved orders",
-            items: [
-              { label: "Completed", value: getOrdersByStatus('Completed').length.toString(), icon: CheckCircle },
-              { label: "Approved", value: getOrdersByStatus('Approved').length.toString(), icon: CheckCircle },
-              { label: "Success Rate", value: `${Math.round((stats.completedOrders / stats.totalOrders) * 100)}%`, icon: Star }
-            ],
-            action: {
-              label: "View Completed",
-              onClick: () => navigate('/admin/orders')
-            }
-          }}
         />
         <StatCard
           title="Total Revenue"
@@ -215,18 +166,6 @@ export default function AdminDashboard() {
           change={`KES ${stats.totalRevenue.toLocaleString()}`}
           changeType="positive"
           onClick={() => navigate('/admin/financial')}
-          details={{
-            description: "Total revenue from completed orders",
-            items: [
-              { label: "Total Revenue", value: `KES ${stats.totalRevenue.toLocaleString()}`, icon: DollarSign },
-              { label: "This Month", value: `KES ${Math.round(stats.totalRevenue * 0.3).toLocaleString()}`, icon: DollarSign },
-              { label: "Average per Order", value: `KES ${stats.totalOrders > 0 ? Math.round(stats.totalRevenue / stats.totalOrders).toLocaleString() : '0'}`, icon: FileText }
-            ],
-            action: {
-              label: "View Financial Report",
-              onClick: () => navigate('/admin/financial')
-            }
-          }}
         />
         <StatCard
           title="Writer Satisfaction"
@@ -235,19 +174,6 @@ export default function AdminDashboard() {
           change={`${stats.writerSatisfaction}/5 rating`}
           changeType="positive"
           onClick={() => navigate('/admin/reviews')}
-          details={{
-            description: "Overall writer satisfaction and performance metrics",
-            items: [
-              { label: "Average Rating", value: `${stats.writerSatisfaction}/5`, icon: Star },
-              { label: "Total Reviews", value: "24", icon: FileText },
-              { label: "5-Star Reviews", value: "20", icon: Star },
-              { label: "Response Rate", value: "98%", icon: CheckCircle }
-            ],
-            action: {
-              label: "View Reviews",
-              onClick: () => navigate('/admin/reviews')
-            }
-          }}
         />
       </div>
 
@@ -437,7 +363,7 @@ export default function AdminDashboard() {
                       size="icon"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleViewOrder(order.id);
+                        handleViewOrder();
                       }}
                     >
                       <Eye className="h-4 w-4" />
