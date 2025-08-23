@@ -68,23 +68,25 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     // Calculate earnings from regular orders
     orders.forEach(order => {
-      if (order.writerId && ['Completed', 'Approved'].includes(order.status)) {
-        const orderAmount = order.pages * 350; // 350 KES per page
-        regularEarnings += orderAmount;
-        
-        // Add transaction for completed orders
-        if (['Completed'].includes(order.status)) {
+      if (order.writerId && order.writerId === 'writer-1') { // Only for current writer
+        if (order.status === 'Completed') {
+          const orderAmount = order.pages * 350; // 350 KES per page
+          regularEarnings += orderAmount;
+          
+          // Add transaction for completed orders (admin approved)
           newTransactions.push({
             id: `TXN-${order.id}`,
             type: 'earning',
             description: `Order ${order.id} - ${order.title}`,
             amount: orderAmount,
-            date: order.updatedAt.split('T')[0],
+            date: order.completedAt ? order.completedAt.split('T')[0] : order.updatedAt.split('T')[0],
             status: 'completed',
             orderId: order.id,
             orderType: 'regular'
           });
-        } else if (order.status === 'Approved') {
+        } else if (order.status === 'Submitted') {
+          // Orders submitted but not yet approved are pending
+          const orderAmount = order.pages * 350;
           pendingEarnings += orderAmount;
         }
       }
@@ -166,11 +168,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
-  const applyFine = useCallback((orderId: string, amount: number, reason: string, _fineType: 'late' | 'rejection' | 'auto-reassignment') => {
+  const applyFine = useCallback((orderId: string, amount: number, reason: string, fineType: 'late' | 'rejection' | 'auto-reassignment') => {
     const newTransaction: Transaction = {
       id: `TXN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
       type: 'refund', // Using refund type for fines (negative amount)
-      description: `Fine: ${reason}`,
+      description: `Fine (${fineType}): ${reason}`,
       amount: -amount, // Negative amount for fines
       date: new Date().toISOString().split('T')[0],
       status: 'completed',

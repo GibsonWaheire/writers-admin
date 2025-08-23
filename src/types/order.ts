@@ -49,6 +49,8 @@ export interface Order {
   adminReviewNotes?: string; // Admin's review notes
   adminReviewedAt?: string; // When admin reviewed
   adminReviewedBy?: string; // Who reviewed the order
+  approvedAt?: string; // When order was approved by admin
+  completedAt?: string; // When order was marked as completed
   // Revision tracking
   revisionSubmittedAt?: string; // When revision was submitted
   revisionResponseNotes?: string; // Writer's response to revision feedback

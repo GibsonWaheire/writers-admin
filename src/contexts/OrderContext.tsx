@@ -340,6 +340,59 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       additionalInstructions: 'Focus on recent corporate scandals and their ethical implications',
       requiresAdminApproval: false,
       urgencyLevel: 'normal'
+    },
+    // Add a completed order for testing the completed tab and balance update
+    {
+      id: 'ORD-COMPLETED-001',
+      title: 'Marketing Strategy for Social Media Platform',
+      description: 'Comprehensive marketing strategy for a new social media platform targeting Gen Z users',
+      subject: 'Marketing',
+      discipline: 'Business Administration',
+      paperType: 'Marketing Analysis',
+      pages: 6,
+      words: 1500,
+      format: 'APA',
+      price: 210,
+      priceKES: 21000,
+      cpp: 350,
+      totalPriceKES: 21000,
+      deadline: '2024-01-20',
+      status: 'Completed',
+      assignedWriter: 'John Doe',
+      writerId: 'writer-1',
+      createdAt: '2024-01-10',
+      updatedAt: '2024-01-22',
+      isOverdue: false,
+      confirmationStatus: 'confirmed',
+      paymentType: 'advance',
+      clientMessages: [
+        {
+          id: 'msg-completed-1',
+          sender: 'admin',
+          message: 'Excellent work! This marketing strategy is comprehensive and well-researched.',
+          timestamp: '2024-01-22T10:00:00Z'
+        }
+      ],
+      uploadedFiles: [
+        {
+          id: 'file-completed-1',
+          filename: 'marketing_strategy_final.pdf',
+          originalName: 'Social_Media_Marketing_Strategy.pdf',
+          size: 2048576,
+          type: 'application/pdf',
+          url: '/files/marketing_strategy_final.pdf',
+          uploadedAt: '2024-01-21T16:00:00Z'
+        }
+      ],
+      additionalInstructions: 'Include competitor analysis and budget allocation',
+      requiresAdminApproval: false,
+      urgencyLevel: 'normal',
+      submittedToAdminAt: '2024-01-21T16:00:00Z',
+      adminReviewedAt: '2024-01-22T10:00:00Z',
+      adminReviewedBy: 'admin-1',
+      approvedAt: '2024-01-22T10:00:00Z',
+      completedAt: '2024-01-22T10:00:00Z',
+      adminReviewNotes: 'Outstanding quality. Clear structure, excellent research, and practical recommendations.'
     }
   ]);
 
@@ -434,24 +487,30 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           break;
           
         case 'approve':
-          newStatus = 'Completed'; // When admin approves, order goes to Completed
+          newStatus = 'Completed'; // When admin approves, order goes directly to Completed
           updates.adminReviewedAt = new Date().toISOString();
           updates.adminReviewedBy = additionalData?.adminId || 'admin';
           updates.completedAt = new Date().toISOString();
+          updates.approvedAt = new Date().toISOString(); // Track approval time
           if (additionalData?.notes) {
             updates.adminReviewNotes = additionalData.notes;
           }
-          // Add payment to writer's wallet
+          // Mark as approved for payment - wallet will sync automatically
           if (order.writerId) {
-            // This will be handled by the wallet context integration
-            // const orderAmount = order.pages * 350;
+            console.log('💰 OrderContext: Order approved, payment will be processed by wallet sync:', {
+              orderId,
+              writerId: order.writerId,
+              amount: order.pages * 350,
+              status: 'Completed'
+            });
           }
           console.log('✅ OrderContext: Order approved and completed:', {
             orderId,
             oldStatus,
             newStatus: 'Completed',
             writerId: order.writerId,
-            completedAt: updates.completedAt
+            completedAt: updates.completedAt,
+            approvedAt: updates.approvedAt
           });
           break;
           

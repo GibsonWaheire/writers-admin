@@ -63,6 +63,10 @@ export default function OrdersPage() {
   const revisionOrders = getOrdersByStatus('Revision'); // Orders requiring revision
   const resubmittedOrders = getOrdersByStatus('Resubmitted'); // Orders resubmitted after revision
 
+  // Filter completed orders to only show writer's own orders
+  const myCompletedOrders = completedOrders.filter(order => order.writerId === writerId);
+  const myApprovedOrders = approvedOrders.filter(order => order.writerId === writerId);
+
   // Get writer-specific orders and stats (excluding POD orders)
   const myOrders = getWriterActiveOrders(writerId);
   const writerStats = getWriterOrderStats(writerId);
@@ -446,7 +450,7 @@ export default function OrdersPage() {
             
             <TabsTrigger value="completed" className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4" />
-              Completed ({filterOrders([...approvedOrders, ...completedOrders]).length})
+              Completed ({filterOrders([...myApprovedOrders, ...myCompletedOrders]).length})
             </TabsTrigger>
             
             <TabsTrigger value="rejected" className="flex items-center gap-2">
@@ -579,14 +583,14 @@ export default function OrdersPage() {
         {/* Completed Orders Tab */}
         <TabsContent value="completed" className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Completed Orders</h3>
+            <h3 className="text-lg font-semibold">My Completed Orders</h3>
             <p className="text-sm text-gray-600">
-              {approvedOrders.length + completedOrders.length} orders completed
+              {myApprovedOrders.length + myCompletedOrders.length} orders completed
             </p>
           </div>
           
-          {filterOrders([...approvedOrders, ...completedOrders]).length > 0 ? (
-            filterOrders([...approvedOrders, ...completedOrders]).map((order) => (
+          {filterOrders([...myApprovedOrders, ...myCompletedOrders]).length > 0 ? (
+            filterOrders([...myApprovedOrders, ...myCompletedOrders]).map((order) => (
               <OrderCard
                 key={order.id}
                 order={order}
@@ -601,7 +605,7 @@ export default function OrdersPage() {
             <div className="text-center py-12">
               <CheckCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-600 mb-2">No Completed Orders</h3>
-              <p className="text-gray-500">No orders have been completed yet.</p>
+              <p className="text-gray-500">You haven't completed any orders yet. Keep working on your assignments!</p>
             </div>
           )}
         </TabsContent>

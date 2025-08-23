@@ -30,7 +30,9 @@ export default function WriterDashboard() {
   const currentWriterId = 'writer-1';
   const writerOrders = orders.filter(order => order.writerId === currentWriterId);
   const activeOrders = getWriterActiveOrders(currentWriterId);
-  const completedOrders = writerOrders.filter(order => order.status === 'Completed');
+  const completedOrders = writerOrders.filter(order => 
+    ['Completed', 'Approved'].includes(order.status)
+  );
   const writerStats = getWriterOrderStats(currentWriterId);
   
   // Calculate real statistics
