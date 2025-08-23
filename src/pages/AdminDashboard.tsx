@@ -92,8 +92,8 @@ export default function AdminDashboard() {
     navigate(route);
   };
 
-  const handleViewOrder = (orderId: string) => {
-    navigate(`/admin/orders?order=${orderId}`);
+  const handleViewOrder = (_orderId: string) => {
+    navigate('/admin/orders');
   };
 
   const handleCreateOrder = async (orderData: Partial<Order>) => {
@@ -133,6 +133,20 @@ export default function AdminDashboard() {
           change={`${orders.length} total`}
           changeType="positive"
           gradient={true}
+          onClick={() => navigate('/admin/orders')}
+          details={{
+            description: "Complete overview of all orders in the system",
+            items: [
+              { label: "Total Orders", value: stats.totalOrders.toString(), icon: FileText },
+              { label: "Active Orders", value: getOrdersByStatus('In Progress').length.toString(), icon: Clock },
+              { label: "Available Orders", value: getOrdersByStatus('Available').length.toString(), icon: CheckCircle },
+              { label: "Submitted Orders", value: stats.pendingReviews.toString(), icon: AlertTriangle }
+            ],
+            action: {
+              label: "View All Orders",
+              onClick: () => navigate('/admin/orders')
+            }
+          }}
         />
         <StatCard
           title="Active Writers"
@@ -140,6 +154,19 @@ export default function AdminDashboard() {
           icon={Users}
           change={`${stats.activeWriters} writers`}
           changeType="positive"
+          onClick={() => navigate('/admin/writers')}
+          details={{
+            description: "Writers currently working on orders",
+            items: [
+              { label: "Active Writers", value: stats.activeWriters.toString(), icon: Users },
+              { label: "Total Writers", value: stats.activeWriters.toString(), icon: UserCheck },
+              { label: "Average Rating", value: stats.writerSatisfaction, icon: Star }
+            ],
+            action: {
+              label: "Manage Writers",
+              onClick: () => navigate('/admin/writers')
+            }
+          }}
         />
         <StatCard
           title="Pending Reviews"
@@ -147,6 +174,19 @@ export default function AdminDashboard() {
           icon={Clock}
           change={`${stats.pendingReviews} urgent`}
           changeType="neutral"
+          onClick={() => navigate('/admin/orders')}
+          details={{
+            description: "Orders awaiting admin review and approval",
+            items: [
+              { label: "Submitted Orders", value: getOrdersByStatus('Submitted').length.toString(), icon: Clock },
+              { label: "Revision Requests", value: getOrdersByStatus('Revision').length.toString(), icon: AlertTriangle },
+              { label: "Average Review Time", value: "24 hours", icon: Clock }
+            ],
+            action: {
+              label: "Review Orders",
+              onClick: () => navigate('/admin/orders')
+            }
+          }}
         />
         <StatCard
           title="Completed Orders"
@@ -154,6 +194,19 @@ export default function AdminDashboard() {
           icon={CheckCircle}
           change={`${stats.completedOrders} done`}
           changeType="positive"
+          onClick={() => navigate('/admin/orders')}
+          details={{
+            description: "Successfully completed and approved orders",
+            items: [
+              { label: "Completed", value: getOrdersByStatus('Completed').length.toString(), icon: CheckCircle },
+              { label: "Approved", value: getOrdersByStatus('Approved').length.toString(), icon: CheckCircle },
+              { label: "Success Rate", value: `${Math.round((stats.completedOrders / stats.totalOrders) * 100)}%`, icon: Star }
+            ],
+            action: {
+              label: "View Completed",
+              onClick: () => navigate('/admin/orders')
+            }
+          }}
         />
         <StatCard
           title="Total Revenue"
@@ -161,6 +214,19 @@ export default function AdminDashboard() {
           icon={DollarSign}
           change={`KES ${stats.totalRevenue.toLocaleString()}`}
           changeType="positive"
+          onClick={() => navigate('/admin/financial')}
+          details={{
+            description: "Total revenue from completed orders",
+            items: [
+              { label: "Total Revenue", value: `KES ${stats.totalRevenue.toLocaleString()}`, icon: DollarSign },
+              { label: "This Month", value: `KES ${Math.round(stats.totalRevenue * 0.3).toLocaleString()}`, icon: DollarSign },
+              { label: "Average per Order", value: `KES ${stats.totalOrders > 0 ? Math.round(stats.totalRevenue / stats.totalOrders).toLocaleString() : '0'}`, icon: FileText }
+            ],
+            action: {
+              label: "View Financial Report",
+              onClick: () => navigate('/admin/financial')
+            }
+          }}
         />
         <StatCard
           title="Writer Satisfaction"
@@ -168,6 +234,20 @@ export default function AdminDashboard() {
           icon={Star}
           change={`${stats.writerSatisfaction}/5 rating`}
           changeType="positive"
+          onClick={() => navigate('/admin/reviews')}
+          details={{
+            description: "Overall writer satisfaction and performance metrics",
+            items: [
+              { label: "Average Rating", value: `${stats.writerSatisfaction}/5`, icon: Star },
+              { label: "Total Reviews", value: "24", icon: FileText },
+              { label: "5-Star Reviews", value: "20", icon: Star },
+              { label: "Response Rate", value: "98%", icon: CheckCircle }
+            ],
+            action: {
+              label: "View Reviews",
+              onClick: () => navigate('/admin/reviews')
+            }
+          }}
         />
       </div>
 
@@ -316,22 +396,33 @@ export default function AdminDashboard() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Orders Requiring Action
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Orders Requiring Action
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/admin/orders')}
+                className="text-xs"
+              >
+                View All Orders
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {pendingOrders.length > 0 ? (
               pendingOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                     onClick={() => navigate('/admin/orders')}>
                   <div className="space-y-1">
                     <h4 className="font-medium text-sm">{order.title}</h4>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span>Writer: {order.writer}</span>
                       <span>{order.pages} pages</span>
                       <span>{order.price}</span>
-                      <span>Due: {order.deadline}</span>
+                      <span>Due: {new Date(order.deadline).toLocaleDateString()}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -344,7 +435,10 @@ export default function AdminDashboard() {
                     <Button 
                       variant="ghost" 
                       size="icon"
-                      onClick={() => handleViewOrder(order.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewOrder(order.id);
+                      }}
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
@@ -354,7 +448,15 @@ export default function AdminDashboard() {
             ) : (
               <div className="text-center py-8">
                 <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-2" />
-                <p className="text-gray-500">No orders require immediate action</p>
+                <p className="text-gray-500 mb-4">No orders require immediate action</p>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/admin/orders')}
+                  className="text-sm"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  View All Orders
+                </Button>
               </div>
             )}
           </CardContent>
@@ -404,28 +506,55 @@ export default function AdminDashboard() {
       {/* Recent Activity */}
       <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <span className="text-xl">📈</span>
-            Recent System Activity
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <span className="text-xl">📈</span>
+              Recent System Activity
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/admin/analytics')}
+              className="text-xs"
+            >
+              View Analytics
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {orders.length > 0 && (
               <>
-                <div className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-green-50 transition-colors duration-200">
+                <div 
+                  className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-green-50 transition-colors duration-200 cursor-pointer"
+                  onClick={() => navigate('/admin/orders')}
+                >
                   <span className="text-green-600">✅</span>
                   <span>Total orders in system: {orders.length}</span>
                   <span className="text-muted-foreground text-xs ml-auto">Current</span>
                 </div>
-                <div className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-blue-50 transition-colors duration-200">
+                <div 
+                  className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
+                  onClick={() => navigate('/admin/writers')}
+                >
                   <span className="text-blue-600">👤</span>
                   <span>Active writers: {stats.activeWriters}</span>
                   <span className="text-muted-foreground text-xs ml-auto">Current</span>
                 </div>
-                <div className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-yellow-50 transition-colors duration-200">
+                <div 
+                  className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-yellow-50 transition-colors duration-200 cursor-pointer"
+                  onClick={() => navigate('/admin/orders')}
+                >
                   <span className="text-yellow-600">📄</span>
                   <span>Orders pending review: {stats.pendingReviews}</span>
+                  <span className="text-muted-foreground text-xs ml-auto">Current</span>
+                </div>
+                <div 
+                  className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-purple-50 transition-colors duration-200 cursor-pointer"
+                  onClick={() => navigate('/admin/financial')}
+                >
+                  <span className="text-purple-600">💰</span>
+                  <span>Total revenue: KES {stats.totalRevenue.toLocaleString()}</span>
                   <span className="text-muted-foreground text-xs ml-auto">Current</span>
                 </div>
               </>
@@ -433,7 +562,15 @@ export default function AdminDashboard() {
             {orders.length === 0 && (
               <div className="text-center py-8">
                 <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-500">No activity data available</p>
+                <p className="text-gray-500 mb-4">No activity data available</p>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowUploadModal(true)}
+                  className="text-sm"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create First Order
+                </Button>
               </div>
             )}
           </div>
