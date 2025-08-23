@@ -13,6 +13,7 @@ import {
   Search,
   Star
 } from 'lucide-react';
+import { useUsers } from '../contexts/UsersContext';
 import type { Order } from '../types/order';
 
 interface Writer {

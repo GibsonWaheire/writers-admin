@@ -54,18 +54,18 @@ export default function OrdersPage() {
 
   // Get orders by status - properly categorized
   const availableOrders = getAvailableOrders(); // Only truly available orders (status: 'Available', no writerId)
-  const assignedOrders = getOrdersByStatus('Assigned'); // Orders picked but not yet started
-  const inProgressOrders = getOrdersByStatus('In Progress'); // Orders actively being worked on
-  const submittedOrders = getOrdersByStatus('Submitted'); // Orders submitted for review
-  const approvedOrders = getOrdersByStatus('Approved'); // Orders approved by admin
-  const completedOrders = getOrdersByStatus('Completed'); // Orders marked as complete
-  const rejectedOrders = getOrdersByStatus('Rejected'); // Orders rejected by admin
-  const revisionOrders = getOrdersByStatus('Revision'); // Orders requiring revision
-  const resubmittedOrders = getOrdersByStatus('Resubmitted'); // Orders resubmitted after revision
+  const assignedOrders = getOrdersByStatus('Assigned').filter(order => order.writerId === writerId); // Writer's assigned orders
+  const inProgressOrders = getOrdersByStatus('In Progress').filter(order => order.writerId === writerId); // Writer's in-progress orders
+  const submittedOrders = getOrdersByStatus('Submitted').filter(order => order.writerId === writerId); // Writer's submitted orders
+  const approvedOrders = getOrdersByStatus('Approved').filter(order => order.writerId === writerId); // Writer's approved orders
+  const completedOrders = getOrdersByStatus('Completed').filter(order => order.writerId === writerId); // Writer's completed orders
+  const rejectedOrders = getOrdersByStatus('Rejected').filter(order => order.writerId === writerId); // Writer's rejected orders
+  const revisionOrders = getOrdersByStatus('Revision').filter(order => order.writerId === writerId); // Writer's revision orders
+  const resubmittedOrders = getOrdersByStatus('Resubmitted').filter(order => order.writerId === writerId); // Writer's resubmitted orders
 
-  // Filter completed orders to only show writer's own orders
-  const myCompletedOrders = completedOrders.filter(order => order.writerId === writerId);
-  const myApprovedOrders = approvedOrders.filter(order => order.writerId === writerId);
+  // Filter completed orders to only show writer's own orders (already filtered above)
+  const myCompletedOrders = completedOrders;
+  const myApprovedOrders = approvedOrders;
 
   // Get writer-specific orders and stats (excluding POD orders)
   const myOrders = getWriterActiveOrders(writerId);

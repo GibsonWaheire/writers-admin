@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -25,7 +25,8 @@ import {
   AlertTriangle,
   Globe,
   Calendar,
-  Activity
+  Activity,
+  GraduationCap
 } from "lucide-react";
 import { useUsers } from "../contexts/UsersContext";
 import { useFinancial } from "../contexts/FinancialContext";
@@ -59,6 +60,18 @@ export default function AdminUsersPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [invitePhone, setInvitePhone] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
+
+  // Close modals on Escape key
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (selectedWriter) setSelectedWriter(null);
+        if (showInviteModal) setShowInviteModal(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedWriter, showInviteModal]);
 
   const getFilteredWriters = () => {
     const filters: WriterFilter = {};
@@ -515,8 +528,16 @@ export default function AdminUsersPage() {
 
       {/* Invite Writer Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowInviteModal(false)}
+        >
+          <Card 
+            className="w-full max-w-md bg-white shadow-2xl border-0"
+            onClick={(e) => e.stopPropagation()}
+          >
             <CardHeader>
               <CardTitle>Invite New Writer</CardTitle>
             </CardHeader>
@@ -574,8 +595,16 @@ export default function AdminUsersPage() {
 
       {/* Writer Detail Modal */}
       {selectedWriter && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setSelectedWriter(null)}
+        >
+          <Card 
+            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0"
+            onClick={(e) => e.stopPropagation()}
+          >
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-3">

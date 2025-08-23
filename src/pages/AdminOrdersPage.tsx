@@ -27,6 +27,7 @@ import { AdminOrdersTable } from "../components/AdminOrdersTable";
 import { UploadNewOrderModal } from "../components/UploadNewOrderModal";
 import { useOrders } from "../contexts/OrderContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useUsers } from "../contexts/UsersContext";
 import type { Order } from "../types/order";
 
 export default function AdminOrdersPage() {
@@ -52,6 +53,7 @@ export default function AdminOrdersPage() {
     createOrder
   } = useOrders();
   const { user } = useAuth();
+  const { writers } = useUsers();
   
   const userRole = user?.role || 'admin';
 
@@ -156,22 +158,16 @@ export default function AdminOrdersPage() {
 
   const handleAssignToWriter = (writerId: string, notes?: string) => {
     if (orderToAssign) {
-      // Get the actual writer name from the OrderAssignmentModal's MOCK_WRITERS
-      // In a real app, this would come from your backend API
-      const writerNames: Record<string, string> = {
-        'writer-1': 'John Doe',
-        'writer-2': 'Jane Smith', 
-        'writer-3': 'Mike Johnson',
-        'writer-4': 'Sarah Wilson'
-      };
-      
-      const writerName = writerNames[writerId] || 'Unknown Writer';
+      // Get the actual writer name from the writers data
+      const writer = writers.find(w => w.id === writerId);
+      const writerName = writer?.name || 'Unknown Writer';
       
       console.log('🔄 Admin assigning order:', {
         orderId: orderToAssign.id,
         writerId,
         writerName,
-        notes
+        notes,
+        writer
       });
       
       handleOrderAction('assign', orderToAssign.id, { 
