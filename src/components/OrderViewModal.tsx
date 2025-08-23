@@ -43,6 +43,7 @@ export function OrderViewModal({
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
+      'Draft': { variant: 'outline' as const, color: 'text-gray-600', bg: 'bg-gray-50' },
       'Available': { variant: 'outline' as const, color: 'text-blue-600', bg: 'bg-blue-50' },
       'Assigned': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
       'In Progress': { variant: 'default' as const, color: 'text-blue-600', bg: 'bg-blue-50' },

@@ -3,6 +3,7 @@ import type { Order, OrderStatus, WriterConfirmation, WriterQuestion } from '../
 
 interface OrderContextType {
   orders: Order[];
+  createOrder: (orderData: Partial<Order>) => Promise<Order>;
   handleOrderAction: (action: string, orderId: string, additionalData?: Record<string, unknown>) => void;
   confirmOrder: (orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => void;
   pickOrder: (orderId: string, writerId: string, writerName: string) => void;
@@ -485,6 +486,45 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     handleOrderAction('pick', orderId, { writerId, writerName });
   }, [handleOrderAction]);
 
+  // Create a new order
+  const createOrder = useCallback(async (orderData: Partial<Order>): Promise<Order> => {
+    const newOrder: Order = {
+      id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: orderData.title || '',
+      description: orderData.description || '',
+      subject: orderData.discipline || '',
+      discipline: orderData.discipline || '',
+      paperType: orderData.paperType || 'Essay',
+      pages: orderData.pages || 1,
+      words: orderData.words || 275,
+      format: orderData.format || 'APA',
+      price: orderData.price || 350,
+      priceKES: orderData.priceKES || 350,
+      cpp: orderData.cpp || 350,
+      totalPriceKES: orderData.totalPriceKES || 350,
+      deadline: orderData.deadline || new Date().toISOString(),
+      status: orderData.status || 'Available',
+      assignedWriter: orderData.assignedWriter,
+      writerId: orderData.writerId,
+      createdAt: orderData.createdAt || new Date().toISOString(),
+      updatedAt: orderData.updatedAt || new Date().toISOString(),
+      isOverdue: false,
+      confirmationStatus: 'pending',
+      paymentType: 'advance',
+      clientMessages: orderData.clientMessages || [],
+      uploadedFiles: orderData.uploadedFiles || [],
+      additionalInstructions: orderData.additionalInstructions,
+      requiresAdminApproval: false,
+      // Add urgency level if provided
+      urgencyLevel: orderData.urgencyLevel || 'normal',
+      // Add attachments if provided
+      attachments: orderData.attachments || []
+    };
+
+    setOrders(prev => [newOrder, ...prev]);
+    return newOrder;
+  }, []);
+
   // Get writer's total earnings
   const getWriterTotalEarnings = useCallback((writerId: string) => {
     const writerOrders = orders.filter(order => 
@@ -500,6 +540,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   return (
     <OrderContext.Provider value={{
       orders,
+      createOrder,
       handleOrderAction,
       confirmOrder,
       pickOrder,

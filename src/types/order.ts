@@ -59,6 +59,10 @@ export interface Order {
   // Auto-reassignment tracking
   autoReassignedAt?: string; // When automatically reassigned
   originalWriterId?: string; // Original writer before reassignment
+  // Urgency level for pricing and deadline tracking
+  urgencyLevel?: 'normal' | 'urgent' | 'very-urgent';
+  // File attachments for requirements/instructions
+  attachments?: UploadedFile[];
 }
 
 export type PaperType = 
@@ -85,6 +89,7 @@ export type CitationFormat =
   | 'Other';
 
 export type OrderStatus = 
+  | 'Draft' // Order saved as draft by admin
   | 'Available' // Available for writers to pick
   | 'Assigned' // Writer has picked the order
   | 'In Progress' // Writer is working on it

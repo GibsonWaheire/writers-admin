@@ -197,16 +197,37 @@ export function AvailableOrdersTable({
                           <span className="text-gray-600">Words:</span>
                           <span className="font-medium">{order.words.toLocaleString()}</span>
                         </div>
+                        {order.urgencyLevel && order.urgencyLevel !== 'normal' && (
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="h-4 w-4 text-orange-600" />
+                            <span className="text-gray-600">Priority:</span>
+                            <Badge 
+                              variant="outline" 
+                              className={
+                                order.urgencyLevel === 'urgent' 
+                                  ? 'bg-yellow-50 text-yellow-700 border-yellow-200' 
+                                  : 'bg-red-50 text-red-700 border-red-200'
+                              }
+                            >
+                              {order.urgencyLevel === 'urgent' ? 'Urgent' : 'Very Urgent'}
+                            </Badge>
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     
                     <TableCell className="py-4">
                       <div className="space-y-2">
                         <div className="text-lg font-bold text-green-600">
-                          KES {(order.pages * 350).toLocaleString()}
+                          KES {order.totalPriceKES ? order.totalPriceKES.toLocaleString() : (order.pages * 350).toLocaleString()}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {order.pages} pages × KES 350
+                          {order.pages} pages × KES {order.cpp || 350}
+                          {order.urgencyLevel && order.urgencyLevel !== 'normal' && (
+                            <span className="ml-1 text-orange-600">
+                              ({order.urgencyLevel === 'urgent' ? '+20%' : '+50%'})
+                            </span>
+                          )}
                         </div>
                       </div>
                     </TableCell>

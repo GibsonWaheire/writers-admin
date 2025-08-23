@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { StatCard } from "../components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useOrders } from "../contexts/OrderContext";
+import { UploadNewOrderModal } from "../components/UploadNewOrderModal";
+import type { Order } from "../types/order";
 import { 
   DollarSign, 
   FileText, 
@@ -21,7 +24,8 @@ import {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { orders, getOrdersByStatus } = useOrders();
+  const { orders, getOrdersByStatus, createOrder } = useOrders();
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   // Calculate real-time stats from order data
   const calculateStats = () => {
@@ -92,12 +96,32 @@ export default function AdminDashboard() {
     navigate(`/admin/orders?order=${orderId}`);
   };
 
+  const handleCreateOrder = async (orderData: Partial<Order>) => {
+    try {
+      await createOrder(orderData);
+      // Order will be automatically available for writers
+    } catch (error) {
+      console.error('Error creating order:', error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg p-6 border border-gray-200">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-        <p className="text-gray-600">Welcome to the administrative control panel. Manage your writing platform from here.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+            <p className="text-gray-600">Welcome to the administrative control panel. Manage your writing platform from here.</p>
+          </div>
+          <Button 
+            onClick={() => setShowUploadModal(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg"
+          >
+            <Plus className="mr-2 h-6 w-6" />
+            Upload New Order
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -344,7 +368,7 @@ export default function AdminDashboard() {
             <Button 
               className="w-full justify-start" 
               variant="default"
-              onClick={() => handleNavigation('/admin/orders')}
+              onClick={() => setShowUploadModal(true)}
             >
               <Plus className="mr-2 h-4 w-4" />
               Create New Order
@@ -415,6 +439,13 @@ export default function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Upload New Order Modal */}
+      <UploadNewOrderModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onSubmit={handleCreateOrder}
+      />
     </div>
   );
 }
