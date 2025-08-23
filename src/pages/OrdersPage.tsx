@@ -50,7 +50,31 @@ export default function OrdersPage() {
   
   const userRole = user?.role || 'writer';
   const isAdmin = userRole === 'admin';
-  const writerId = user?.id || 'writer-1'; // Default for demo
+  
+  // Map user ID to writer ID - this handles the mismatch between auth user ID and writer profile ID
+  const getWriterIdForUser = (userId: string) => {
+    // For demo purposes, map user ID "1" to writer ID "writer-1"
+    // In a real app, this would be stored in the user record or writers table
+    const userToWriterMap: Record<string, string> = {
+      '1': 'writer-1',
+      '2': 'writer-2',
+      'writer-1': 'writer-1', // Handle cases where writer-1 is passed directly
+      'writer-2': 'writer-2'  // Handle cases where writer-2 is passed directly
+    };
+    return userToWriterMap[userId] || userId;
+  };
+  
+  const writerId = user?.id ? getWriterIdForUser(user.id) : 'writer-1'; // Map user ID to writer ID
+
+  // Debug logging to trace the ID mapping issue
+  console.log('🔍 OrdersPage Debug:', {
+    userFromAuth: user,
+    userIdFromAuth: user?.id,
+    mappedWriterId: writerId,
+    allOrders: orders.length,
+    assignedOrdersBeforeFilter: getOrdersByStatus('Assigned').length,
+    assignedOrdersForWriter: getOrdersByStatus('Assigned').filter(order => order.writerId === writerId).length
+  });
 
   // Get orders by status - properly categorized
   const availableOrders = getAvailableOrders(); // Only truly available orders (status: 'Available', no writerId)

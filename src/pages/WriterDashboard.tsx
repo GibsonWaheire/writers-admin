@@ -18,6 +18,7 @@ import { useWallet } from "../contexts/WalletContext";
 import { useReviews } from "../contexts/ReviewsContext";
 import { useFinancial } from "../contexts/FinancialContext";
 import { useAnalytics } from "../contexts/AnalyticsContext";
+import { useAuth } from "../contexts/AuthContext";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Order } from "../types/order";
@@ -30,10 +31,24 @@ export default function WriterDashboard() {
   const { getWriterStats: getReviewStats } = useReviews();
   const { getWriterFinancials } = useFinancial();
   const { getWriterPerformance } = useAnalytics();
+  const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Get writer-specific data (assuming current writer ID is 'writer-1')
-  const currentWriterId = 'writer-1';
+  // Map user ID to writer ID - this handles the mismatch between auth user ID and writer profile ID
+  const getWriterIdForUser = (userId: string) => {
+    // For demo purposes, map user ID "1" to writer ID "writer-1"
+    // In a real app, this would be stored in the user record or writers table
+    const userToWriterMap: Record<string, string> = {
+      '1': 'writer-1',
+      '2': 'writer-2',
+      'writer-1': 'writer-1', // Handle cases where writer-1 is passed directly
+      'writer-2': 'writer-2'  // Handle cases where writer-2 is passed directly
+    };
+    return userToWriterMap[userId] || userId;
+  };
+  
+  // Get writer-specific data using the mapped writer ID
+  const currentWriterId = user?.id ? getWriterIdForUser(user.id) : 'writer-1';
   const writerOrders = orders.filter(order => order.writerId === currentWriterId);
   const activeOrders = getWriterActiveOrders(currentWriterId);
   const completedOrders = writerOrders.filter(order => 
