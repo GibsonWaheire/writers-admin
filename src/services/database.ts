@@ -148,8 +148,19 @@ class DatabaseService {
     const data = db[collection] as T[];
     
     if (!Array.isArray(data)) {
+      console.error('❌ Database: Collection is not an array:', collection);
       return [];
     }
+    
+    console.log('📊 Database: Loading collection:', {
+      collection,
+      count: data.length,
+      sample: data.slice(0, 3).map(item => ({ 
+        id: item.id, 
+        status: item.status,
+        writerId: item.writerId 
+      }))
+    });
     
     return predicate ? data.filter(predicate) : data;
   }
@@ -184,15 +195,28 @@ class DatabaseService {
     const data = db[collection] as T[];
     
     if (!Array.isArray(data)) {
+      console.error('❌ Database: Collection is not an array:', collection);
       return null;
     }
     
     const index = data.findIndex(item => item.id === id);
     if (index === -1) {
+      console.error('❌ Database: Item not found for update:', { collection, id });
       return null;
     }
     
+    const oldItem = data[index];
     data[index] = { ...data[index], ...updates };
+    
+    console.log('💾 Database: Updated item:', {
+      collection,
+      id,
+      oldStatus: oldItem.status,
+      newStatus: data[index].status,
+      oldWriterId: oldItem.writerId,
+      newWriterId: data[index].writerId
+    });
+    
     this.saveDatabase();
     
     return data[index];

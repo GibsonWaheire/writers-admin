@@ -215,6 +215,21 @@ export default function WriterDashboard() {
 
   // Get recent orders - show recent available orders for writers to pick
   const availableOrders = getAvailableOrders();
+  
+  // Debug: Log available orders
+  useEffect(() => {
+    console.log('📋 WriterDashboard: Available orders:', {
+      count: availableOrders.length,
+      orders: availableOrders.map(o => ({ 
+        id: o.id, 
+        title: o.title,
+        status: o.status, 
+        writerId: o.writerId,
+        assignedWriter: o.assignedWriter
+      }))
+    });
+  }, [availableOrders]);
+  
   const recentOrders = availableOrders
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);

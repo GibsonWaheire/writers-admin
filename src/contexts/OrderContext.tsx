@@ -73,11 +73,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   // Function to refresh orders from database
   const refreshOrders = useCallback(async () => {
     try {
+      console.log('🔄 OrderContext: Starting refresh...');
       const ordersData = await db.find<Order>('orders');
+      console.log('📥 OrderContext: Fetched orders from database:', {
+        count: ordersData.length,
+        available: ordersData.filter(o => o.status === 'Available').length,
+        assigned: ordersData.filter(o => o.status === 'Assigned').length,
+        sample: ordersData.slice(0, 3).map(o => ({ id: o.id, status: o.status, writerId: o.writerId }))
+      });
       setOrders(ordersData);
-      console.log('🔄 OrderContext: Orders refreshed from database');
+      console.log('✅ OrderContext: Orders refreshed from database');
     } catch (error) {
-      console.error('Failed to refresh orders:', error);
+      console.error('❌ OrderContext: Failed to refresh orders:', error);
     }
   }, []);
 
@@ -685,22 +692,32 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         updatedOrders.filter(o => o.status === 'Assigned').length
       );
       
-      // Save updated order to database (async operation)
-      const updatedOrder = updatedOrders.find(o => o.id === orderId);
-      if (updatedOrder) {
-        // Use Promise to handle async database update
-        db.update('orders', orderId, updatedOrder)
-          .then(() => {
-            console.log('💾 OrderContext: Order saved to database successfully');
-            // Refresh orders from database to ensure state consistency
-            refreshOrders();
-          })
-          .catch(error => {
-            console.error('Failed to save order to database:', error);
+              // Save updated order to database (async operation)
+        const updatedOrder = updatedOrders.find(o => o.id === orderId);
+        if (updatedOrder) {
+          console.log('💾 OrderContext: Saving order to database:', {
+            orderId,
+            newStatus: updatedOrder.status,
+            writerId: updatedOrder.writerId,
+            assignedWriter: updatedOrder.assignedWriter
           });
-      }
-      
-      return updatedOrders;
+          
+          // Use Promise to handle async database update
+          db.update('orders', orderId, updatedOrder)
+            .then(() => {
+              console.log('✅ OrderContext: Order saved to database successfully');
+              // Force immediate state refresh to ensure UI updates
+              setTimeout(() => {
+                console.log('🔄 OrderContext: Forcing refresh after database update...');
+                refreshOrders();
+              }, 100);
+            })
+            .catch(error => {
+              console.error('❌ OrderContext: Failed to save order to database:', error);
+            });
+        }
+        
+        return updatedOrders;
     });
   }, [refreshOrders]);
 

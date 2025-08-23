@@ -69,6 +69,18 @@ export default function AdminOrdersPage() {
     });
   }, [orders]);
 
+  // Add manual refresh function
+  const handleRefreshOrders = async () => {
+    console.log('🔄 AdminOrdersPage: Manually refreshing orders...');
+    try {
+      // Force refresh from context
+      await handleOrderAction('refresh', 'dummy', {});
+      console.log('✅ AdminOrdersPage: Orders refreshed successfully');
+    } catch (error) {
+      console.error('❌ AdminOrdersPage: Failed to refresh orders:', error);
+    }
+  };
+
   // Admin-focused order categories
   const underReviewOrders = getOrdersByStatus('Submitted');
   const revisionRequests = getOrdersByStatus('Revision');
@@ -142,7 +154,15 @@ export default function AdminOrdersPage() {
     }
     
     if (action === 'make_available') {
-      handleOrderAction('make_available', orderId, additionalData);
+      console.log('🔄 AdminOrdersPage: Making order available, orderId:', orderId);
+      handleOrderAction('make_available', orderId, additionalData).then(() => {
+        console.log('✅ AdminOrdersPage: make_available completed, refreshing orders...');
+        // Force a refresh after the action completes
+        setTimeout(() => {
+          console.log('🔄 AdminOrdersPage: Forcing refresh after timeout...');
+          handleRefreshOrders();
+        }, 1000);
+      });
       return;
     }
     
@@ -309,6 +329,15 @@ export default function AdminOrdersPage() {
             }}
           >
             🧪 Test Make Available
+          </Button>
+          
+          {/* Manual refresh button */}
+          <Button 
+            variant="outline"
+            onClick={handleRefreshOrders}
+            className="ml-2"
+          >
+            🔄 Refresh Orders
           </Button>
         </div>
       </div>
