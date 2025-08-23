@@ -218,10 +218,18 @@ export function OrderCard({
               <UserCheck className="h-4 w-4 mr-2" />
               Assign Order
             </Button>
+          </div>
+        );
+      }
+      
+      if (order.status === 'Assigned') {
+        return (
+          <div className="flex gap-2">
             <Button 
               onClick={() => onAction?.('make_available', order.id)}
               size="sm"
               variant="outline"
+              className="text-orange-600 hover:bg-orange-50"
             >
               <BookOpen className="h-4 w-4 mr-2" />
               Make Available
@@ -265,6 +273,15 @@ export function OrderCard({
         return (
           <div className="flex gap-2">
             <Button 
+              onClick={() => onAction?.('make_available', order.id)}
+              size="sm"
+              variant="outline"
+              className="text-orange-600 hover:bg-orange-50"
+            >
+              <BookOpen className="h-4 w-4 mr-2" />
+              Make Available
+            </Button>
+            <Button 
               onClick={() => onAction?.('reassign', order.id, { reason: 'Admin reassignment' })}
               size="sm"
               variant="outline"
@@ -287,6 +304,15 @@ export function OrderCard({
       if (order.status === 'Revision') {
         return (
           <div className="flex gap-2">
+            <Button 
+              onClick={() => onAction?.('make_available', order.id)}
+              size="sm"
+              variant="outline"
+              className="text-orange-600 hover:bg-orange-50"
+            >
+              <BookOpen className="h-4 w-4 mr-2" />
+              Make Available
+            </Button>
             <Button 
               onClick={() => onAction?.('approve', order.id)}
               size="sm"

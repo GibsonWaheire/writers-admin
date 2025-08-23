@@ -161,6 +161,45 @@ export function AdminOrdersTable({
           </Button>
         );
         break;
+
+      case 'In Progress':
+        actions.push(
+          <Button
+            key="make-available"
+            size="sm"
+            variant="outline"
+            onClick={() => onAction('make_available', order.id)}
+            className="text-orange-600 hover:bg-orange-50"
+          >
+            <BookOpen className="h-3 w-3 mr-1" />
+            Make Available
+          </Button>
+        );
+        break;
+
+      case 'Revision':
+        actions.push(
+          <Button
+            key="make-available"
+            size="sm"
+            variant="outline"
+            onClick={() => onAction('make_available', order.id)}
+            className="text-orange-600 hover:bg-orange-50"
+          >
+            <BookOpen className="h-3 w-3 mr-1" />
+            Make Available
+          </Button>,
+          <Button
+            key="approve"
+            size="sm"
+            onClick={() => onAction('approve', order.id)}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Approve
+          </Button>
+        );
+        break;
     }
 
     actions.push(
