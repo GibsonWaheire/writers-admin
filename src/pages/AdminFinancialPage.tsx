@@ -34,6 +34,7 @@ export default function AdminFinancialPage() {
     fines, 
     clientPayments,
     financialSummary, 
+    createManualInvoice,
     approveInvoice, 
     processPayment, 
     waiveFine,
@@ -54,13 +55,85 @@ export default function AdminFinancialPage() {
   const handleProcessPayment = (paymentId: string) => {
     const payment = payments.find(p => p.id === paymentId);
     if (payment) {
+      const reference = prompt('Enter payment reference (optional):') || `PAY-${Date.now()}`;
       processPayment({
         ...payment,
-        status: 'completed',
-        completedAt: new Date().toISOString(),
-        processedBy: 'admin-1'
+        status: 'processing',
+        processedAt: new Date().toISOString(),
+        processedBy: 'admin-1',
+        reference
+      });
+      
+      // Auto-complete after 2 seconds (simulating payment processing)
+      setTimeout(() => {
+        processPayment({
+          ...payment,
+          status: 'completed',
+          completedAt: new Date().toISOString(),
+          processedBy: 'admin-1',
+          reference
+        });
+      }, 2000);
+    }
+  };
+
+  const handleBulkApproveInvoices = () => {
+    const pendingInvoices = invoices.filter(inv => inv.status === 'pending');
+    if (pendingInvoices.length === 0) {
+      alert('No pending invoices to approve');
+      return;
+    }
+    
+    if (confirm(`Approve ${pendingInvoices.length} pending invoices?`)) {
+      pendingInvoices.forEach(invoice => {
+        approveInvoice(invoice.id, 'admin-1');
       });
     }
+  };
+
+  const handleCreateManualInvoice = () => {
+    const writerId = prompt('Enter Writer ID (e.g., writer-1):');
+    if (!writerId) return;
+    
+    const writer = writers.find(w => w.id === writerId);
+    if (!writer) {
+      alert('Writer not found');
+      return;
+    }
+    
+    const amount = prompt('Enter Amount (KES):');
+    if (!amount || isNaN(Number(amount))) {
+      alert('Invalid amount');
+      return;
+    }
+    
+    const description = prompt('Enter Description:');
+    if (!description) return;
+    
+    const type = prompt('Enter Type (bonus/correction/order_completion):') as 'bonus' | 'correction' | 'order_completion';
+    
+    try {
+      createManualInvoice({
+        writerId: writer.id,
+        writerName: writer.name,
+        amount: Number(amount),
+        description,
+        type: type || 'bonus'
+      });
+      alert('Manual invoice created successfully!');
+    } catch (error) {
+      alert('Failed to create invoice');
+    }
+  };
+
+  const handleExportFinancials = (type: 'invoices' | 'payments' | 'summary') => {
+    // Simulate export functionality
+    const data = type === 'invoices' ? invoices : 
+                 type === 'payments' ? payments : 
+                 { summary: financialSummary };
+    
+    console.log(`Exporting ${type}:`, data);
+    alert(`${type.charAt(0).toUpperCase() + type.slice(1)} exported successfully!`);
   };
 
   const handleWaiveFine = (fineId: string) => {
@@ -126,13 +199,27 @@ export default function AdminFinancialPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => handleExportFinancials('summary')}
+          >
             <Download className="h-4 w-4 mr-2" />
-            Export Report
+            Export Summary
           </Button>
-          <Button className="bg-green-600 hover:bg-green-700">
+          <Button 
+            variant="outline"
+            onClick={handleBulkApproveInvoices}
+            className="text-blue-600 hover:bg-blue-50"
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Bulk Approve
+          </Button>
+          <Button 
+            onClick={handleCreateManualInvoice}
+            className="bg-green-600 hover:bg-green-700"
+          >
             <Plus className="h-4 w-4 mr-2" />
-            Process Payment
+            Manual Invoice
           </Button>
         </div>
       </div>
@@ -193,42 +280,123 @@ export default function AdminFinancialPage() {
         </Card>
       </div>
 
-      {/* Client vs Writer vs Profit Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PieChart className="h-5 w-5" />
-            Financial Breakdown
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">
-                KES {financialSummary.totalRevenue.toLocaleString()}
+      {/* Enhanced Financial Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PieChart className="h-5 w-5" />
+              Revenue Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                <div>
+                  <div className="font-semibold text-green-800">Total Client Payments</div>
+                  <div className="text-sm text-green-600">Revenue from all orders</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-green-600">
+                    KES {financialSummary.totalRevenue.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-green-500">100%</div>
+                </div>
               </div>
-              <div className="text-sm text-green-700 font-medium">Client Payments</div>
-              <div className="text-xs text-green-600 mt-1">Amount paid by clients</div>
-            </div>
-            
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">
-                KES {financialSummary.totalWriterPayments.toLocaleString()}
+              
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                <div>
+                  <div className="font-semibold text-blue-800">Writer Payments</div>
+                  <div className="text-sm text-blue-600">Paid to writers</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-blue-600">
+                    KES {financialSummary.totalWriterPayments.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-blue-500">
+                    {((financialSummary.totalWriterPayments / financialSummary.totalRevenue) * 100).toFixed(1)}%
+                  </div>
+                </div>
               </div>
-              <div className="text-sm text-blue-700 font-medium">Writer Payments</div>
-              <div className="text-xs text-blue-600 mt-1">Amount paid to writers</div>
-            </div>
-            
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">
-                KES {financialSummary.totalProfit.toLocaleString()}
+              
+              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                <div>
+                  <div className="font-semibold text-purple-800">Platform Profit</div>
+                  <div className="text-sm text-purple-600">Net profit margin</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-purple-600">
+                    KES {financialSummary.totalProfit.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-purple-500">
+                    {financialSummary.profitMargin.toFixed(1)}%
+                  </div>
+                </div>
               </div>
-              <div className="text-sm text-purple-700 font-medium">Platform Profit</div>
-              <div className="text-xs text-purple-600 mt-1">{financialSummary.profitMargin.toFixed(1)}% margin</div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Monthly Performance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <div className="font-semibold">This Month Revenue</div>
+                  <div className="text-sm text-gray-600">Current month earnings</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold">
+                    KES {financialSummary.monthlyRevenue.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <div className="font-semibold">Monthly Writer Payments</div>
+                  <div className="text-sm text-gray-600">Payments this month</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold">
+                    KES {financialSummary.monthlyWriterPayments.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                <div>
+                  <div className="font-semibold text-yellow-800">Pending Amounts</div>
+                  <div className="text-sm text-yellow-600">Awaiting processing</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-yellow-700">
+                    KES {(financialSummary.pendingInvoices + financialSummary.pendingPayments).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                <div>
+                  <div className="font-semibold text-red-800">Outstanding Fines</div>
+                  <div className="text-sm text-red-600">Fines applied</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-red-700">
+                    KES {financialSummary.pendingFines.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Filters */}
       <Card>
@@ -358,6 +526,32 @@ export default function AdminFinancialPage() {
         </TabsContent>
 
         <TabsContent value="invoices" className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex gap-2">
+              <Button 
+                size="sm"
+                onClick={() => handleExportFinancials('invoices')}
+                variant="outline"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Invoices
+              </Button>
+              {invoices.filter(inv => inv.status === 'pending').length > 0 && (
+                <Button 
+                  size="sm"
+                  onClick={handleBulkApproveInvoices}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Approve All Pending
+                </Button>
+              )}
+            </div>
+            <div className="text-sm text-gray-600">
+              {filterItems(invoices, 'invoice').length} invoices found
+            </div>
+          </div>
+          
           <div className="space-y-4">
             {filterItems(invoices, 'invoice').map((invoice) => (
               <Card key={invoice.id} className="hover:shadow-md transition-shadow">
@@ -369,6 +563,11 @@ export default function AdminFinancialPage() {
                         <Badge className={getStatusBadge(invoice.status, 'invoice')}>
                           {invoice.status}
                         </Badge>
+                        {invoice.status === 'approved' && (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                            Ready for Payment
+                          </Badge>
+                        )}
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
@@ -378,11 +577,21 @@ export default function AdminFinancialPage() {
                         <div><strong>Created:</strong> {new Date(invoice.createdAt).toLocaleDateString()}</div>
                       </div>
 
+                      {invoice.approvedAt && (
+                        <div className="text-sm text-green-600 bg-green-50 p-2 rounded mb-2">
+                          <strong>Approved:</strong> {new Date(invoice.approvedAt).toLocaleDateString()} by {invoice.approvedBy}
+                        </div>
+                      )}
+
                       {invoice.notes && (
                         <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
                           <strong>Notes:</strong> {invoice.notes}
                         </div>
                       )}
+                      
+                      <div className="text-xs text-gray-500 mt-2">
+                        Invoice ID: {invoice.id} • Order completed: {new Date(invoice.orderCompletedAt).toLocaleDateString()}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 ml-4">
@@ -404,6 +613,23 @@ export default function AdminFinancialPage() {
                       <Button size="sm" variant="outline">
                         <Download className="h-4 w-4" />
                       </Button>
+                      
+                      {invoice.status === 'approved' && (
+                        <Button 
+                          size="sm"
+                          onClick={() => {
+                            // Find related payment and process it
+                            const relatedPayment = payments.find(p => p.relatedInvoiceId === invoice.id);
+                            if (relatedPayment) {
+                              handleProcessPayment(relatedPayment.id);
+                            }
+                          }}
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          <CreditCard className="h-4 w-4 mr-1" />
+                          Pay Now
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -413,6 +639,37 @@ export default function AdminFinancialPage() {
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex gap-2">
+              <Button 
+                size="sm"
+                onClick={() => handleExportFinancials('payments')}
+                variant="outline"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Payments
+              </Button>
+              {payments.filter(p => p.status === 'pending').length > 0 && (
+                <Button 
+                  size="sm"
+                  onClick={() => {
+                    const pendingPayments = payments.filter(p => p.status === 'pending');
+                    if (confirm(`Process ${pendingPayments.length} pending payments?`)) {
+                      pendingPayments.forEach(payment => handleProcessPayment(payment.id));
+                    }
+                  }}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Process All Pending
+                </Button>
+              )}
+            </div>
+            <div className="text-sm text-gray-600">
+              {filterItems(payments, 'payment').length} payments • Total: KES {filterItems(payments, 'payment').reduce((sum, p) => sum + p.amount, 0).toLocaleString()}
+            </div>
+          </div>
+          
           <div className="space-y-4">
             {filterItems(payments, 'payment').map((payment) => (
               <Card key={payment.id} className="hover:shadow-md transition-shadow">
@@ -424,6 +681,12 @@ export default function AdminFinancialPage() {
                         <Badge className={getStatusBadge(payment.status, 'payment')}>
                           {payment.status}
                         </Badge>
+                        {payment.status === 'processing' && (
+                          <div className="flex items-center gap-1 text-blue-600">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
+                            <span className="text-xs">Processing...</span>
+                          </div>
+                        )}
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
@@ -433,9 +696,27 @@ export default function AdminFinancialPage() {
                         <div><strong>Created:</strong> {new Date(payment.createdAt).toLocaleDateString()}</div>
                       </div>
 
+                      {payment.processedAt && (
+                        <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded mb-2">
+                          <strong>Processed:</strong> {new Date(payment.processedAt).toLocaleDateString()} by {payment.processedBy}
+                        </div>
+                      )}
+
+                      {payment.completedAt && (
+                        <div className="text-sm text-green-600 bg-green-50 p-2 rounded mb-2">
+                          <strong>Completed:</strong> {new Date(payment.completedAt).toLocaleDateString()}
+                        </div>
+                      )}
+
                       {payment.reference && (
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded mb-2">
                           <strong>Reference:</strong> {payment.reference}
+                        </div>
+                      )}
+
+                      {payment.relatedOrderId && (
+                        <div className="text-xs text-gray-500">
+                          Payment ID: {payment.id} • Related Order: {payment.relatedOrderId}
                         </div>
                       )}
                     </div>
@@ -455,6 +736,12 @@ export default function AdminFinancialPage() {
                           Process
                         </Button>
                       )}
+
+                      {payment.status === 'completed' && (
+                        <Button size="sm" variant="outline">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -464,6 +751,47 @@ export default function AdminFinancialPage() {
         </TabsContent>
 
         <TabsContent value="fines" className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex gap-2">
+              <Button 
+                size="sm"
+                onClick={() => {
+                  const appliedFines = fines.filter(f => f.status === 'applied');
+                  if (appliedFines.length === 0) {
+                    alert('No applied fines to waive');
+                    return;
+                  }
+                  const reason = prompt(`Enter reason for waiving ${appliedFines.length} fines:`);
+                  if (reason) {
+                    appliedFines.forEach(fine => waiveFine(fine.id, 'admin-1', reason));
+                  }
+                }}
+                variant="outline"
+                className="text-green-600 hover:bg-green-50"
+              >
+                Waive All Applied
+              </Button>
+              <Button 
+                size="sm"
+                onClick={() => {
+                  const writerId = prompt('Enter Writer ID:');
+                  const amount = prompt('Enter Fine Amount (KES):');
+                  const reason = prompt('Enter Fine Reason:');
+                  if (writerId && amount && reason) {
+                    alert('Fine application functionality would be implemented here');
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Apply Fine
+              </Button>
+            </div>
+            <div className="text-sm text-gray-600">
+              {filterItems(fines, 'fine').length} fines • Total: KES {filterItems(fines, 'fine').reduce((sum, f) => f.status === 'applied' ? sum + f.amount : sum, 0).toLocaleString()}
+            </div>
+          </div>
+          
           <div className="space-y-4">
             {filterItems(fines, 'fine').map((fine) => (
               <Card key={fine.id} className="hover:shadow-md transition-shadow">
@@ -475,23 +803,39 @@ export default function AdminFinancialPage() {
                         <Badge className={getStatusBadge(fine.status, 'fine')}>
                           {fine.status}
                         </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {fine.type.replace('_', ' ').toUpperCase()}
+                        </Badge>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-3">
                         <div><strong>Amount:</strong> KES {fine.amount.toLocaleString()}</div>
-                        <div><strong>Type:</strong> {fine.type.replace('_', ' ')}</div>
                         <div><strong>Applied:</strong> {new Date(fine.appliedAt).toLocaleDateString()}</div>
+                        <div><strong>Applied by:</strong> {fine.appliedBy}</div>
                       </div>
 
-                      <div className="text-sm text-gray-700 bg-red-50 p-3 rounded-lg mb-2">
+                      <div className="text-sm text-gray-700 bg-red-50 border-l-4 border-red-400 p-3 rounded mb-2">
                         <strong>Reason:</strong> {fine.reason}
                       </div>
 
+                      {fine.status === 'waived' && fine.waivedReason && (
+                        <div className="text-sm text-green-700 bg-green-50 border-l-4 border-green-400 p-3 rounded mb-2">
+                          <strong>Waived:</strong> {fine.waivedReason}
+                          <div className="text-xs mt-1">
+                            By {fine.waivedBy} on {fine.waivedAt ? new Date(fine.waivedAt).toLocaleDateString() : 'N/A'}
+                          </div>
+                        </div>
+                      )}
+
                       {fine.orderTitle && (
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
                           <strong>Related Order:</strong> {fine.orderTitle}
                         </div>
                       )}
+
+                      <div className="text-xs text-gray-500 mt-2">
+                        Fine ID: {fine.id} • {fine.orderId ? `Order: ${fine.orderId}` : 'Manual fine'}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 ml-4">
@@ -508,6 +852,12 @@ export default function AdminFinancialPage() {
                         >
                           Waive Fine
                         </Button>
+                      )}
+
+                      {fine.status === 'waived' && (
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          Waived
+                        </Badge>
                       )}
                     </div>
                   </div>

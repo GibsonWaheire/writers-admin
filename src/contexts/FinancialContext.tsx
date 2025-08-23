@@ -10,6 +10,7 @@ interface FinancialContextType {
   clientPayments: ClientPayment[];
   financialSummary: FinancialSummary;
   createInvoice: (order: Order) => Invoice;
+  createManualInvoice: (invoiceData: { writerId: string; writerName: string; amount: number; description: string; type?: 'order_completion' | 'bonus' | 'correction' }) => Invoice;
   approveInvoice: (invoiceId: string, approvedBy: string) => void;
   processPayment: (paymentData: Partial<Payment>) => Payment;
   applyFine: (fineData: Partial<Fine>) => Fine;
@@ -130,21 +131,59 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
   }, [invoices]);
 
   const processPayment = useCallback((paymentData: Partial<Payment>): Payment => {
-    const payment: Payment = {
-      id: `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      writerId: paymentData.writerId || '',
-      writerName: paymentData.writerName || '',
-      amount: paymentData.amount || 0,
+    const existingPayment = payments.find(p => p.id === paymentData.id);
+    
+    if (existingPayment) {
+      // Update existing payment
+      const updatedPayment = { ...existingPayment, ...paymentData };
+      setPayments(prev => prev.map(p => p.id === paymentData.id ? updatedPayment : p));
+      return updatedPayment;
+    } else {
+      // Create new payment
+      const payment: Payment = {
+        id: `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        writerId: paymentData.writerId || '',
+        writerName: paymentData.writerName || '',
+        amount: paymentData.amount || 0,
+        currency: 'KES',
+        type: paymentData.type || 'order_payment',
+        status: 'pending',
+        method: paymentData.method || 'bank_transfer',
+        createdAt: new Date().toISOString(),
+        ...paymentData
+      };
+
+      setPayments(prev => [payment, ...prev]);
+      return payment;
+    }
+  }, [payments]);
+
+  const createManualInvoice = useCallback((invoiceData: {
+    writerId: string;
+    writerName: string;
+    amount: number;
+    description: string;
+    type?: 'order_completion' | 'bonus' | 'correction';
+  }): Invoice => {
+    const invoice: Invoice = {
+      id: `INV-MANUAL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      orderId: 'MANUAL',
+      orderTitle: invoiceData.description,
+      writerId: invoiceData.writerId,
+      writerName: invoiceData.writerName,
+      amount: invoiceData.amount,
       currency: 'KES',
-      type: paymentData.type || 'order_payment',
       status: 'pending',
-      method: paymentData.method || 'bank_transfer',
+      type: invoiceData.type || 'bonus',
       createdAt: new Date().toISOString(),
-      ...paymentData
+      orderPages: 0,
+      orderDeadline: new Date().toISOString(),
+      orderCompletedAt: new Date().toISOString(),
+      notes: 'Manual invoice created by admin'
     };
 
-    setPayments(prev => [payment, ...prev]);
-    return payment;
+    setInvoices(prev => [invoice, ...prev]);
+    return invoice;
   }, []);
 
   const applyFine = useCallback((fineData: Partial<Fine>): Fine => {
@@ -338,6 +377,7 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
       clientPayments,
       financialSummary,
       createInvoice,
+      createManualInvoice,
       approveInvoice,
       processPayment,
       applyFine,
