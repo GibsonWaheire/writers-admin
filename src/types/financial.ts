@@ -129,3 +129,64 @@ export interface ClientPayment {
   reference?: string;
   notes?: string;
 }
+
+export interface PlatformFunds {
+  id: string;
+  amount: number;
+  currency: 'KES';
+  source: 'bank_transfer' | 'mpesa' | 'paypal' | 'stripe' | 'manual' | 'other';
+  addedBy: string; // admin ID
+  addedAt: string;
+  reference?: string;
+  notes?: string;
+  status: 'pending' | 'confirmed' | 'failed';
+}
+
+export interface WithdrawalRequest {
+  id: string;
+  writerId: string;
+  writerName: string;
+  amount: number;
+  currency: 'KES';
+  requestedAt: string;
+  status: 'pending' | 'approved' | 'rejected' | 'paid' | 'cancelled';
+  method: 'bank_transfer' | 'mobile_money' | 'paypal';
+  accountDetails: {
+    bankName?: string;
+    accountNumber?: string;
+    mobileNumber?: string;
+    paypalEmail?: string;
+  };
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  paidBy?: string;
+  paidAt?: string;
+  paymentReference?: string;
+  invoiceId?: string;
+  notes?: string;
+}
+
+export interface PlatformBalance {
+  totalFunds: number;
+  availableFunds: number;
+  pendingWithdrawals: number;
+  reservedFunds: number;
+  totalWithdrawn: number;
+  lastUpdated: string;
+}
+
+export interface TransactionLog {
+  id: string;
+  type: 'fund_added' | 'withdrawal_approved' | 'withdrawal_paid' | 'fine_applied' | 'fine_waived' | 'invoice_paid';
+  amount: number;
+  currency: 'KES';
+  description: string;
+  performedBy: string;
+  performedAt: string;
+  relatedEntityId?: string; // withdrawal ID, fine ID, etc.
+  balanceBefore: number;
+  balanceAfter: number;
+}
