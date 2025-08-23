@@ -312,6 +312,40 @@
       ],
       "uploadedFiles": [],
       "additionalInstructions": "Include market research for Kenya, Uganda, and Tanzania"
+    },
+    {
+      "id": "ORD-TEST-003",
+      "title": "Business Ethics Case Study",
+      "description": "Analysis of ethical dilemmas in modern business practices with real-world examples",
+      "subject": "Business Ethics",
+      "discipline": "Business",
+      "paperType": "Case Study",
+      "pages": 12,
+      "words": 3000,
+      "format": "APA",
+      "price": 360,
+      "priceKES": 54000,
+      "cpp": 4500,
+      "totalPriceKES": 54000,
+      "deadline": "2024-02-25T23:59:59Z",
+      "status": "Assigned",
+      "assignedWriter": "John Doe",
+      "writerId": "writer-1",
+      "createdAt": "2024-01-20T00:00:00Z",
+      "updatedAt": "2024-01-20T00:00:00Z",
+      "isOverdue": false,
+      "confirmationStatus": "confirmed",
+      "paymentType": "advance",
+      "clientMessages": [
+        {
+          "id": "msg-3",
+          "sender": "client",
+          "message": "Need this for my business ethics class",
+          "timestamp": "2024-01-20T11:00:00Z"
+        }
+      ],
+      "uploadedFiles": [],
+      "additionalInstructions": "Focus on practical applications and decision-making frameworks"
     }
   ],
   "podOrders": [

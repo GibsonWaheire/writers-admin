@@ -8,6 +8,7 @@ interface OrderContextType {
   handleOrderAction: (action: string, orderId: string, additionalData?: Record<string, unknown>) => Promise<void>;
   confirmOrder: (orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => void;
   pickOrder: (orderId: string, writerId: string, writerName: string) => void;
+  refreshOrders: () => Promise<void>;
   getOrdersByStatus: (status: OrderStatus) => Order[];
   getAvailableOrders: () => Order[];
   getWriterActiveOrders: (writerId: string) => Order[];
@@ -67,6 +68,17 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     };
 
     loadOrders();
+  }, []);
+
+  // Function to refresh orders from database
+  const refreshOrders = useCallback(async () => {
+    try {
+      const ordersData = await db.find<Order>('orders');
+      setOrders(ordersData);
+      console.log('🔄 OrderContext: Orders refreshed from database');
+    } catch (error) {
+      console.error('Failed to refresh orders:', error);
+    }
   }, []);
 
   // Hardcoded orders removed - all data now comes from database
@@ -673,17 +685,24 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         updatedOrders.filter(o => o.status === 'Assigned').length
       );
       
-      // Save updated order to database
+      // Save updated order to database (async operation)
       const updatedOrder = updatedOrders.find(o => o.id === orderId);
       if (updatedOrder) {
-        db.update('orders', orderId, updatedOrder).catch(error => 
-          console.error('Failed to save order to database:', error)
-        );
+        // Use Promise to handle async database update
+        db.update('orders', orderId, updatedOrder)
+          .then(() => {
+            console.log('💾 OrderContext: Order saved to database successfully');
+            // Refresh orders from database to ensure state consistency
+            refreshOrders();
+          })
+          .catch(error => {
+            console.error('Failed to save order to database:', error);
+          });
       }
       
       return updatedOrders;
     });
-  }, []);
+  }, [refreshOrders]);
 
   const confirmOrder = useCallback((orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
     setOrders(prev => prev.map(order => {
@@ -839,6 +858,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       handleOrderAction,
       confirmOrder,
       pickOrder,
+      refreshOrders,
       getOrdersByStatus,
       getAvailableOrders,
       getWriterActiveOrders,
