@@ -36,58 +36,6 @@ interface OrderAssignmentModalProps {
   onMakeAvailable: (notes?: string) => void;
 }
 
-// Mock writers data - in real app, this would come from your backend
-const MOCK_WRITERS: Writer[] = [
-  {
-    id: 'writer-1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    rating: 4.8,
-    activeOrders: 2,
-    maxOrders: 3,
-    completedOrders: 45,
-    totalEarnings: 157500,
-    specialties: ['Business Administration', 'Computer Science', 'Engineering'],
-    avgCompletionTime: 48
-  },
-  {
-    id: 'writer-2',
-    name: 'Jane Smith',
-    email: 'jane@example.com',
-    rating: 4.9,
-    activeOrders: 1,
-    maxOrders: 3,
-    completedOrders: 67,
-    totalEarnings: 234500,
-    specialties: ['Psychology', 'Social Sciences', 'Health Sciences'],
-    avgCompletionTime: 36
-  },
-  {
-    id: 'writer-3',
-    name: 'Mike Johnson',
-    email: 'mike@example.com',
-    rating: 4.7,
-    activeOrders: 0,
-    maxOrders: 3,
-    completedOrders: 23,
-    totalEarnings: 80500,
-    specialties: ['Mathematics', 'Physics', 'Statistics'],
-    avgCompletionTime: 52
-  },
-  {
-    id: 'writer-4',
-    name: 'Sarah Wilson',
-    email: 'sarah@example.com',
-    rating: 4.6,
-    activeOrders: 3,
-    maxOrders: 3,
-    completedOrders: 34,
-    totalEarnings: 119000,
-    specialties: ['Literature', 'History', 'Philosophy'],
-    avgCompletionTime: 44
-  }
-];
-
 export function OrderAssignmentModal({ 
   isOpen, 
   onClose, 
@@ -95,6 +43,7 @@ export function OrderAssignmentModal({
   onAssign, 
   onMakeAvailable 
 }: OrderAssignmentModalProps) {
+  const { writers } = useUsers();
   const [selectedWriterId, setSelectedWriterId] = useState<string>('');
   const [assignmentNotes, setAssignmentNotes] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -102,7 +51,21 @@ export function OrderAssignmentModal({
   const [assignmentType, setAssignmentType] = useState<'specific' | 'available'>('specific');
 
   // Filter writers based on search and specialty
-  const filteredWriters = MOCK_WRITERS.filter(writer => {
+  // Convert writers to the format expected by the component
+  const mockWriters = writers.filter(w => w.status === 'active').map(writer => ({
+    id: writer.id,
+    name: writer.name,
+    email: writer.email,
+    rating: writer.rating,
+    activeOrders: 2, // Mock data - could be calculated from orders context
+    maxOrders: writer.maxConcurrentOrders,
+    completedOrders: writer.completedOrders,
+    totalEarnings: writer.totalEarnings,
+    specialties: writer.specializations,
+    avgCompletionTime: 48 // Mock data - could be calculated
+  }));
+
+  const filteredWriters = mockWriters.filter(writer => {
     const matchesSearch = 
       writer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       writer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -114,10 +77,10 @@ export function OrderAssignmentModal({
   });
 
   // Get unique specialties for filter
-  const specialties = Array.from(new Set(MOCK_WRITERS.flatMap(w => w.specialties))).sort();
+  const specialties = Array.from(new Set(mockWriters.flatMap(w => w.specialties))).sort();
 
   // Get writer by ID
-  const selectedWriter = selectedWriterId ? MOCK_WRITERS.find(w => w.id === selectedWriterId) : null;
+  const selectedWriter = selectedWriterId ? mockWriters.find(w => w.id === selectedWriterId) : null;
 
   // Check if writer can take the order
   const canTakeOrder = (writer: Writer) => {

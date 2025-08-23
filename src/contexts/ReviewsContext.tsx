@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { Review, ReviewStats, ReviewFilter } from '../types/review';
+import { db } from '../services/database';
 
 interface ReviewsContextType {
   reviews: Review[];
@@ -21,7 +22,28 @@ interface ReviewsContextType {
 const ReviewsContext = createContext<ReviewsContextType | undefined>(undefined);
 
 export function ReviewsProvider({ children }: { children: React.ReactNode }) {
-  const [reviews, setReviews] = useState<Review[]>([
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load reviews from database on mount
+  useEffect(() => {
+    const loadReviews = async () => {
+      try {
+        setIsLoading(true);
+        const reviewsData = await db.find<Review>('reviews');
+        setReviews(reviewsData);
+      } catch (error) {
+        console.error('Failed to load reviews:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadReviews();
+  }, []);
+
+  // Old hardcoded reviews for reference
+  const [oldReviews] = useState<Review[]>([
     {
       id: 'REV-001',
       orderId: 'ORD-COMPLETED-001',

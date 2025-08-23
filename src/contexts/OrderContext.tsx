@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { Order, OrderStatus, WriterConfirmation, WriterQuestion } from '../types/order';
+import { db } from '../services/database';
 
 interface OrderContextType {
   orders: Order[];
   createOrder: (orderData: Partial<Order>) => Promise<Order>;
-  handleOrderAction: (action: string, orderId: string, additionalData?: Record<string, unknown>) => void;
+  handleOrderAction: (action: string, orderId: string, additionalData?: Record<string, unknown>) => Promise<void>;
   confirmOrder: (orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => void;
   pickOrder: (orderId: string, writerId: string, writerName: string) => void;
   getOrdersByStatus: (status: OrderStatus) => Order[];
@@ -52,7 +53,24 @@ interface OrderContextType {
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export function OrderProvider({ children }: { children: React.ReactNode }) {
-  const [orders, setOrders] = useState<Order[]>([
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  // Load orders from database on mount
+  useEffect(() => {
+    const loadOrders = async () => {
+      try {
+        const ordersData = await db.find<Order>('orders');
+        setOrders(ordersData);
+      } catch (error) {
+        console.error('Failed to load orders:', error);
+      }
+    };
+
+    loadOrders();
+  }, []);
+
+  // Hardcoded orders removed - all data now comes from database
+  /* const [oldOrders] = useState<Order[]>([
     {
       id: 'ORD-001',
       title: 'Research Paper on Climate Change',
@@ -394,9 +412,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       completedAt: '2024-01-22T10:00:00Z',
       adminReviewNotes: 'Outstanding quality. Clear structure, excellent research, and practical recommendations.'
     }
-  ]);
+  ]); */
 
-  const handleOrderAction = useCallback((action: string, orderId: string, additionalData?: Record<string, unknown>) => {
+  const handleOrderAction = useCallback(async (action: string, orderId: string, additionalData?: Record<string, unknown>) => {
     console.log('🔄 OrderContext: Processing action:', {
       action,
       orderId,
@@ -631,6 +649,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         updatedOrders.filter(o => o.status === 'Assigned').length
       );
       
+      // Save updated order to database
+      const updatedOrder = updatedOrders.find(o => o.id === orderId);
+      if (updatedOrder) {
+        db.update('orders', orderId, updatedOrder).catch(error => 
+          console.error('Failed to save order to database:', error)
+        );
+      }
+      
       return updatedOrders;
     });
   }, []);
@@ -764,8 +790,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       attachments: orderData.attachments || []
     };
 
-    setOrders(prev => [newOrder, ...prev]);
-    return newOrder;
+    // Save to database and update local state
+    const savedOrder = await db.create('orders', newOrder);
+    setOrders(prev => [savedOrder, ...prev]);
+    return savedOrder;
   }, []);
 
   // Get writer's total earnings

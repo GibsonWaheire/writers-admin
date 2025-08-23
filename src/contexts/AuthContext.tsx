@@ -24,23 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const AUTH_STORAGE_KEY = 'writers_admin_auth';
 const USER_STORAGE_KEY = 'writers_admin_user';
 
-// Mock users for demonstration - in real app, this would come from your backend
-const MOCK_USERS = [
-  {
-    id: '1',
-    name: 'John Writer',
-    email: 'writer@example.com',
-    password: 'password123',
-    role: 'writer' as const
-  },
-  {
-    id: '2',
-    name: 'Admin User',
-    email: 'admin@example.com',
-    password: 'admin123',
-    role: 'admin' as const
-  }
-];
+// All user data is now stored in the database
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {

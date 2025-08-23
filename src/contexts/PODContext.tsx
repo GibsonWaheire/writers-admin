@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { PODOrder, PODStatus, PODDelivery, PODPayment } from '../types/pod';
+import { db } from '../services/database';
 
 interface PODContextType {
   podOrders: PODOrder[];
@@ -35,7 +36,28 @@ interface PODContextType {
 const PODContext = createContext<PODContextType | undefined>(undefined);
 
 export function PODProvider({ children }: { children: React.ReactNode }) {
-  const [pODOrders, setPODOrders] = useState<PODOrder[]>([
+  const [pODOrders, setPODOrders] = useState<PODOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load POD orders from database on mount
+  useEffect(() => {
+    const loadPODOrders = async () => {
+      try {
+        setIsLoading(true);
+        const podOrdersData = await db.find<PODOrder>('podOrders');
+        setPODOrders(podOrdersData);
+      } catch (error) {
+        console.error('Failed to load POD orders:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPODOrders();
+  }, []);
+
+  // Old hardcoded POD orders for reference
+  const [oldPODOrders] = useState<PODOrder[]>([
     {
       id: 'POD-001',
       title: 'Business Strategy Analysis - Retail Sector',

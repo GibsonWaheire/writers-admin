@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { useOrders } from './OrderContext';
+import { db } from '../services/database';
 import type { 
   Invoice, 
   Fine, 
@@ -52,53 +53,50 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
   const [fines, setFines] = useState<Fine[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [clientPayments, setClientPayments] = useState<ClientPayment[]>([]);
-  const [platformFunds, setPlatformFunds] = useState<PlatformFunds[]>([
-    {
-      id: 'FUND-001',
-      amount: 500000,
-      currency: 'KES',
-      source: 'bank_transfer',
-      addedBy: 'admin-1',
-      addedAt: '2024-01-01T00:00:00Z',
-      reference: 'BANK-REF-001',
-      notes: 'Initial platform funding',
-      status: 'confirmed'
-    }
-  ]);
-  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([
-    {
-      id: 'WD-001',
-      writerId: 'writer-1',
-      writerName: 'John Doe',
-      amount: 15000,
-      currency: 'KES',
-      requestedAt: '2024-01-25T10:00:00Z',
-      status: 'pending',
-      method: 'mobile_money',
-      accountDetails: {
-        mobileNumber: '+254712345678'
-      },
-      notes: 'First withdrawal request'
-    },
-    {
-      id: 'WD-002',
-      writerId: 'writer-2',
-      writerName: 'Jane Smith',
-      amount: 25000,
-      currency: 'KES',
-      requestedAt: '2024-01-24T14:30:00Z',
-      status: 'approved',
-      method: 'bank_transfer',
-      accountDetails: {
-        bankName: 'KCB Bank',
-        accountNumber: '1234567890'
-      },
-      approvedBy: 'admin-1',
-      approvedAt: '2024-01-25T09:00:00Z',
-      notes: 'Approved for payment'
-    }
-  ]);
+  const [platformFunds, setPlatformFunds] = useState<PlatformFunds[]>([]);
+  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
   const [transactionLogs, setTransactionLogs] = useState<TransactionLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load financial data from database on mount
+  useEffect(() => {
+    const loadFinancialData = async () => {
+      try {
+        setIsLoading(true);
+        const [
+          invoicesData,
+          finesData,
+          paymentsData,
+          clientPaymentsData,
+          platformFundsData,
+          withdrawalRequestsData,
+          transactionLogsData
+        ] = await Promise.all([
+          db.findFinancial<Invoice>('invoices'),
+          db.findFinancial<Fine>('fines'),
+          db.findFinancial<Payment>('payments'),
+          db.findFinancial<ClientPayment>('clientPayments'),
+          db.findFinancial<PlatformFunds>('platformFunds'),
+          db.findFinancial<WithdrawalRequest>('withdrawalRequests'),
+          db.findFinancial<TransactionLog>('transactionLogs')
+        ]);
+
+        setInvoices(invoicesData);
+        setFines(finesData);
+        setPayments(paymentsData);
+        setClientPayments(clientPaymentsData);
+        setPlatformFunds(platformFundsData);
+        setWithdrawalRequests(withdrawalRequestsData);
+        setTransactionLogs(transactionLogsData);
+      } catch (error) {
+        console.error('Failed to load financial data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadFinancialData();
+  }, []);
 
   // Calculate platform balance
   const calculatePlatformBalance = useCallback((): PlatformBalance => {
