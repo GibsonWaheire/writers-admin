@@ -310,6 +310,36 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       additionalInstructions: 'Include code examples and performance metrics',
       requiresAdminApproval: false,
       urgencyLevel: 'urgent'
+    },
+    // Add a test order that's currently assigned to test "Make Available" functionality
+    {
+      id: 'ORD-TEST-003',
+      title: 'Business Ethics Case Study',
+      description: 'Analysis of ethical dilemmas in modern business practices with real-world examples',
+      subject: 'Business Ethics',
+      discipline: 'Business Administration',
+      paperType: 'Case Study',
+      pages: 10,
+      words: 2500,
+      format: 'Harvard',
+      price: 350,
+      priceKES: 35000,
+      cpp: 350,
+      totalPriceKES: 35000,
+      deadline: '2024-02-22',
+      status: 'Assigned',
+      assignedWriter: 'John Doe',
+      writerId: 'writer-1',
+      createdAt: '2024-01-19',
+      updatedAt: '2024-01-19',
+      isOverdue: false,
+      confirmationStatus: 'confirmed',
+      paymentType: 'advance',
+      clientMessages: [],
+      uploadedFiles: [],
+      additionalInstructions: 'Focus on recent corporate scandals and their ethical implications',
+      requiresAdminApproval: false,
+      urgencyLevel: 'normal'
     }
   ]);
 
@@ -357,6 +387,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           }
           updates.madeAvailableAt = new Date().toISOString();
           updates.madeAvailableBy = 'admin';
+          
+          console.log('🔄 OrderContext: Making order available:', {
+            orderId,
+            oldStatus,
+            newStatus,
+            writerId: updates.writerId,
+            assignedWriter: updates.assignedWriter,
+            notes: additionalData?.notes,
+            source: additionalData?.source
+          });
           break;
           
         case 'submit':

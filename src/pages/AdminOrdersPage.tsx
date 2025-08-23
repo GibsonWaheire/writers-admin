@@ -17,11 +17,8 @@ import {
   AlertTriangle,
   RefreshCw,
   Award,
-  BarChart3,
   Eye,
-  UserCheck,
-  UserX,
-  Send
+  UserCheck
 } from "lucide-react";
 import { OrderCard } from "../components/OrderCard";
 import { OrderViewModal } from "../components/OrderViewModal";
@@ -65,16 +62,22 @@ export default function AdminOrdersPage() {
   // Get writer-specific orders for monitoring (not for action)
   const allWriters = Array.from(new Set(orders.filter(o => o.writerId).map(o => o.writerId!)));
   const writerStats = allWriters.map(writerId => {
-    const writerOrders = orders.filter(o => o.writerId === writerId);
+    // Use context functions for better consistency and performance
+    const writerOrders = getWriterActiveOrders(writerId);
+    const writerStatsFromContext = getWriterOrderStats(writerId);
     const stats = {
       writerId,
       writerName: writerOrders[0]?.assignedWriter || 'Unknown',
-      total: writerOrders.length,
-      inProgress: writerOrders.filter(o => o.status === 'In Progress').length,
-      submitted: writerOrders.filter(o => o.status === 'Submitted').length,
-      completed: writerOrders.filter(o => ['Completed', 'Approved'].includes(o.status)).length,
-      rejected: writerOrders.filter(o => o.status === 'Rejected').length,
-      earnings: getWriterTotalEarnings(writerId)
+      total: writerStatsFromContext.total,
+      inProgress: writerStatsFromContext.inProgress,
+      submitted: writerStatsFromContext.submitted,
+      completed: writerStatsFromContext.completed,
+      rejected: writerStatsFromContext.rejected,
+      earnings: getWriterTotalEarnings(writerId),
+      // Add performance metrics
+      completionRate: writerStatsFromContext.total > 0 ? 
+        Math.round((writerStatsFromContext.completed / writerStatsFromContext.total) * 100) : 0,
+      activeOrders: writerStatsFromContext.inProgress + writerStatsFromContext.submitted
     };
     return stats;
   });
@@ -175,6 +178,29 @@ export default function AdminOrdersPage() {
       handleOrderAction('make_available', orderToAssign.id, { notes });
       setShowAssignmentModal(false);
       setOrderToAssign(null);
+    }
+  };
+
+  // Direct make available function for OrderCard buttons
+  const handleDirectMakeAvailable = (orderId: string) => {
+    console.log('🔄 Admin directly making order available:', { orderId });
+    
+    // Find the order to get its current status
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      console.log('📋 Order details before make available:', {
+        id: order.id,
+        status: order.status,
+        writerId: order.writerId,
+        assignedWriter: order.assignedWriter
+      });
+      
+      handleOrderAction('make_available', orderId, { 
+        notes: 'Made available directly by admin',
+        source: 'direct_button'
+      });
+    } else {
+      console.error('❌ Order not found:', orderId);
     }
   };
 
@@ -385,7 +411,13 @@ export default function AdminOrdersPage() {
                 order={order}
                 userRole={userRole}
                 onView={handleViewOrder}
-                onAction={handleOrderActionLocal}
+                onAction={(action, orderId, additionalData) => {
+                  if (action === 'make_available') {
+                    handleDirectMakeAvailable(orderId);
+                  } else {
+                    handleOrderActionLocal(action, orderId, additionalData);
+                  }
+                }}
                 showActions={true}
               />
             ))
@@ -414,7 +446,13 @@ export default function AdminOrdersPage() {
                 order={order}
                 userRole={userRole}
                 onView={handleViewOrder}
-                onAction={handleOrderActionLocal}
+                onAction={(action, orderId, additionalData) => {
+                  if (action === 'make_available') {
+                    handleDirectMakeAvailable(orderId);
+                  } else {
+                    handleOrderActionLocal(action, orderId, additionalData);
+                  }
+                }}
                 showActions={true}
               />
             ))
@@ -454,7 +492,13 @@ export default function AdminOrdersPage() {
                   order={order}
                   userRole={userRole}
                   onView={handleViewOrder}
-                  onAction={handleOrderActionLocal}
+                  onAction={(action, orderId, additionalData) => {
+                    if (action === 'make_available') {
+                      handleDirectMakeAvailable(orderId);
+                    } else {
+                      handleOrderActionLocal(action, orderId, additionalData);
+                    }
+                  }}
                   showActions={true}
                 />
               ))}
@@ -484,7 +528,13 @@ export default function AdminOrdersPage() {
                 order={order}
                 userRole={userRole}
                 onView={handleViewOrder}
-                onAction={handleOrderActionLocal}
+                onAction={(action, orderId, additionalData) => {
+                  if (action === 'make_available') {
+                    handleDirectMakeAvailable(orderId);
+                  } else {
+                    handleOrderActionLocal(action, orderId, additionalData);
+                  }
+                }}
                 showActions={false}
               />
             ))
@@ -513,7 +563,13 @@ export default function AdminOrdersPage() {
                 order={order}
                 userRole={userRole}
                 onView={handleViewOrder}
-                onAction={handleOrderActionLocal}
+                onAction={(action, orderId, additionalData) => {
+                  if (action === 'make_available') {
+                    handleDirectMakeAvailable(orderId);
+                  } else {
+                    handleOrderActionLocal(action, orderId, additionalData);
+                  }
+                }}
                 showActions={false}
               />
             ))
@@ -542,7 +598,13 @@ export default function AdminOrdersPage() {
                 order={order}
                 userRole={userRole}
                 onView={handleViewOrder}
-                onAction={handleOrderActionLocal}
+                onAction={(action, orderId, additionalData) => {
+                  if (action === 'make_available') {
+                    handleDirectMakeAvailable(orderId);
+                  } else {
+                    handleOrderActionLocal(action, orderId, additionalData);
+                  }
+                }}
                 showActions={false}
               />
             ))
@@ -572,16 +634,24 @@ export default function AdminOrdersPage() {
                   <h4 className="font-medium text-sm">{writer.writerName}</h4>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span>Total: {writer.total}</span>
-                    <span>In Progress: {writer.inProgress}</span>
-                    <span>Submitted: {writer.submitted}</span>
+                    <span className="text-blue-600">Active: {writer.activeOrders}</span>
                     <span>Completed: {writer.completed}</span>
-                    <span>Rejected: {writer.rejected}</span>
+                    <span className="text-red-600">Rejected: {writer.rejected}</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span className="text-green-600">Success Rate: {writer.completionRate}%</span>
+                    <span className="text-orange-600">Earnings: KES {writer.earnings.toLocaleString()}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-green-600">
-                    KES {writer.earnings.toLocaleString()}
-                  </span>
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-green-600">
+                      KES {writer.earnings.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {writer.activeOrders} active orders
+                    </div>
+                  </div>
                   <Button variant="ghost" size="icon">
                     <Eye className="h-4 w-4" />
                   </Button>
@@ -599,7 +669,13 @@ export default function AdminOrdersPage() {
           onClose={closeModal}
           order={selectedOrder}
           userRole={userRole}
-          onAction={handleOrderActionLocal}
+          onAction={(action, orderId, additionalData) => {
+            if (action === 'make_available') {
+              handleDirectMakeAvailable(orderId);
+            } else {
+              handleOrderActionLocal(action, orderId, additionalData);
+            }
+          }}
           activeOrdersCount={0}
         />
       )}
