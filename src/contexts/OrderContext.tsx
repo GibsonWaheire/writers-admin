@@ -493,6 +493,18 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           });
           break;
           
+        case 'start_work':
+          newStatus = 'In Progress';
+          updates.startedAt = new Date().toISOString();
+          
+          console.log('🔄 OrderContext: Writer started work on order:', {
+            orderId,
+            writerId: order.writerId,
+            writerName: order.assignedWriter,
+            startedAt: updates.startedAt
+          });
+          break;
+          
         case 'submit':
           newStatus = 'Submitted';
           updates.submittedToAdminAt = new Date().toISOString();

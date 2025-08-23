@@ -25,6 +25,8 @@ import { useOrders } from "../contexts/OrderContext";
 import { useAuth } from "../contexts/AuthContext";
 import type { Order, WriterConfirmation, WriterQuestion } from "../types/order";
 import { AvailableOrdersTable } from "../components/AvailableOrdersTable";
+import { AssignedOrderCard } from "../components/AssignedOrderCard";
+import { useNotifications } from "../contexts/NotificationContext";
 
 export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -47,6 +49,7 @@ export default function OrdersPage() {
     pickOrder
   } = useOrders();
   const { user } = useAuth();
+  const { assignmentHistory, confirmAssignment, declineAssignment } = useNotifications();
   
   const userRole = user?.role || 'writer';
   const isAdmin = userRole === 'admin';
@@ -150,6 +153,48 @@ export default function OrdersPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedOrder(null);
+  };
+
+  // Assignment handling functions
+  const handleConfirmAssignment = async (orderId: string, confirmation: {
+    estimatedCompletionTime?: number;
+    questions?: string[];
+    additionalNotes?: string;
+  }) => {
+    const assignment = assignmentHistory.find(a => a.orderId === orderId);
+    if (assignment) {
+      await confirmAssignment(assignment.id, {
+        assignmentId: assignment.id,
+        orderId,
+        writerId: writerId,
+        action: 'confirm',
+        ...confirmation
+      });
+      
+      // Update order status to In Progress
+      handleOrderAction('start_work', orderId);
+    }
+  };
+
+  const handleDeclineAssignment = async (orderId: string, reason: string) => {
+    const assignment = assignmentHistory.find(a => a.orderId === orderId);
+    if (assignment) {
+      await declineAssignment(assignment.id, reason);
+      
+      // Make order available again
+      handleOrderAction('make_available', orderId, { reason: 'Writer declined assignment' });
+    }
+  };
+
+  const handleStartWork = (orderId: string) => {
+    handleOrderAction('start_work', orderId);
+  };
+
+  const handleRequestReassignment = (orderId: string) => {
+    const reason = prompt('Please provide a reason for reassignment:');
+    if (reason) {
+      handleOrderAction('make_available', orderId, { reason });
+    }
   };
 
   // Get unique disciplines and paper types for filters
@@ -523,16 +568,31 @@ export default function OrdersPage() {
           </div>
           
           {filterOrders([...assignedOrders, ...inProgressOrders]).length > 0 ? (
-            filterOrders([...assignedOrders, ...inProgressOrders]).map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                userRole={userRole}
-                onView={handleViewOrder}
-                onAction={handleOrderActionLocal}
-                onConfirm={handleOrderConfirm}
-              />
-            ))
+            filterOrders([...assignedOrders, ...inProgressOrders]).map((order) => {
+              const assignment = assignmentHistory.find(a => a.orderId === order.id);
+              
+              return order.status === 'Assigned' ? (
+                <AssignedOrderCard
+                  key={order.id}
+                  order={order}
+                  assignment={assignment}
+                  onView={handleViewOrder}
+                  onConfirmAssignment={handleConfirmAssignment}
+                  onDeclineAssignment={handleDeclineAssignment}
+                  onStartWork={handleStartWork}
+                  onRequestReassignment={handleRequestReassignment}
+                />
+              ) : (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  userRole={userRole}
+                  onView={handleViewOrder}
+                  onAction={handleOrderActionLocal}
+                  onConfirm={handleOrderConfirm}
+                />
+              );
+            })
           ) : (
             <div className="text-center py-12">
               <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
