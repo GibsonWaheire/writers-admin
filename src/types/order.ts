@@ -61,6 +61,14 @@ export interface Order {
   // Auto-reassignment tracking
   autoReassignedAt?: string; // When automatically reassigned
   originalWriterId?: string; // Original writer before reassignment
+  // Make available tracking
+  madeAvailableAt?: string; // When order was made available
+  madeAvailableBy?: string; // Who made the order available
+  // Assignment tracking
+  assignedAt?: string; // When order was assigned
+  assignedBy?: string; // Who assigned the order
+  assignmentNotes?: string; // Notes from assignment
+  pickedBy?: string; // Who picked the order (writer or admin)
   // Urgency level for pricing and deadline tracking
   urgencyLevel?: 'normal' | 'urgent' | 'very-urgent';
   // File attachments for requirements/instructions

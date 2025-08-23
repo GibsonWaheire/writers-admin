@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -54,6 +54,18 @@ export default function AdminOrdersPage() {
   const { user } = useAuth();
   
   const userRole = user?.role || 'admin';
+
+  // Debug: Monitor orders state changes
+  useEffect(() => {
+    console.log('🔍 AdminOrdersPage: Orders state updated:', {
+      totalOrders: orders.length,
+      availableOrders: orders.filter(o => o.status === 'Available').length,
+      assignedOrders: orders.filter(o => o.status === 'Assigned').length,
+      submittedOrders: orders.filter(o => o.status === 'Submitted').length,
+      completedOrders: orders.filter(o => o.status === 'Completed').length,
+      orders: orders.map(o => ({ id: o.id, status: o.status, writerId: o.writerId, assignedWriter: o.assignedWriter }))
+    });
+  }, [orders]);
 
   // Admin-focused order categories
   const underReviewOrders = getOrdersByStatus('Submitted');
@@ -199,10 +211,21 @@ export default function AdminOrdersPage() {
         assignedWriter: order.assignedWriter
       });
       
+      console.log('📞 Calling handleOrderAction with:', {
+        action: 'make_available',
+        orderId,
+        additionalData: { 
+          notes: 'Made available directly by admin',
+          source: 'direct_button'
+        }
+      });
+      
       handleOrderAction('make_available', orderId, { 
         notes: 'Made available directly by admin',
         source: 'direct_button'
       });
+      
+      console.log('✅ handleOrderAction called successfully');
     } else {
       console.error('❌ Order not found:', orderId);
     }

@@ -110,30 +110,40 @@ export function UploadNewOrderModal({ isOpen, onClose, onSubmit }: UploadNewOrde
   };
 
   const handleInputChange = (field: string, value: string | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
 
-    // Auto-calculate related fields
-    if (field === 'pages' && typeof value === 'string' && value) {
-      const pages = parseInt(value);
-      if (!isNaN(pages)) {
-        const words = calculateWordsFromPages(pages);
-        setFormData(prev => ({ ...prev, words: words.toString() }));
+    // Update form data and handle auto-calculations
+    setFormData(prev => {
+      const newFormData = { ...prev, [field]: value };
+      
+      // Auto-calculate word count when pages change
+      if (field === 'pages' && typeof value === 'string' && value) {
+        const pages = parseInt(value);
+        if (!isNaN(pages) && pages > 0) {
+          newFormData.words = calculateWordsFromPages(pages).toString();
+        } else {
+          newFormData.words = '';
+        }
       }
-    }
 
-    if (field === 'pages' || field === 'urgencyLevel') {
-      const pages = parseInt(formData.pages) || 0;
-      const urgency = field === 'urgencyLevel' ? value : formData.urgencyLevel;
-      if (pages > 0) {
-        const price = calculatePrice(pages, urgency as 'normal' | 'urgent' | 'very-urgent');
-        setFormData(prev => ({ ...prev, price: price.toString() }));
+      // Auto-calculate price when pages or urgency changes
+      if (field === 'pages' || field === 'urgencyLevel') {
+        const pages = parseInt(field === 'pages' ? value as string : newFormData.pages) || 0;
+        const urgency = field === 'urgencyLevel' ? value as string : newFormData.urgencyLevel;
+        
+        if (pages > 0) {
+          const price = calculatePrice(pages, urgency as 'normal' | 'urgent' | 'very-urgent');
+          newFormData.price = price.toString();
+        } else {
+          newFormData.price = '';
+        }
       }
-    }
+
+      return newFormData;
+    });
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -199,7 +209,6 @@ export function UploadNewOrderModal({ isOpen, onClose, onSubmit }: UploadNewOrde
         confirmationStatus: 'pending',
         paymentType: 'advance',
         clientMessages: [],
-        uploadedFiles: [],
         // Add urgency level tracking
         urgencyLevel: formData.urgencyLevel,
         // Add file attachments if any
@@ -457,30 +466,49 @@ export function UploadNewOrderModal({ isOpen, onClose, onSubmit }: UploadNewOrde
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="pages">Number of Pages *</Label>
-                  <Input
-                    id="pages"
-                    type="number"
-                    min="1"
-                    value={formData.pages}
-                    onChange={(e) => handleInputChange('pages', e.target.value)}
-                    placeholder="Enter page count"
-                    className={errors.pages ? 'border-red-500' : ''}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="pages"
+                      type="number"
+                      min="1"
+                      value={formData.pages}
+                      onChange={(e) => handleInputChange('pages', e.target.value)}
+                      placeholder="Enter page count"
+                      className={`${errors.pages ? 'border-red-500' : ''} ${formData.pages ? 'bg-blue-50 border-blue-300' : ''}`}
+                    />
+                    {formData.pages && parseInt(formData.pages) > 0 && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <Badge className="bg-blue-100 text-blue-800 text-xs">Auto-calc enabled</Badge>
+                      </div>
+                    )}
+                  </div>
                   {errors.pages && <p className="text-sm text-red-500">{errors.pages}</p>}
-                  <p className="text-xs text-gray-500">Word count will be auto-calculated (1 page = 275 words)</p>
+                  <p className="text-xs text-gray-500">
+                    📊 Automatically calculates word count (275 words/page) and price (350 KES/page)
+                  </p>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="words">Word Count</Label>
-                  <Input
-                    id="words"
-                    type="number"
-                    min="1"
-                    value={formData.words}
-                    onChange={(e) => handleInputChange('words', e.target.value)}
-                    placeholder="Auto-calculated from pages"
-                  />
-                  <p className="text-xs text-gray-500">You can manually override the auto-calculated value</p>
+                  <div className="relative">
+                    <Input
+                      id="words"
+                      type="number"
+                      min="1"
+                      value={formData.words}
+                      onChange={(e) => handleInputChange('words', e.target.value)}
+                      placeholder="Auto-calculated from pages"
+                      className={formData.words ? 'bg-green-50 border-green-300' : ''}
+                    />
+                    {formData.words && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <Badge className="bg-green-100 text-green-800 text-xs">Auto-calculated</Badge>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    ✨ Auto-calculated from pages (275 words/page). You can manually override if needed.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -497,19 +525,52 @@ export function UploadNewOrderModal({ isOpen, onClose, onSubmit }: UploadNewOrde
 
                 <div className="space-y-2">
                   <Label htmlFor="price">Price (KES) *</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    min="1"
-                    value={formData.price}
-                    onChange={(e) => handleInputChange('price', e.target.value)}
-                    placeholder="Auto-calculated from pages and urgency"
-                    className={errors.price ? 'border-red-500' : ''}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="price"
+                      type="number"
+                      min="1"
+                      value={formData.price}
+                      onChange={(e) => handleInputChange('price', e.target.value)}
+                      placeholder="Auto-calculated from pages and urgency"
+                      className={`${errors.price ? 'border-red-500' : ''} ${formData.price ? 'bg-green-50 border-green-300' : ''}`}
+                    />
+                    {formData.price && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <Badge className="bg-green-100 text-green-800 text-xs">Auto-calculated</Badge>
+                      </div>
+                    )}
+                  </div>
                   {errors.price && <p className="text-sm text-red-500">{errors.price}</p>}
+                  
+                  {/* Price Breakdown */}
+                  {formData.pages && parseInt(formData.pages) > 0 && (
+                    <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                      <div className="text-sm space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Base rate:</span>
+                          <span className="font-medium">{parseInt(formData.pages)} pages × 350 KES = {parseInt(formData.pages) * 350} KES</span>
+                        </div>
+                        {(() => {
+                          const urgencyLevel = URGENCY_LEVELS.find(u => u.value === formData.urgencyLevel);
+                          return urgencyLevel && urgencyLevel.multiplier > 1 && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-600">Urgency multiplier:</span>
+                              <span className="font-medium">× {urgencyLevel.multiplier} ({urgencyLevel.label})</span>
+                            </div>
+                          );
+                        })()}
+                        <Separator className="my-2" />
+                        <div className="flex justify-between items-center font-semibold text-lg">
+                          <span className="text-gray-800">Total Price:</span>
+                          <span className="text-green-600">{formData.price} KES</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   <p className="text-xs text-gray-500">
-                    Base: {formData.pages ? `${parseInt(formData.pages) * 350} KES` : '0 KES'} 
-                    {urgencyLevel && urgencyLevel.multiplier > 1 && ` × ${urgencyLevel.multiplier} = ${formData.price} KES`}
+                    💡 Price is automatically calculated based on pages (350 KES/page) and urgency level. You can manually adjust if needed.
                   </p>
                 </div>
               </div>

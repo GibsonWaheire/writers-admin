@@ -618,7 +618,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           writerId: updatedOrder.writerId,
           assignedWriter: updatedOrder.assignedWriter,
           updatedFields: Object.keys(updates),
-          timestamp: updatedAt
+          timestamp: updatedAt,
+          fullUpdatedOrder: updatedOrder
         });
         
         return updatedOrder;
