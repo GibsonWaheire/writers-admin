@@ -43,7 +43,9 @@ export default function AdminUsersPage() {
     inviteWriter,
     filterWriters,
     sendWhatsAppMessage,
-    sendEmailMessage
+    sendEmailMessage,
+    approveWriterApplication,
+    rejectWriterApplication
   } = useUsers();
   const { getWriterFinancials } = useFinancial();
   const { getWriterStats: getReviewStats } = useReviews();
@@ -122,11 +124,26 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleApproveWriter = (writerId: string) => {
+    const notes = prompt('Add approval notes (optional):');
+    approveWriterApplication(writerId, 'admin-1', notes || undefined);
+  };
+
+  const handleRejectWriter = (writerId: string) => {
+    const reason = prompt('Enter rejection reason:');
+    if (reason) {
+      const notes = prompt('Add additional notes (optional):');
+      rejectWriterApplication(writerId, reason, 'admin-1', notes || undefined);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const variants = {
       active: "bg-green-100 text-green-800",
       suspended: "bg-red-100 text-red-800",
       pending: "bg-yellow-100 text-yellow-800",
+      application_submitted: "bg-blue-100 text-blue-800",
+      rejected: "bg-red-100 text-red-800",
       inactive: "bg-gray-100 text-gray-800"
     };
     return variants[status as keyof typeof variants] || "bg-gray-100 text-gray-800";
@@ -244,19 +261,21 @@ export default function AdminUsersPage() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             >
               <option value="">All Status</option>
               <option value="active">Active</option>
               <option value="suspended">Suspended</option>
               <option value="pending">Pending</option>
+              <option value="application_submitted">Applications</option>
+              <option value="rejected">Rejected</option>
               <option value="inactive">Inactive</option>
             </select>
             
             <select
               value={selectedSpecialization}
               onChange={(e) => setSelectedSpecialization(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             >
               <option value="">All Specializations</option>
               {allSpecializations.map(spec => (
@@ -316,7 +335,10 @@ export default function AdminUsersPage() {
                               )}
                             </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-3">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
+                              <div>
+                                <strong>Writer ID:</strong> {writer.id}
+                              </div>
                               <div>
                                 <strong>Email:</strong> {writer.email}
                                 {getVerificationIcon(writer.isEmailVerified)}
@@ -391,7 +413,27 @@ export default function AdminUsersPage() {
                             </Button>
                           )}
                           
-                          {writer.status === 'active' ? (
+                          {writer.status === 'application_submitted' ? (
+                            <>
+                              <Button 
+                                size="sm" 
+                                onClick={() => handleApproveWriter(writer.id)}
+                                className="bg-green-600 hover:bg-green-700"
+                                title="Approve Application"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleRejectWriter(writer.id)}
+                                className="text-red-600 hover:bg-red-50"
+                                title="Reject Application"
+                              >
+                                <Ban className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : writer.status === 'active' ? (
                             <Button 
                               size="sm" 
                               variant="outline"
@@ -400,7 +442,7 @@ export default function AdminUsersPage() {
                             >
                               <Ban className="h-4 w-4" />
                             </Button>
-                          ) : (
+                          ) : writer.status === 'suspended' ? (
                             <Button 
                               size="sm" 
                               onClick={() => handleActivateWriter(writer.id)}
@@ -408,7 +450,7 @@ export default function AdminUsersPage() {
                             >
                               <CheckCircle className="h-4 w-4" />
                             </Button>
-                          )}
+                          ) : null}
                         </div>
                       </div>
 
@@ -533,7 +575,7 @@ export default function AdminUsersPage() {
       {/* Writer Detail Modal */}
       {selectedWriter && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-3">
@@ -559,6 +601,10 @@ export default function AdminUsersPage() {
                   <h4 className="font-semibold mb-3">Contact Information</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
+                      <span className="font-medium">Writer ID:</span>
+                      <code className="bg-gray-100 px-2 py-1 rounded text-xs">{selectedWriter.id}</code>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4" />
                       {selectedWriter.email}
                       {getVerificationIcon(selectedWriter.isEmailVerified)}
@@ -570,6 +616,12 @@ export default function AdminUsersPage() {
                         {getVerificationIcon(selectedWriter.isPhoneVerified)}
                       </div>
                     )}
+                    {selectedWriter.nationalId && (
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">National ID:</span>
+                        <code className="bg-gray-100 px-2 py-1 rounded text-xs">{selectedWriter.nationalId}</code>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <Globe className="h-4 w-4" />
                       {selectedWriter.country} • {selectedWriter.timezone}
@@ -578,6 +630,12 @@ export default function AdminUsersPage() {
                       <Calendar className="h-4 w-4" />
                       Joined {new Date(selectedWriter.createdAt).toLocaleDateString()}
                     </div>
+                    {selectedWriter.applicationSubmittedAt && (
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Application: {new Date(selectedWriter.applicationSubmittedAt).toLocaleDateString()}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -619,13 +677,103 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
+              {/* Education */}
+              {selectedWriter.education && (
+                <div>
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <GraduationCap className="h-4 w-4" />
+                    Education
+                  </h4>
+                  <div className="bg-gray-50 p-3 rounded-lg space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Level:</span>
+                      <span className="font-medium capitalize">{selectedWriter.education.level?.replace('_', ' ')}</span>
+                    </div>
+                    {selectedWriter.education.institution && (
+                      <div className="flex justify-between">
+                        <span>Institution:</span>
+                        <span className="font-medium">{selectedWriter.education.institution}</span>
+                      </div>
+                    )}
+                    {selectedWriter.education.fieldOfStudy && (
+                      <div className="flex justify-between">
+                        <span>Field of Study:</span>
+                        <span className="font-medium">{selectedWriter.education.fieldOfStudy}</span>
+                      </div>
+                    )}
+                    {selectedWriter.education.graduationYear && (
+                      <div className="flex justify-between">
+                        <span>Graduation Year:</span>
+                        <span className="font-medium">{selectedWriter.education.graduationYear}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Bio */}
               {selectedWriter.bio && (
                 <div>
-                  <h4 className="font-semibold mb-3">Bio</h4>
+                  <h4 className="font-semibold mb-3">Bio & Writing Philosophy</h4>
                   <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">
                     {selectedWriter.bio}
                   </p>
+                </div>
+              )}
+
+              {/* Application Status */}
+              {(selectedWriter.status === 'application_submitted' || selectedWriter.status === 'rejected') && (
+                <div>
+                  <h4 className="font-semibold mb-3">Application Status</h4>
+                  <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge className={getStatusBadge(selectedWriter.status)}>
+                        {selectedWriter.status.replace('_', ' ').toUpperCase()}
+                      </Badge>
+                      {selectedWriter.applicationSubmittedAt && (
+                        <span className="text-sm text-gray-600">
+                          Submitted {new Date(selectedWriter.applicationSubmittedAt).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    {selectedWriter.rejectionReason && (
+                      <div className="text-red-700">
+                        <strong>Rejection Reason:</strong> {selectedWriter.rejectionReason}
+                      </div>
+                    )}
+                    {selectedWriter.applicationNotes && (
+                      <div className="text-gray-700 mt-2">
+                        <strong>Admin Notes:</strong> {selectedWriter.applicationNotes}
+                      </div>
+                    )}
+                    {selectedWriter.status === 'application_submitted' && (
+                      <div className="flex gap-2 mt-3">
+                        <Button 
+                          size="sm" 
+                          onClick={() => {
+                            handleApproveWriter(selectedWriter.id);
+                            setSelectedWriter(null);
+                          }}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Approve Application
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            handleRejectWriter(selectedWriter.id);
+                            setSelectedWriter(null);
+                          }}
+                          className="text-red-600 hover:bg-red-50"
+                        >
+                          <Ban className="h-4 w-4 mr-2" />
+                          Reject Application
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

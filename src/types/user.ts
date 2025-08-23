@@ -6,7 +6,7 @@ export interface Writer {
   avatar?: string;
   
   // Account status
-  status: 'active' | 'suspended' | 'pending' | 'inactive';
+  status: 'active' | 'suspended' | 'pending' | 'inactive' | 'application_submitted' | 'rejected';
   role: 'writer' | 'admin' | 'super_admin';
   
   // Profile information
@@ -15,6 +15,52 @@ export interface Writer {
   languages: string[];
   timezone: string;
   country: string;
+  
+  // Identity and Application Information
+  nationalId?: string; // National ID or passport number
+  dateOfBirth?: string;
+  gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    country: string;
+  };
+  
+  // Education and Professional Background
+  education?: {
+    level: 'high_school' | 'diploma' | 'bachelors' | 'masters' | 'phd' | 'other';
+    institution?: string;
+    fieldOfStudy?: string;
+    graduationYear?: number;
+    gpa?: string;
+  };
+  
+  // Professional Experience
+  experience?: {
+    yearsOfWriting?: number;
+    previousPlatforms?: string[];
+    writingSamples?: Array<{
+      title: string;
+      subject: string;
+      url?: string;
+      description?: string;
+    }>;
+    certifications?: Array<{
+      name: string;
+      issuer: string;
+      dateObtained: string;
+      expiryDate?: string;
+    }>;
+  };
+  
+  // Application specific fields
+  applicationSubmittedAt?: string;
+  applicationReviewedAt?: string;
+  applicationReviewedBy?: string;
+  rejectionReason?: string;
+  applicationNotes?: string;
   
   // Performance metrics
   rating: number; // Average rating
@@ -115,7 +161,7 @@ export interface WriterActivity {
 }
 
 export interface WriterFilter {
-  status?: 'active' | 'suspended' | 'pending' | 'inactive';
+  status?: 'active' | 'suspended' | 'pending' | 'inactive' | 'application_submitted' | 'rejected';
   specialization?: string;
   country?: string;
   ratingRange?: {

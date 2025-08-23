@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { db } from '../services/database';
 
 interface User {
   id: string;
@@ -123,7 +124,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const foundUser = MOCK_USERS.find(u => u.email === email && u.password === password);
+      const users = await db.find('users');
+      const foundUser = users.find(u => u.email === email && u.password === password);
       
       if (foundUser) {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -165,13 +167,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Check if user already exists
-      if (MOCK_USERS.find(u => u.email === email)) {
+      const users = await db.find('users');
+      if (users.find(u => u.email === email)) {
         return { success: false, error: 'User with this email already exists' };
       }
       
-      // Create new user (default role is writer)
-      const newUser: User = {
+      // Create new user (default role is writer, but pending application)
+      const newUserWithPassword = {
         id: Date.now().toString(),
+        name,
+        email,
+        password: _password,
+        role: 'writer' as const
+      };
+      
+      // Save to database
+      await db.create('users', newUserWithPassword);
+      
+      const newUser: User = {
+        id: newUserWithPassword.id,
         name,
         email,
         role: 'writer'
@@ -186,7 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       setUser(newUser);
-      return { success: true, user: newUser };
+      return { success: true, user: newUser, requiresApplication: true };
     } catch {
       return { success: false, error: 'An error occurred during signup' };
     } finally {

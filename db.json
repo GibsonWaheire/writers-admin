@@ -1,0 +1,408 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "name": "John Writer",
+      "email": "writer@example.com",
+      "password": "password123",
+      "role": "writer"
+    },
+    {
+      "id": "2",
+      "name": "Admin User",
+      "email": "admin@example.com",
+      "password": "admin123",
+      "role": "admin"
+    }
+  ],
+  "writers": [
+    {
+      "id": "writer-1",
+      "email": "john.doe@example.com",
+      "name": "John Doe",
+      "phone": "+254712345678",
+      "status": "active",
+      "role": "writer",
+      "nationalId": "32456789",
+      "dateOfBirth": "1990-05-15",
+      "gender": "male",
+      "address": {
+        "street": "123 Moi Avenue",
+        "city": "Nairobi",
+        "state": "Nairobi County",
+        "zipCode": "00100",
+        "country": "Kenya"
+      },
+      "education": {
+        "level": "masters",
+        "institution": "University of Nairobi",
+        "fieldOfStudy": "Business Administration",
+        "graduationYear": 2018,
+        "gpa": "3.8/4.0"
+      },
+      "experience": {
+        "yearsOfWriting": 5,
+        "previousPlatforms": ["Upwork", "Freelancer"],
+        "writingSamples": [
+          {
+            "title": "Marketing Strategy Analysis",
+            "subject": "Business",
+            "description": "Comprehensive marketing analysis for tech startup"
+          }
+        ],
+        "certifications": [
+          {
+            "name": "Academic Writing Certification",
+            "issuer": "Writing Institute",
+            "dateObtained": "2020-03-15"
+          }
+        ]
+      },
+      "specializations": ["Business Administration", "Marketing", "Psychology"],
+      "languages": ["English", "Swahili"],
+      "timezone": "Africa/Nairobi",
+      "country": "Kenya",
+      "rating": 4.8,
+      "totalReviews": 24,
+      "completedOrders": 18,
+      "totalEarnings": 63000,
+      "successRate": 94.7,
+      "maxConcurrentOrders": 3,
+      "preferredPaymentMethod": "mobile_money",
+      "paymentDetails": {
+        "mobileMoneyNumber": "+254712345678"
+      },
+      "createdAt": "2024-01-01T00:00:00Z",
+      "lastActiveAt": "2024-01-25T10:30:00Z",
+      "applicationSubmittedAt": "2024-01-01T08:00:00Z",
+      "applicationReviewedAt": "2024-01-01T12:00:00Z",
+      "applicationReviewedBy": "admin-1",
+      "emailNotifications": true,
+      "smsNotifications": true,
+      "whatsappNotifications": true,
+      "isEmailVerified": true,
+      "isPhoneVerified": true,
+      "isDocumentVerified": true,
+      "bio": "Experienced academic writer specializing in business and psychology papers. Over 3 years of experience in academic writing with a focus on delivering high-quality, well-researched content.",
+      "documents": [
+        {
+          "type": "id",
+          "filename": "national_id.jpg",
+          "url": "/documents/john_doe_id.jpg",
+          "uploadedAt": "2024-01-01T10:00:00Z",
+          "status": "approved"
+        },
+        {
+          "type": "certificate",
+          "filename": "degree_certificate.pdf",
+          "url": "/documents/john_doe_degree.pdf",
+          "uploadedAt": "2024-01-01T10:05:00Z",
+          "status": "approved"
+        }
+      ]
+    },
+    {
+      "id": "writer-2",
+      "email": "jane.smith@example.com",
+      "name": "Jane Smith",
+      "phone": "+254798765432",
+      "status": "application_submitted",
+      "role": "writer",
+      "nationalId": "28765432",
+      "dateOfBirth": "1992-08-22",
+      "gender": "female",
+      "address": {
+        "street": "456 Kimathi Street",
+        "city": "Mombasa",
+        "state": "Mombasa County",
+        "zipCode": "80100",
+        "country": "Kenya"
+      },
+      "education": {
+        "level": "bachelors",
+        "institution": "Kenyatta University",
+        "fieldOfStudy": "English Literature",
+        "graduationYear": 2020,
+        "gpa": "3.6/4.0"
+      },
+      "experience": {
+        "yearsOfWriting": 3,
+        "previousPlatforms": ["Fiverr"],
+        "writingSamples": [
+          {
+            "title": "Literary Analysis of Contemporary Fiction",
+            "subject": "Literature",
+            "description": "Analysis of modern African literature themes"
+          }
+        ],
+        "certifications": []
+      },
+      "specializations": ["Literature", "Creative Writing", "English"],
+      "languages": ["English", "Swahili"],
+      "timezone": "Africa/Nairobi",
+      "country": "Kenya",
+      "rating": 0,
+      "totalReviews": 0,
+      "completedOrders": 0,
+      "totalEarnings": 0,
+      "successRate": 0,
+      "maxConcurrentOrders": 2,
+      "createdAt": "2024-01-20T00:00:00Z",
+      "applicationSubmittedAt": "2024-01-20T14:30:00Z",
+      "emailNotifications": true,
+      "smsNotifications": true,
+      "whatsappNotifications": false,
+      "isEmailVerified": false,
+      "isPhoneVerified": false,
+      "isDocumentVerified": false,
+      "bio": "Passionate about literature and creative writing. Recent graduate with strong research and analytical skills. Eager to contribute quality academic content."
+    },
+    {
+      "id": "writer-3",
+      "email": "mike.johnson@example.com",
+      "name": "Mike Johnson",
+      "phone": "+254723456789",
+      "status": "rejected",
+      "role": "writer",
+      "nationalId": "31234567",
+      "dateOfBirth": "1988-12-10",
+      "gender": "male",
+      "address": {
+        "street": "789 Uhuru Highway",
+        "city": "Kisumu",
+        "state": "Kisumu County",
+        "zipCode": "40100",
+        "country": "Kenya"
+      },
+      "education": {
+        "level": "diploma",
+        "institution": "Technical College",
+        "fieldOfStudy": "Computer Science",
+        "graduationYear": 2015
+      },
+      "experience": {
+        "yearsOfWriting": 1,
+        "previousPlatforms": [],
+        "writingSamples": [],
+        "certifications": []
+      },
+      "specializations": ["Computer Science", "Technology"],
+      "languages": ["English"],
+      "timezone": "Africa/Nairobi",
+      "country": "Kenya",
+      "rating": 0,
+      "totalReviews": 0,
+      "completedOrders": 0,
+      "totalEarnings": 0,
+      "successRate": 0,
+      "maxConcurrentOrders": 2,
+      "createdAt": "2024-01-18T00:00:00Z",
+      "applicationSubmittedAt": "2024-01-18T16:00:00Z",
+      "applicationReviewedAt": "2024-01-19T10:00:00Z",
+      "applicationReviewedBy": "admin-1",
+      "rejectionReason": "Insufficient writing samples and experience",
+      "applicationNotes": "Candidate needs more writing experience before reapplying",
+      "emailNotifications": true,
+      "smsNotifications": true,
+      "whatsappNotifications": false,
+      "isEmailVerified": true,
+      "isPhoneVerified": false,
+      "isDocumentVerified": false,
+      "bio": "New to academic writing but eager to learn and grow in this field."
+    }
+  ],
+  "writerInvites": [
+    {
+      "id": "INV-001",
+      "email": "newwriter@example.com",
+      "phone": "+254712000000",
+      "invitedBy": "admin-1",
+      "invitedAt": "2024-01-23T10:00:00Z",
+      "status": "sent",
+      "expiresAt": "2024-01-30T10:00:00Z",
+      "token": "inv_abc123def456",
+      "personalizedMessage": "We'd love to have you join our writing platform!"
+    }
+  ],
+  "writerActivities": [
+    {
+      "writerId": "writer-1",
+      "writerName": "John Doe",
+      "activityType": "login",
+      "description": "Writer logged into the platform",
+      "timestamp": "2024-01-25T10:30:00Z",
+      "metadata": {}
+    },
+    {
+      "writerId": "writer-1",
+      "writerName": "John Doe",
+      "activityType": "order_submitted",
+      "description": "Submitted order ORD-001",
+      "timestamp": "2024-01-25T09:15:00Z",
+      "metadata": {
+        "orderId": "ORD-001"
+      }
+    }
+  ],
+  "orders": [
+    {
+      "id": "ORD-001",
+      "title": "Research Paper on Climate Change",
+      "description": "Comprehensive analysis of climate change impacts on coastal communities",
+      "subject": "Environmental Science",
+      "discipline": "Environmental Science",
+      "paperType": "Research Paper",
+      "pages": 15,
+      "words": 3750,
+      "format": "APA",
+      "price": 450,
+      "priceKES": 67500,
+      "cpp": 4500,
+      "totalPriceKES": 67500,
+      "deadline": "2024-02-15T23:59:59Z",
+      "status": "Available",
+      "assignedWriter": null,
+      "writerId": null,
+      "createdAt": "2024-01-15T00:00:00Z",
+      "updatedAt": "2024-01-15T00:00:00Z",
+      "isOverdue": false,
+      "confirmationStatus": "pending",
+      "paymentType": "advance",
+      "clientMessages": [
+        {
+          "id": "msg-1",
+          "sender": "client",
+          "message": "Need this for academic publication",
+          "timestamp": "2024-01-15T10:00:00Z"
+        }
+      ],
+      "uploadedFiles": [],
+      "additionalInstructions": "Include recent studies from 2020-2024"
+    },
+    {
+      "id": "ORD-002",
+      "title": "Business Plan for Tech Startup",
+      "description": "Complete business plan for a fintech startup targeting African markets",
+      "subject": "Business Administration",
+      "discipline": "Business",
+      "paperType": "Business Plan",
+      "pages": 25,
+      "words": 6250,
+      "format": "APA",
+      "price": 750,
+      "priceKES": 112500,
+      "cpp": 4500,
+      "totalPriceKES": 112500,
+      "deadline": "2024-02-20T23:59:59Z",
+      "status": "In Progress",
+      "assignedWriter": "writer-1",
+      "writerId": "writer-1",
+      "createdAt": "2024-01-16T00:00:00Z",
+      "updatedAt": "2024-01-18T00:00:00Z",
+      "isOverdue": false,
+      "confirmationStatus": "confirmed",
+      "paymentType": "advance",
+      "clientMessages": [
+        {
+          "id": "msg-2",
+          "sender": "client",
+          "message": "Focus on mobile payment solutions",
+          "timestamp": "2024-01-16T14:30:00Z"
+        }
+      ],
+      "uploadedFiles": [],
+      "additionalInstructions": "Include market research for Kenya, Uganda, and Tanzania"
+    }
+  ],
+  "podOrders": [
+    {
+      "id": "POD-001",
+      "title": "Business Strategy Analysis - Retail Sector",
+      "description": "Comprehensive analysis of retail business strategies including market positioning, competitive analysis, and growth recommendations",
+      "subject": "Business Strategy",
+      "discipline": "Business",
+      "paperType": "Business Plan",
+      "pages": 18,
+      "words": 4500,
+      "format": "APA",
+      "price": 0,
+      "priceKES": 0,
+      "cpp": 350,
+      "deadline": "2024-01-26T23:59:59Z",
+      "deadlineHours": 24,
+      "status": "Available",
+      "createdAt": "2024-01-19T00:00:00Z",
+      "updatedAt": "2024-01-19T00:00:00Z",
+      "isOverdue": false,
+      "podAmount": 6300,
+      "clientMessages": [],
+      "uploadedFiles": [],
+      "additionalInstructions": "Focus on customer experience improvements and operational efficiency"
+    }
+  ],
+  "reviews": [
+    {
+      "id": "REV-001",
+      "orderId": "ORD-COMPLETED-001",
+      "writerId": "writer-1",
+      "writerName": "John Doe",
+      "clientId": "client-1",
+      "clientName": "Sarah Johnson",
+      "rating": 5,
+      "comment": "Excellent work! The marketing strategy was comprehensive and well-researched. John delivered on time and exceeded expectations.",
+      "categories": [
+        { "category": "quality", "rating": 5 },
+        { "category": "communication", "rating": 5 },
+        { "category": "timeliness", "rating": 5 },
+        { "category": "professionalism", "rating": 5 },
+        { "category": "overall", "rating": 5 }
+      ],
+      "status": "published",
+      "createdAt": "2024-01-22T12:00:00Z",
+      "updatedAt": "2024-01-22T12:00:00Z",
+      "isVerified": true,
+      "orderTitle": "Marketing Strategy for Social Media Platform",
+      "orderPages": 6,
+      "orderValue": 2100
+    }
+  ],
+  "financial": {
+    "invoices": [],
+    "fines": [],
+    "payments": [],
+    "clientPayments": [],
+    "platformFunds": [
+      {
+        "id": "FUND-001",
+        "amount": 500000,
+        "currency": "KES",
+        "source": "bank_transfer",
+        "addedBy": "admin-1",
+        "addedAt": "2024-01-01T00:00:00Z",
+        "reference": "BANK-REF-001",
+        "notes": "Initial platform funding",
+        "status": "confirmed"
+      }
+    ],
+    "withdrawalRequests": [
+      {
+        "id": "WD-001",
+        "writerId": "writer-1",
+        "writerName": "John Doe",
+        "amount": 15000,
+        "currency": "KES",
+        "requestedAt": "2024-01-25T10:00:00Z",
+        "status": "pending",
+        "method": "mobile_money",
+        "accountDetails": {
+          "mobileNumber": "+254712345678"
+        },
+        "notes": "First withdrawal request"
+      }
+    ],
+    "transactionLogs": []
+  },
+  "notifications": [],
+  "messages": [],
+  "settings": {}
+}

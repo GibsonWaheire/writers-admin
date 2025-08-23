@@ -241,8 +241,12 @@ export function SignUpModal({ isOpen, onClose, onSwitchToSignIn }: SignUpModalPr
     
     if (result.success && result.user) {
       onClose();
-      // New users are always writers, redirect to writer dashboard
-      navigate('/writer');
+      // Check if user needs to complete application
+      if (result.requiresApplication) {
+        navigate('/writer/application');
+      } else {
+        navigate('/writer');
+      }
     } else {
       setError(result.error || 'Signup failed');
     }
