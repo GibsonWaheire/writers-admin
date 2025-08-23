@@ -23,6 +23,7 @@ import {
 import { OrderCard } from "../components/OrderCard";
 import { OrderViewModal } from "../components/OrderViewModal";
 import { OrderAssignmentModal } from "../components/OrderAssignmentModal";
+import { AdminOrdersTable } from "../components/AdminOrdersTable";
 import { useOrders } from "../contexts/OrderContext";
 import { useAuth } from "../contexts/AuthContext";
 import type { Order } from "../types/order";
@@ -361,7 +362,24 @@ export default function AdminOrdersPage() {
         </CardContent>
       </Card>
 
-      {/* Admin Orders Tabs */}
+      {/* All Orders Table - Comprehensive View */}
+      <AdminOrdersTable
+        orders={orders}
+        onView={handleViewOrder}
+        onAction={(action, orderId, additionalData) => {
+          if (action === 'make_available') {
+            handleDirectMakeAvailable(orderId);
+          } else {
+            handleOrderActionLocal(action, orderId, additionalData);
+          }
+        }}
+        onAssign={(order) => {
+          setOrderToAssign(order);
+          setShowAssignmentModal(true);
+        }}
+      />
+
+      {/* Legacy Tabs - Keep for specific workflows if needed */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="under-review" className="flex items-center gap-2">

@@ -22,7 +22,7 @@ import type { Order } from "../types/order";
 export default function WriterDashboard() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { orders, getWriterActiveOrders, getWriterOrderStats } = useOrders();
+  const { orders, getWriterActiveOrders, getWriterOrderStats, getAvailableOrders } = useOrders();
   const { wallet, getMonthlyEarnings } = useWallet();
   const navigate = useNavigate();
   
@@ -47,6 +47,7 @@ export default function WriterDashboard() {
       change: `+KES ${thisMonthEarnings.toLocaleString()} this month`,
       changeType: thisMonthEarnings > 0 ? "positive" as const : "neutral" as const,
       gradient: true,
+      onClick: () => navigate('/wallet'), // Direct navigation
       details: {
         description: "Your current available balance for withdrawals and spending.",
         items: [
@@ -67,6 +68,7 @@ export default function WriterDashboard() {
       icon: FileText,
       change: `${writerStats.inProgress} active now`,
       changeType: "positive" as const,
+      onClick: () => navigate('/orders'), // Direct navigation
       details: {
         description: "Complete overview of all your writing assignments.",
         items: [
@@ -77,7 +79,7 @@ export default function WriterDashboard() {
         ],
         action: {
           label: "View All Orders",
-          onClick: () => navigate('/my-orders')
+          onClick: () => navigate('/orders')
         }
       }
     },
@@ -87,6 +89,7 @@ export default function WriterDashboard() {
       icon: Clock,
       change: writerStats.pending > 0 ? `${writerStats.pending} awaiting review` : "All caught up!",
       changeType: writerStats.pending > 0 ? "neutral" as const : "positive" as const,
+      onClick: () => navigate('/orders'), // Navigate to orders page
       details: {
         description: writerStats.pending > 0 
           ? "Orders waiting for client review and approval." 
@@ -101,7 +104,7 @@ export default function WriterDashboard() {
         ],
         action: writerStats.pending > 0 ? {
           label: "View Pending Orders",
-          onClick: () => navigate('/my-orders')
+          onClick: () => navigate('/orders')
         } : {
           label: "Browse New Orders",
           onClick: () => navigate('/orders')
@@ -119,6 +122,7 @@ export default function WriterDashboard() {
         return diffDays <= 7;
       }).length} this week`,
       changeType: "positive" as const,
+      onClick: () => navigate('/orders'), // Navigate to orders page
       details: {
         description: "Successfully completed assignments and their earnings.",
         items: [
@@ -134,7 +138,7 @@ export default function WriterDashboard() {
         ],
         action: {
           label: "View Completed Orders",
-          onClick: () => navigate('/my-orders')
+          onClick: () => navigate('/orders')
         }
       }
     },
@@ -164,6 +168,7 @@ export default function WriterDashboard() {
       icon: TrendingUp,
       change: earningsChange !== 0 ? `${earningsChange > 0 ? '+' : ''}${earningsChange}% from last month` : "Starting fresh!",
       changeType: earningsChange > 0 ? "positive" as const : earningsChange < 0 ? "negative" as const : "neutral" as const,
+      onClick: () => navigate('/wallet'), // Direct navigation
       details: {
         description: "Your earnings performance for the current month.",
         items: [
@@ -180,9 +185,10 @@ export default function WriterDashboard() {
     }
   ];
 
-  // Get recent orders (last 5 orders)
-  const recentOrders = writerOrders
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  // Get recent orders - show recent available orders for writers to pick
+  const availableOrders = getAvailableOrders();
+  const recentOrders = availableOrders
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 
   const getStatusBadge = (status: string): "default" | "secondary" | "outline" | "destructive" => {
@@ -252,6 +258,7 @@ export default function WriterDashboard() {
             change={stat.change}
             changeType={stat.changeType}
             gradient={stat.gradient}
+            onClick={stat.onClick} // Pass onClick handler
             details={stat.details}
           />
         ))}
@@ -265,9 +272,9 @@ export default function WriterDashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <span className="text-xl">📄</span>
-                Recent Orders
+                Recent Available Orders
                 {recentOrders.length === 0 && (
-                  <span className="text-sm text-gray-500 font-normal">(No orders yet)</span>
+                  <span className="text-sm text-gray-500 font-normal">(No available orders)</span>
                 )}
               </CardTitle>
             </CardHeader>
@@ -320,12 +327,12 @@ export default function WriterDashboard() {
               ) : (
                 <div className="text-center py-8 text-gray-500">
                   <span className="text-4xl mb-4 block">📝</span>
-                  <p>No orders yet. Start by browsing available orders!</p>
+                  <p>No available orders right now. Check back later or browse all orders!</p>
                   <Button 
                     className="mt-4"
                     onClick={() => navigate('/orders')}
                   >
-                    Browse Orders
+                    Browse All Orders
                   </Button>
                 </div>
               )}

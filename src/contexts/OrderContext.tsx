@@ -365,6 +365,17 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           newStatus = 'Assigned';
           updates.writerId = additionalData?.writerId || 'unknown';
           updates.assignedWriter = additionalData?.writerName || 'Unknown Writer';
+          updates.assignedAt = new Date().toISOString();
+          updates.pickedBy = 'writer';
+          
+          console.log('🎯 OrderContext: Order picked by writer:', {
+            orderId,
+            oldStatus,
+            newStatus: 'Assigned',
+            writerId: updates.writerId,
+            writerName: updates.assignedWriter,
+            assignedAt: updates.assignedAt
+          });
           break;
           
         case 'assign':
@@ -406,14 +417,27 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             updates.uploadedFiles = [...order.uploadedFiles, ...additionalData.files];
           }
           if (additionalData?.notes) {
-            updates.adminReviewNotes = additionalData.notes;
+            updates.submissionNotes = additionalData.notes;
           }
+          if (additionalData?.estimatedCompletionTime) {
+            updates.estimatedCompletionTime = additionalData.estimatedCompletionTime;
+          }
+          
+          console.log('📤 OrderContext: Order submitted to admin:', {
+            orderId,
+            oldStatus,
+            newStatus: 'Submitted',
+            writerId: order.writerId,
+            filesCount: additionalData?.files ? (additionalData.files as Array<unknown>).length : 0,
+            submittedAt: updates.submittedToAdminAt
+          });
           break;
           
         case 'approve':
-          newStatus = 'Approved';
+          newStatus = 'Completed'; // When admin approves, order goes to Completed
           updates.adminReviewedAt = new Date().toISOString();
           updates.adminReviewedBy = additionalData?.adminId || 'admin';
+          updates.completedAt = new Date().toISOString();
           if (additionalData?.notes) {
             updates.adminReviewNotes = additionalData.notes;
           }
@@ -422,6 +446,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             // This will be handled by the wallet context integration
             // const orderAmount = order.pages * 350;
           }
+          console.log('✅ OrderContext: Order approved and completed:', {
+            orderId,
+            oldStatus,
+            newStatus: 'Completed',
+            writerId: order.writerId,
+            completedAt: updates.completedAt
+          });
           break;
           
         case 'reject':
