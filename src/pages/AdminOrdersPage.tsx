@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { OrderCard } from "../components/OrderCard";
 import { OrderViewModal } from "../components/OrderViewModal";
+import { OrderAssignmentModal } from "../components/OrderAssignmentModal";
 import { useOrders } from "../contexts/OrderContext";
 import { useAuth } from "../contexts/AuthContext";
 import type { Order } from "../types/order";
@@ -33,6 +34,8 @@ export default function AdminOrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [orderToAssign, setOrderToAssign] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState("under-review");
   const [filterDiscipline, setFilterDiscipline] = useState<string>("");
   const [filterPaperType, setFilterPaperType] = useState<string>("");
@@ -108,6 +111,20 @@ export default function AdminOrdersPage() {
   };
 
   const handleOrderActionLocal = (action: string, orderId: string, additionalData?: Record<string, unknown>) => {
+    if (action === 'assign') {
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+        setOrderToAssign(order);
+        setShowAssignmentModal(true);
+      }
+      return;
+    }
+    
+    if (action === 'make_available') {
+      handleOrderAction('make_available', orderId, additionalData);
+      return;
+    }
+    
     handleOrderAction(action, orderId, additionalData);
     setIsModalOpen(false);
     setSelectedOrder(null);
@@ -116,6 +133,49 @@ export default function AdminOrdersPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedOrder(null);
+  };
+
+  const handleAssignToWriter = (writerId: string, notes?: string) => {
+    if (orderToAssign) {
+      // Get the actual writer name from the OrderAssignmentModal's MOCK_WRITERS
+      // In a real app, this would come from your backend API
+      const writerNames: Record<string, string> = {
+        'writer-1': 'John Doe',
+        'writer-2': 'Jane Smith', 
+        'writer-3': 'Mike Johnson',
+        'writer-4': 'Sarah Wilson'
+      };
+      
+      const writerName = writerNames[writerId] || 'Unknown Writer';
+      
+      console.log('🔄 Admin assigning order:', {
+        orderId: orderToAssign.id,
+        writerId,
+        writerName,
+        notes
+      });
+      
+      handleOrderAction('assign', orderToAssign.id, { 
+        writerId, 
+        writerName,
+        notes 
+      });
+      setShowAssignmentModal(false);
+      setOrderToAssign(null);
+    }
+  };
+
+  const handleMakeAvailable = (notes?: string) => {
+    if (orderToAssign) {
+      console.log('🔄 Admin making order available:', {
+        orderId: orderToAssign.id,
+        notes
+      });
+      
+      handleOrderAction('make_available', orderToAssign.id, { notes });
+      setShowAssignmentModal(false);
+      setOrderToAssign(null);
+    }
   };
 
   // Get unique disciplines and paper types for filters
@@ -541,6 +601,20 @@ export default function AdminOrdersPage() {
           userRole={userRole}
           onAction={handleOrderActionLocal}
           activeOrdersCount={0}
+        />
+      )}
+
+      {/* Order Assignment Modal */}
+      {orderToAssign && (
+        <OrderAssignmentModal
+          isOpen={showAssignmentModal}
+          onClose={() => {
+            setShowAssignmentModal(false);
+            setOrderToAssign(null);
+          }}
+          order={orderToAssign}
+          onAssign={handleAssignToWriter}
+          onMakeAvailable={handleMakeAvailable}
         />
       )}
     </div>

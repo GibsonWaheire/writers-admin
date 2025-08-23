@@ -251,22 +251,112 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         }
       ],
       additionalInstructions: 'Focus on companies that successfully adapted to e-commerce'
+    },
+    // Add some test orders for admin assignment testing
+    {
+      id: 'ORD-TEST-001',
+      title: 'Marketing Strategy Analysis',
+      description: 'Comprehensive marketing strategy analysis for a new product launch in the technology sector',
+      subject: 'Marketing',
+      discipline: 'Business Administration',
+      paperType: 'Analysis',
+      pages: 8,
+      words: 2000,
+      format: 'APA',
+      price: 280,
+      priceKES: 28000,
+      cpp: 350,
+      totalPriceKES: 28000,
+      deadline: '2024-02-25',
+      status: 'Available',
+      assignedWriter: undefined,
+      writerId: undefined,
+      createdAt: '2024-01-20',
+      updatedAt: '2024-01-20',
+      isOverdue: false,
+      confirmationStatus: 'pending',
+      paymentType: 'advance',
+      clientMessages: [],
+      uploadedFiles: [],
+      additionalInstructions: 'Focus on digital marketing strategies and social media presence',
+      requiresAdminApproval: false,
+      urgencyLevel: 'normal'
+    },
+    {
+      id: 'ORD-TEST-002',
+      title: 'Data Science Project Report',
+      description: 'Machine learning model development and evaluation report for predictive analytics',
+      subject: 'Computer Science',
+      discipline: 'Computer Science',
+      paperType: 'Technical Report',
+      pages: 15,
+      words: 3750,
+      format: 'IEEE',
+      price: 525,
+      priceKES: 52500,
+      cpp: 350,
+      totalPriceKES: 52500,
+      deadline: '2024-02-28',
+      status: 'Available',
+      assignedWriter: undefined,
+      writerId: undefined,
+      createdAt: '2024-01-21',
+      updatedAt: '2024-01-21',
+      isOverdue: false,
+      confirmationStatus: 'pending',
+      paymentType: 'advance',
+      clientMessages: [],
+      uploadedFiles: [],
+      additionalInstructions: 'Include code examples and performance metrics',
+      requiresAdminApproval: false,
+      urgencyLevel: 'urgent'
     }
   ]);
 
   const handleOrderAction = useCallback((action: string, orderId: string, additionalData?: Record<string, unknown>) => {
-    setOrders(prev => prev.map(order => {
-      if (order.id !== orderId) return order;
+    console.log('🔄 OrderContext: Processing action:', {
+      action,
+      orderId,
+      additionalData,
+      timestamp: new Date().toISOString()
+    });
 
-      let newStatus = order.status;
-      const updatedAt = new Date().toISOString();
-      const updates: Record<string, unknown> = { updatedAt };
-      
-      switch (action) {
+    setOrders(prev => {
+      const updatedOrders = prev.map(order => {
+        if (order.id !== orderId) return order;
+
+        const oldStatus = order.status;
+        let newStatus = order.status;
+        const updatedAt = new Date().toISOString();
+        const updates: Record<string, unknown> = { updatedAt };
+        
+        switch (action) {
         case 'pick':
           newStatus = 'Assigned';
           updates.writerId = additionalData?.writerId || 'unknown';
           updates.assignedWriter = additionalData?.writerName || 'Unknown Writer';
+          break;
+          
+        case 'assign':
+          newStatus = 'Assigned';
+          updates.writerId = additionalData?.writerId || 'unknown';
+          updates.assignedWriter = additionalData?.writerName || 'Unknown Writer';
+          if (additionalData?.notes) {
+            updates.assignmentNotes = additionalData.notes;
+          }
+          updates.assignedAt = new Date().toISOString();
+          updates.assignedBy = 'admin';
+          break;
+          
+        case 'make_available':
+          newStatus = 'Available';
+          updates.writerId = undefined;
+          updates.assignedWriter = undefined;
+          if (additionalData?.notes) {
+            updates.assignmentNotes = additionalData.notes;
+          }
+          updates.madeAvailableAt = new Date().toISOString();
+          updates.madeAvailableBy = 'admin';
           break;
           
         case 'submit':
@@ -386,10 +476,32 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         case 'put_on_hold':
           newStatus = 'On Hold';
           break;
-      }
+        }
+        
+        const updatedOrder = { ...order, status: newStatus, ...updates };
+        
+        console.log('✅ OrderContext: Order updated:', {
+          orderId,
+          action,
+          oldStatus,
+          newStatus,
+          writerId: updatedOrder.writerId,
+          assignedWriter: updatedOrder.assignedWriter,
+          updatedFields: Object.keys(updates),
+          timestamp: updatedAt
+        });
+        
+        return updatedOrder;
+      });
       
-      return { ...order, status: newStatus, ...updates };
-    }));
+      console.log('📊 OrderContext: Orders state updated. Available orders:', 
+        updatedOrders.filter(o => o.status === 'Available').length,
+        'Assigned orders:', 
+        updatedOrders.filter(o => o.status === 'Assigned').length
+      );
+      
+      return updatedOrders;
+    });
   }, []);
 
   const confirmOrder = useCallback((orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
