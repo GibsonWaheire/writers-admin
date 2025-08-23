@@ -25,6 +25,10 @@ import { WalletProvider } from "./contexts/WalletContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { MessagesProvider } from './contexts/MessagesContext';
 import { InvoicesProvider } from './contexts/InvoicesContext';
+import { ReviewsProvider } from './contexts/ReviewsContext';
+import { FinancialProvider } from './contexts/FinancialContext';
+import { AnalyticsProvider } from './contexts/AnalyticsContext';
+import { UsersProvider } from './contexts/UsersContext';
 import MessagesPage from './pages/MessagesPage';
 
 const queryClient = new QueryClient();
@@ -201,15 +205,23 @@ const App = () => (
         <OrderProvider>
           <PODProvider>
             <WalletProvider>
-              <MessagesProvider>
-                <InvoicesProvider>
-                  <TooltipProvider>
-                    <BrowserRouter>
-                      <AppRouter />
-                    </BrowserRouter>
-                  </TooltipProvider>
-                </InvoicesProvider>
-              </MessagesProvider>
+              <ReviewsProvider>
+                <FinancialProvider>
+                  <UsersProvider>
+                    <AnalyticsProvider>
+                      <MessagesProvider>
+                        <InvoicesProvider>
+                          <TooltipProvider>
+                            <BrowserRouter>
+                              <AppRouter />
+                            </BrowserRouter>
+                          </TooltipProvider>
+                        </InvoicesProvider>
+                      </MessagesProvider>
+                    </AnalyticsProvider>
+                  </UsersProvider>
+                </FinancialProvider>
+              </ReviewsProvider>
             </WalletProvider>
           </PODProvider>
         </OrderProvider>
