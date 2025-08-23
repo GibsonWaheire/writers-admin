@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
+import { NotificationTester } from './NotificationTester';
 
 interface LayoutProps {
   children: ReactNode;
@@ -21,6 +22,9 @@ export const Layout = ({ children }: LayoutProps) => {
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
+        
+        {/* Notification Tester (only in development) */}
+        <NotificationTester />
       </div>
     </div>
   );

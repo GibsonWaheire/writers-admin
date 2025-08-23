@@ -29,6 +29,8 @@ import { ReviewsProvider } from './contexts/ReviewsContext';
 import { FinancialProvider } from './contexts/FinancialContext';
 import { AnalyticsProvider } from './contexts/AnalyticsContext';
 import { UsersProvider } from './contexts/UsersContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { SettingsProvider } from './contexts/SettingsContext';
 import MessagesPage from './pages/MessagesPage';
 
 const queryClient = new QueryClient();
@@ -211,11 +213,15 @@ const App = () => (
                     <AnalyticsProvider>
                       <MessagesProvider>
                         <InvoicesProvider>
-                          <TooltipProvider>
-                            <BrowserRouter>
-                              <AppRouter />
-                            </BrowserRouter>
-                          </TooltipProvider>
+                          <NotificationProvider>
+                            <SettingsProvider>
+                              <TooltipProvider>
+                                <BrowserRouter>
+                                  <AppRouter />
+                                </BrowserRouter>
+                              </TooltipProvider>
+                            </SettingsProvider>
+                          </NotificationProvider>
                         </InvoicesProvider>
                       </MessagesProvider>
                     </AnalyticsProvider>

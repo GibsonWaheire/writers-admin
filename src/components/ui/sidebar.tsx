@@ -9,8 +9,8 @@ import { cn } from "../../lib/utils"
 import { Button } from ".//button"
 import { Input } from ".//input"
 import { Separator } from ".//separator"
-import { Sheet, SheetContent } from ".//sheet"
-import { Skeleton } from ".//skeleton"
+// Sheet and Skeleton components were removed as unused
+// Creating inline replacements for sidebar functionality
 import {
   Tooltip,
   TooltipContent,
@@ -193,21 +193,28 @@ const Sidebar = React.forwardRef<
 
     if (isMobile) {
       return (
-        <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
-          <SheetContent
+        <>
+          {openMobile && (
+            <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setOpenMobile(false)} />
+          )}
+          <div
+            className={cn(
+              "fixed inset-y-0 z-50 flex w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground transition-transform duration-300",
+              side === "left" ? "left-0" : "right-0",
+              openMobile ? "translate-x-0" : side === "left" ? "-translate-x-full" : "translate-x-full"
+            )}
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
               } as React.CSSProperties
             }
-            side={side}
+            {...props}
           >
             <div className="flex h-full w-full flex-col">{children}</div>
-          </SheetContent>
-        </Sheet>
+          </div>
+        </>
       )
     }
 
@@ -662,13 +669,13 @@ const SidebarMenuSkeleton = React.forwardRef<
       {...props}
     >
       {showIcon && (
-        <Skeleton
-          className="size-4 rounded-md"
+        <div
+          className="size-4 rounded-md bg-gray-200 animate-pulse"
           data-sidebar="menu-skeleton-icon"
         />
       )}
-      <Skeleton
-        className="h-4 flex-1 max-w-[--skeleton-width]"
+      <div
+        className="h-4 flex-1 max-w-[--skeleton-width] bg-gray-200 animate-pulse rounded"
         data-sidebar="menu-skeleton-text"
         style={
           {

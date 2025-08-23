@@ -1,10 +1,13 @@
-import { Search, LogOut } from 'lucide-react';
+import { useState } from 'react';
+import { Search, LogOut, Settings, User } from 'lucide-react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { useAuth } from '../contexts/AuthContext';
+import { NotificationDropdown } from './NotificationDropdown';
+import { SettingsModal } from './SettingsModal';
 
 export function TopBar() {
   const { user, logout } = useAuth();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -28,21 +31,27 @@ export function TopBar() {
         {/* Right Side Actions */}
         <div className="flex items-center space-x-4">
           {/* Notifications */}
-          <Button variant="ghost" size="sm" className="relative p-2 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200">
-            <span className="text-lg mr-1">🔔</span>
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center bg-red-500 text-white">
-              3
-            </Badge>
-          </Button>
+          <NotificationDropdown />
 
           {/* Settings */}
-          <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 hover:text-gray-700 transition-all duration-200">
-            <span className="text-lg">⚙️</span>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="p-2 hover:bg-gray-100 hover:text-gray-700 transition-all duration-200"
+            onClick={() => setIsSettingsOpen(true)}
+            title="Settings"
+          >
+            <Settings className="h-5 w-5" />
           </Button>
 
           {/* Profile */}
-          <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 hover:text-gray-700 transition-all duration-200">
-            <span className="text-lg">👤</span>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="p-2 hover:bg-gray-100 hover:text-gray-700 transition-all duration-200"
+            title="Profile"
+          >
+            <User className="h-5 w-5" />
           </Button>
 
           {/* User Info */}
@@ -70,6 +79,12 @@ export function TopBar() {
           </div>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
     </div>
   );
 }
