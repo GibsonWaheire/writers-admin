@@ -834,36 +834,49 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         updatedOrders.filter(o => o.status === 'Assigned').length
       );
       
-      // Save updated order to database (async operation)
-      const updatedOrder = updatedOrders.find(o => o.id === orderId);
-      if (updatedOrder) {
-        console.log('💾 OrderContext: Saving order to database:', {
-          orderId,
-          newStatus: updatedOrder.status,
-          writerId: updatedOrder.writerId,
-          assignedWriter: updatedOrder.assignedWriter
-        });
-        
-        // Use Promise to handle async database update
-        db.update('orders', orderId, updatedOrder)
-          .then(() => {
-            console.log('✅ OrderContext: Order saved to database successfully');
-            // Force immediate state refresh to ensure UI updates
-            setTimeout(() => {
-              console.log('🔄 OrderContext: Forcing refresh after database update...');
-              refreshOrders();
-            }, 100);
-          })
-          .catch((error) => {
-            console.error('❌ OrderContext: Failed to save order to database:', error);
-            // Revert the change if database update fails
-            setOrders(prev);
-          });
-      }
-      
       return updatedOrders;
     });
-  }, [refreshOrders]);
+
+    // After updating local state, save to database
+    const updatedOrder = orders.find(o => o.id === orderId);
+    if (updatedOrder) {
+      // Apply the same updates that were applied to local state
+      const orderWithUpdates = { ...updatedOrder };
+      
+      // Apply the updates based on action (simplified)
+      switch (action) {
+        case 'assign':
+          orderWithUpdates.status = 'Assigned';
+          orderWithUpdates.writerId = additionalData?.writerId as string;
+          orderWithUpdates.assignedWriter = additionalData?.writerName as string;
+          orderWithUpdates.assignedAt = new Date().toISOString();
+          orderWithUpdates.assignedBy = 'admin';
+          break;
+        case 'make_available':
+          orderWithUpdates.status = 'Available';
+          orderWithUpdates.writerId = undefined;
+          orderWithUpdates.assignedWriter = undefined;
+          break;
+      }
+
+      console.log('💾 OrderContext: Saving order to database:', {
+        orderId,
+        newStatus: orderWithUpdates.status,
+        writerId: orderWithUpdates.writerId,
+        assignedWriter: orderWithUpdates.assignedWriter
+      });
+      
+      try {
+        await db.update('orders', orderId, orderWithUpdates);
+        console.log('✅ OrderContext: Order saved to database successfully');
+      } catch (error) {
+        console.error('❌ OrderContext: Failed to save order to database:', error);
+        // Refresh orders to get the correct state from database
+        refreshOrders();
+        throw error;
+      }
+    }
+  }, [orders, refreshOrders]);
 
   const confirmOrder = useCallback((orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
     setOrders(prev => prev.map(order => {

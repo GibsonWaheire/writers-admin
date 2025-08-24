@@ -53,7 +53,9 @@ export default function AllOrdersPage() {
     setIsModalOpen(true);
   };
 
-  const handleOrderActionLocal = (action: string, orderId: string, additionalData?: Record<string, unknown>) => {
+  const handleOrderActionLocal = async (action: string, orderId: string, additionalData?: Record<string, unknown>) => {
+    console.log('🎯 AllOrdersPage: Performing order action:', { action, orderId, additionalData });
+    
     if (action === 'assign') {
       const order = orders.find(o => o.id === orderId);
       if (order) {
@@ -63,12 +65,26 @@ export default function AllOrdersPage() {
       return;
     }
     
-    handleOrderAction(action, orderId, additionalData);
+    try {
+      await handleOrderAction(action, orderId, additionalData);
+      console.log('✅ AllOrdersPage: Order action completed:', action);
+      
+      // Force refresh for certain critical actions
+      if (['make_available', 'approve', 'reject'].includes(action)) {
+        setTimeout(() => {
+          console.log('🔄 AllOrdersPage: Forcing refresh after critical action:', action);
+          refreshOrders();
+        }, 100);
+      }
+    } catch (error) {
+      console.error('❌ AllOrdersPage: Error performing action:', error);
+    }
+    
     setIsModalOpen(false);
     setSelectedOrder(null);
   };
 
-  const handleAssignToWriter = (writerId: string, options: {
+  const handleAssignToWriter = async (writerId: string, options: {
     notes?: string;
     priority?: 'low' | 'medium' | 'high' | 'urgent';
     deadline?: string;
@@ -78,11 +94,30 @@ export default function AllOrdersPage() {
       const writer = writers.find(w => w.id === writerId);
       const writerName = writer?.name || 'Unknown Writer';
       
-      handleOrderAction('assign', orderToAssign.id, { 
-        writerId, 
+      console.log('🔄 AllOrdersPage: Assigning order to writer:', {
+        orderId: orderToAssign.id,
+        writerId,
         writerName,
-        ...options
+        currentStatus: orderToAssign.status
       });
+      
+      try {
+        await handleOrderAction('assign', orderToAssign.id, { 
+          writerId, 
+          writerName,
+          ...options
+        });
+        
+        console.log('✅ AllOrdersPage: Order assignment completed');
+        
+        // Force a refresh to ensure UI updates
+        setTimeout(() => {
+          refreshOrders();
+        }, 100);
+        
+      } catch (error) {
+        console.error('❌ AllOrdersPage: Error assigning order:', error);
+      }
       
       setShowAssignmentModal(false);
       setOrderToAssign(null);
@@ -163,6 +198,11 @@ export default function AllOrdersPage() {
     rejected: orders.filter(o => o.status === 'Rejected').length,
     revision: orders.filter(o => o.status === 'Revision').length
   };
+
+  // Debug logging for status counts
+  useEffect(() => {
+    console.log('📊 AllOrdersPage: Status counts updated:', statusCounts);
+  }, [statusCounts.available, statusCounts.assigned, statusCounts.total]);
 
   return (
     <div className="space-y-6 animate-fade-in">
