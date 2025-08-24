@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { PODOrderCard } from '../components/PODOrderCard';
+import { PODUploadModal } from '../components/PODUploadModal';
 import { usePOD } from '../contexts/PODContext';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -15,7 +17,8 @@ import {
   CheckCircle,
   Truck,
   CreditCard,
-  AlertTriangle
+  AlertTriangle,
+  Plus
 } from 'lucide-react';
 import type { PODStatus } from '../types/pod';
 
@@ -24,12 +27,14 @@ export default function PODOrdersPage() {
   const { 
     podOrders, 
     getAvailablePODOrders, 
-    getWriterPODOrders 
+    getWriterPODOrders,
+    addPODOrder
   } = usePOD();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<PODStatus | 'all'>('all');
   const [activeTab, setActiveTab] = useState('available');
+  const [isPODUploadOpen, setIsPODUploadOpen] = useState(false);
 
   // Get writer-specific data
   const writerId = user?.id || 'writer-1';
@@ -107,6 +112,13 @@ export default function PODOrdersPage() {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <Button
+            onClick={() => setIsPODUploadOpen(true)}
+            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Upload POD Order
+          </Button>
           <Badge variant="outline" className="text-lg px-4 py-2">
             <DollarSign className="w-5 h-5 mr-2" />
             Total POD Value: KES {getTotalPODValue().toLocaleString()}
@@ -335,6 +347,13 @@ export default function PODOrdersPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* POD Upload Modal */}
+      <PODUploadModal
+        isOpen={isPODUploadOpen}
+        onClose={() => setIsPODUploadOpen(false)}
+        onSubmit={addPODOrder}
+      />
     </div>
   );
 }

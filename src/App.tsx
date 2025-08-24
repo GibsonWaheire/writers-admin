@@ -16,6 +16,7 @@ import AdminReviewsPage from "./pages/AdminReviewsPage";
 import AdminFinancialPage from "./pages/AdminFinancialPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import AdminAnalyticsPage from "./pages/AdminAnalyticsPage";
+import AdminPODOrdersPage from "./pages/admin/AdminPODOrdersPage";
 import AvailableOrdersPage from "./pages/writer/AvailableOrdersPage";
 import AssignedOrdersPage from "./pages/writer/AssignedOrdersPage";
 import RevisionsPage from "./pages/writer/RevisionsPage";
@@ -259,6 +260,13 @@ function AppRouter() {
         <ProtectedRoute requiredRole="admin">
           <Layout>
             <AdminAnalyticsPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/pod-orders" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <AdminPODOrdersPage />
           </Layout>
         </ProtectedRoute>
       } />

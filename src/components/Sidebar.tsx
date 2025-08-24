@@ -51,7 +51,17 @@ const writerMenuItems: MenuItem[] = [
       { icon: XCircle, label: 'Rejected', path: '/orders/rejected', emoji: '❌' }
     ]
   },
-  { icon: DollarSign, label: 'POD Orders', path: '/pod-orders', emoji: '💰' },
+  { 
+    icon: DollarSign, 
+    label: 'POD Orders', 
+    path: '/pod-orders', 
+    emoji: '💰',
+    subItems: [
+      { icon: ClipboardList, label: 'Available POD', path: '/pod-orders?tab=available', emoji: '📋' },
+      { icon: UserCheck, label: 'My POD Orders', path: '/pod-orders?tab=my-orders', emoji: '👤' },
+      { icon: CheckCircle, label: 'Completed POD', path: '/pod-orders?tab=completed', emoji: '✅' }
+    ]
+  },
   { icon: Wallet, label: 'Wallet', path: '/wallet', emoji: '💳' },
   { icon: Star, label: 'Reviews', path: '/reviews', emoji: '⭐' },
   { icon: MessageSquare, label: 'Messages', path: '/messages', emoji: '💬' },
@@ -71,6 +81,18 @@ const adminMenuItems: MenuItem[] = [
       { icon: UserCheck, label: 'Assignment Center', path: '/admin/orders/assign', emoji: '👤' },
       { icon: Users, label: 'Writer Monitor', path: '/admin/orders/writers', emoji: '👥' },
       { icon: BarChart3, label: 'Order Analytics', path: '/admin/orders/analytics', emoji: '📊' }
+    ]
+  },
+  { 
+    icon: DollarSign, 
+    label: 'POD Orders', 
+    path: '/admin/pod-orders', 
+    emoji: '💰',
+    subItems: [
+      { icon: ClipboardList, label: 'All POD Orders', path: '/admin/pod-orders', emoji: '📋' },
+      { icon: AlertTriangle, label: 'Pending Review', path: '/admin/pod-orders?tab=pending', emoji: '⚠️' },
+      { icon: CheckCircle, label: 'Ready for Delivery', path: '/admin/pod-orders?tab=ready', emoji: '🚚' },
+      { icon: BarChart3, label: 'POD Analytics', path: '/admin/pod-orders?tab=analytics', emoji: '📊' }
     ]
   },
   { icon: DollarSign, label: 'Writers', path: '/admin/writers', emoji: '👥' },
