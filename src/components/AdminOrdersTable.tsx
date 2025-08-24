@@ -24,13 +24,15 @@ interface AdminOrdersTableProps {
   onView: (order: Order) => void;
   onAction: (action: string, orderId: string, additionalData?: Record<string, unknown>) => void;
   onAssign: (order: Order) => void;
+  onManage: (order: Order) => void;
 }
 
 export function AdminOrdersTable({ 
   orders, 
   onView, 
   onAction,
-  onAssign 
+  onAssign,
+  onManage
 }: AdminOrdersTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("");
@@ -96,6 +98,20 @@ export function AdminOrdersTable({
 
   const renderActionButtons = (order: Order) => {
     const actions = [];
+
+    // Add Manage button for all orders
+    actions.push(
+      <Button
+        key="manage"
+        size="sm"
+        variant="outline"
+        onClick={() => onManage(order)}
+        className="text-gray-600 hover:bg-gray-50"
+      >
+        <FileText className="h-3 w-3 mr-1" />
+        Manage
+      </Button>
+    );
 
     switch (order.status) {
       case 'Available':

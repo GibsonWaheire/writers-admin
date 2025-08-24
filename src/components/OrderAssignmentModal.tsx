@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -11,19 +11,12 @@ import {
   Users, 
   BookOpen, 
   Search,
-  Star,
-  Clock,
-  Award,
-  Target,
-  AlertTriangle,
-  CheckCircle,
-  Zap
+  Star
 } from 'lucide-react';
 import { useUsers } from '../contexts/UsersContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useOrders } from '../contexts/OrderContext';
 import type { Order } from '../types/order';
-import type { SmartAssignmentSuggestion } from '../types/notification';
 
 interface Writer {
   id: string;
@@ -58,7 +51,7 @@ export function OrderAssignmentModal({
   onAssign, 
   onMakeAvailable 
 }: OrderAssignmentModalProps) {
-  const { writers } = useUsers();
+  const { writers: allWriters } = useUsers();
   const { getSmartAssignmentSuggestions } = useNotifications();
   const [selectedWriterId, setSelectedWriterId] = useState<string>('');
   const [assignmentNotes, setAssignmentNotes] = useState('');
@@ -68,48 +61,25 @@ export function OrderAssignmentModal({
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
   const [customDeadline, setCustomDeadline] = useState('');
   const [requireConfirmation, setRequireConfirmation] = useState(true);
-  const [showSmartSuggestions, setShowSmartSuggestions] = useState(true);
 
   // Filter writers based on search and specialty
   // Use real data from orders context to calculate active orders
   const { orders } = useOrders();
   
-  const realWriters = writers.filter(w => w.status === 'active').map(writer => {
+  const realWriters = allWriters.filter(w => w.status === 'active').map(writer => {
     // Calculate real active orders from orders context
     const writerActiveOrders = orders.filter(order => 
       order.writerId === writer.id && 
-      ['Assigned', 'In Progress', 'Submitted', 'Revision'].includes(order.status)
-    ).length;
-    
-    // Calculate average completion time from completed orders
-    const completedOrders = orders.filter(order => 
-      order.writerId === writer.id && 
-      order.status === 'Completed' && 
-      order.completedAt && 
-      order.assignedAt
+      ['Assigned', 'In Progress'].includes(order.status)
     );
     
-    let avgCompletionTime = 48; // Default 48 hours
-    if (completedOrders.length > 0) {
-      const totalTime = completedOrders.reduce((sum, order) => {
-        const assigned = new Date(order.assignedAt!);
-        const completed = new Date(order.completedAt!);
-        return sum + (completed.getTime() - assigned.getTime());
-      }, 0);
-      avgCompletionTime = Math.round(totalTime / (completedOrders.length * 1000 * 60 * 60)); // Convert to hours
-    }
-    
     return {
-      id: writer.id,
-      name: writer.name,
-      email: writer.email,
-      rating: writer.rating,
-      activeOrders: writerActiveOrders,
-      maxOrders: writer.maxConcurrentOrders,
-      completedOrders: writer.completedOrders,
-      totalEarnings: writer.totalEarnings,
-      specialties: writer.specializations,
-      avgCompletionTime
+      ...writer,
+      activeOrders: writerActiveOrders.length,
+      avgCompletionTime: orders
+        .filter(order => order.writerId === writer.id && order.status === 'Completed')
+        .reduce((sum, order) => sum + (order.completedAt ? 
+          new Date(order.completedAt).getTime() - new Date(order.assignedAt || order.createdAt).getTime() : 0), 0) / 1000 / 60 / 60 // Convert to hours
     };
   });
 
@@ -147,7 +117,7 @@ export function OrderAssignmentModal({
   };
 
   // Get smart assignment suggestions
-  const smartSuggestions = getSmartAssignmentSuggestions(order, writers);
+  const smartSuggestions = getSmartAssignmentSuggestions(order, allWriters);
   
   // Handle specific writer assignment
   const handleAssignToWriter = () => {
@@ -179,7 +149,6 @@ export function OrderAssignmentModal({
       setPriority('medium');
       setCustomDeadline('');
       setRequireConfirmation(true);
-      setShowSmartSuggestions(true);
     }
   }, [isOpen]);
 

@@ -183,7 +183,9 @@ class DatabaseService {
       // Don't sync too frequently
       if (now - this.lastSyncTime < 1000) return;
       
-      const response = await fetch('/db.json', {
+      // Use the current window location to get the correct base URL
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+      const response = await fetch(`${baseUrl}/db.json`, {
         method: 'GET',
         headers: {
           'Cache-Control': 'no-cache',
@@ -214,38 +216,65 @@ class DatabaseService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
-      console.warn('Auto-sync warning:', error);
+      // Only log as warning if it's not a network error
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        console.log('📡 Database sync: Network not available (normal during development startup)');
+      } else {
+        console.warn('Auto-sync warning:', error);
+      }
       this.handleSyncError(error);
     } finally {
       this.syncInProgress = false;
     }
   }
 
-  // Merge local data with db.json data, preserving newer local data
+  // Merge local data with db.json data, preserving newer local data - IMPROVED VERSION
   private mergeData(localData: Database, jsonData: Database): Database {
     if (!localData) return jsonData;
     
     const merged = { ...jsonData };
     
-    // Preserve local orders if they're newer or don't exist in db.json
+    // CRITICAL FIX: Always preserve local orders to prevent data loss
     if (localData.orders && localData.orders.length > 0) {
       const localOrderIds = new Set(localData.orders.map(o => o.id));
       const jsonOrderIds = new Set(jsonData.orders?.map(o => o.id) || []);
       
+      // Initialize orders array if it doesn't exist
+      if (!merged.orders) {
+        merged.orders = [];
+      }
+      
       // Add local orders that don't exist in db.json
       localData.orders.forEach(localOrder => {
         if (!jsonOrderIds.has(localOrder.id)) {
-          merged.orders = merged.orders || [];
           merged.orders.push(localOrder);
           console.log('🔄 Preserving local order:', localOrder.id);
+        } else {
+          // Update existing orders with local data if local is newer
+          const existingIndex = merged.orders.findIndex(o => o.id === localOrder.id);
+          if (existingIndex !== -1) {
+            const localUpdatedAt = new Date(localOrder.updatedAt || localOrder.createdAt);
+            const jsonUpdatedAt = new Date(merged.orders[existingIndex].updatedAt || merged.orders[existingIndex].createdAt);
+            
+            if (localUpdatedAt > jsonUpdatedAt) {
+              merged.orders[existingIndex] = localOrder;
+              console.log('🔄 Updating order with local data:', localOrder.id);
+            }
+          }
         }
+      });
+      
+      console.log('✅ Merge completed - preserved local orders:', {
+        localOrders: localData.orders.length,
+        jsonOrders: jsonData.orders?.length || 0,
+        mergedOrders: merged.orders.length
       });
     }
     
     return merged;
   }
 
-  // Check if there are significant changes that warrant an update
+  // Check if there are significant changes that warrant an update - IMPROVED VERSION
   private hasSignificantChanges(newData: Database): boolean {
     if (!this.db) return true;
     
@@ -253,9 +282,18 @@ class DatabaseService {
     const currentOrders = this.db.orders || [];
     const newOrders = newData.orders || [];
     
-    // If local has more orders than db.json, don't overwrite (local is more up-to-date)
+    // CRITICAL FIX: Never overwrite if local has more orders (prevents data loss)
     if (currentOrders.length > newOrders.length) {
-      console.log('🔄 Local has more orders than db.json, skipping overwrite');
+      console.log('🔄 Local has more orders than db.json, skipping overwrite to prevent data loss');
+      return false;
+    }
+    
+    // CRITICAL FIX: Never overwrite if local has available orders that aren't in db.json
+    const localAvailableOrders = currentOrders.filter(o => o.status === 'Available');
+    const jsonAvailableOrders = newOrders.filter(o => o.status === 'Available');
+    
+    if (localAvailableOrders.length > 0 && localAvailableOrders.length > jsonAvailableOrders.length) {
+      console.log('🔄 Local has more available orders, skipping overwrite to prevent data loss');
       return false;
     }
     
@@ -373,7 +411,7 @@ class DatabaseService {
     }
   }
 
-  // Save database to db.json file
+  // Save database to db.json file - FIXED VERSION
   private saveToDbJson(): void {
     try {
       if (this.db) {
@@ -390,13 +428,48 @@ class DatabaseService {
           timestamp: new Date().toISOString()
         });
         
-        // Auto-download in development mode
+        // CRITICAL FIX: Actually save to the file system in development
         if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+          // Try to save directly to file system if possible
+          this.saveToFileSystem(jsonData);
+          // Also provide download as backup
           this.autoDownloadDbJson();
         }
       }
     } catch (error) {
       console.error('Failed to save database to file:', error);
+    }
+  }
+
+  // NEW: Save directly to file system when possible
+  private async saveToFileSystem(jsonData: string): Promise<void> {
+    try {
+      // Try to use File System Access API if available (modern browsers)
+      if ('showSaveFilePicker' in window) {
+        try {
+          const handle = await (window as any).showSaveFilePicker({
+            suggestedName: 'db.json',
+            types: [{
+              description: 'JSON File',
+              accept: { 'application/json': ['.json'] }
+            }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(jsonData);
+          await writable.close();
+          console.log('✅ Database saved directly to file system');
+          return;
+        } catch (fsError) {
+          console.log('File System Access API not available, falling back to download');
+        }
+      }
+      
+      // Fallback: Use download method
+      this.autoDownloadDbJson();
+    } catch (error) {
+      console.error('Failed to save to file system:', error);
+      // Fallback to download
+      this.autoDownloadDbJson();
     }
   }
 
@@ -748,6 +821,55 @@ class DatabaseService {
       platformFunds: db.financial.platformFunds.length,
       withdrawalRequests: db.financial.withdrawalRequests.length,
       transactionLogs: db.financial.transactionLogs.length
+    };
+  }
+
+  // NEW: Debug function to help troubleshoot order visibility issues
+  async debugOrderVisibility(): Promise<{
+    totalOrders: number;
+    availableOrders: number;
+    localStorageOrders: number;
+    dbJsonOrders: number;
+    orderDetails: Array<{ id: string; status: string; title: string; writerId?: string }>;
+    localStorageData: string;
+    syncStatus: string;
+  }> {
+    const db = await this.ensureLoaded();
+    const orders = db.orders || [];
+    
+    // Check localStorage
+    const localStorageData = localStorage.getItem(this.DB_KEY);
+    const localStorageOrders = localStorageData ? JSON.parse(localStorageData).orders?.length || 0 : 0;
+    
+    // Check db.json
+    let dbJsonOrders = 0;
+    let syncStatus = 'Unknown';
+    try {
+      const response = await fetch('/db.json');
+      if (response.ok) {
+        const jsonData = await response.json();
+        dbJsonOrders = jsonData.orders?.length || 0;
+        syncStatus = 'Synced';
+      } else {
+        syncStatus = 'Failed to fetch db.json';
+      }
+    } catch (error) {
+      syncStatus = `Error: ${error}`;
+    }
+    
+    return {
+      totalOrders: orders.length,
+      availableOrders: orders.filter(o => o.status === 'Available' && !o.writerId).length,
+      localStorageOrders,
+      dbJsonOrders,
+      orderDetails: orders.map(o => ({
+        id: o.id,
+        status: o.status,
+        title: o.title,
+        writerId: o.writerId
+      })),
+      localStorageData: localStorageData ? 'Present' : 'Missing',
+      syncStatus
     };
   }
 }

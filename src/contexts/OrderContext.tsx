@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import type { Order, OrderStatus, WriterConfirmation, WriterQuestion } from '../types/order';
+import type { Order, OrderStatus, WriterConfirmation, WriterQuestion, UploadedFile } from '../types/order';
 import { db } from '../services/database';
 import { notificationHelpers } from '../services/notificationService';
 
@@ -56,6 +56,10 @@ interface OrderContextType {
   availableOrdersCount: number;
   // Database management
   forceResetDatabase: () => Promise<void>;
+  // Admin order management
+  updateOrder: (orderId: string, updates: Partial<Order>) => Promise<void>;
+  deleteOrder: (orderId: string) => Promise<void>;
+  addAdminMessage: (orderId: string, message: string, attachments: UploadedFile[], isNotification: boolean) => Promise<void>;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -819,6 +823,123 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Admin order management functions
+  const updateOrder = useCallback(async (orderId: string, updates: Partial<Order>) => {
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) {
+        throw new Error('Order not found');
+      }
+
+      // Track changes for notification
+      const changes: string[] = [];
+      Object.entries(updates).forEach(([key, value]) => {
+        if (order[key as keyof Order] !== value) {
+          changes.push(`${key}: ${order[key as keyof Order]} → ${value}`);
+        }
+      });
+
+      // Update order with new data and change tracking
+      const updatedOrder: Order = {
+        ...order,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+        lastAdminEdit: {
+          editedAt: new Date().toISOString(),
+          editedBy: 'admin', // TODO: Get actual admin ID
+          changes,
+          notificationSent: false
+        }
+      };
+
+      // Save to database
+      await db.update('orders', orderId, updatedOrder);
+      
+      // Update local state
+      setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
+      setLastUpdate(new Date().toISOString());
+
+      console.log('✅ Order updated:', { orderId, changes });
+      
+      // If order is assigned and has changes, send notification
+      if ((order.writerId || order.assignedWriter) && changes.length > 0) {
+        // TODO: Send notification to writer about changes
+        console.log('📢 Writer notification needed for order changes:', { orderId, changes });
+      }
+    } catch (error) {
+      console.error('❌ Failed to update order:', error);
+      throw error;
+    }
+  }, [orders]);
+
+  const deleteOrder = useCallback(async (orderId: string) => {
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) {
+        throw new Error('Order not found');
+      }
+
+      if (order.writerId || order.assignedWriter) {
+        throw new Error('Cannot delete assigned orders');
+      }
+
+      // Delete from database
+      await db.delete('orders', orderId);
+      
+      // Update local state
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+      setLastUpdate(new Date().toISOString());
+
+      console.log('✅ Order deleted:', { orderId, title: order.title });
+    } catch (error) {
+      console.error('❌ Failed to delete order:', error);
+      throw error;
+    }
+  }, [orders]);
+
+  const addAdminMessage = useCallback(async (orderId: string, message: string, attachments: UploadedFile[], isNotification: boolean) => {
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) {
+        throw new Error('Order not found');
+      }
+
+      const adminMessage = {
+        id: `ADMIN-MSG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        message,
+        attachments,
+        sentAt: new Date().toISOString(),
+        sentBy: 'admin', // TODO: Get actual admin ID
+        isNotification
+      };
+
+      // Update order with new admin message
+      const updatedOrder: Order = {
+        ...order,
+        adminMessages: [...(order.adminMessages || []), adminMessage],
+        updatedAt: new Date().toISOString()
+      };
+
+      // Save to database
+      await db.update('orders', orderId, updatedOrder);
+      
+      // Update local state
+      setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
+      setLastUpdate(new Date().toISOString());
+
+      console.log('✅ Admin message added:', { orderId, message, isNotification });
+      
+      // If this is a notification and order is assigned, send notification to writer
+      if (isNotification && (order.writerId || order.assignedWriter)) {
+        // TODO: Send notification to writer
+        console.log('📢 Writer notification sent for admin message:', { orderId, message });
+      }
+    } catch (error) {
+      console.error('❌ Failed to add admin message:', error);
+      throw error;
+    }
+  }, [orders]);
+
   return (
     <OrderContext.Provider value={{
       orders,
@@ -839,7 +960,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       lastUpdate,
       availableOrdersCount,
       // Database management
-      forceResetDatabase
+      forceResetDatabase,
+      // Admin order management
+      updateOrder,
+      deleteOrder,
+      addAdminMessage
     }}>
       {children}
     </OrderContext.Provider>

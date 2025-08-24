@@ -73,6 +73,51 @@ export interface Order {
   urgencyLevel?: 'normal' | 'urgent' | 'very-urgent';
   // File attachments for requirements/instructions
   attachments?: UploadedFile[];
+  // Client information
+  clientId?: string;
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  requirements?: string;
+  // Submission tracking
+  submissionNotes?: string;
+  startedAt?: string;
+  submittedAt?: string;
+  // Rating and feedback
+  rating?: number;
+  // Rejection tracking
+  rejectionReason?: string;
+  // Revision tracking
+  revisionRequests?: Array<{
+    id: string;
+    reason: string;
+    requestedAt: string;
+    requestedBy: string;
+    status: 'pending' | 'resolved';
+  }>;
+  // Reviews
+  reviews?: Array<{
+    id: string;
+    rating: number;
+    comment: string;
+    reviewedAt: string;
+    reviewedBy: string;
+  }>;
+  // Admin management
+  adminMessages?: Array<{
+    id: string;
+    message: string;
+    attachments: UploadedFile[];
+    sentAt: string;
+    sentBy: string;
+    isNotification: boolean; // Whether this is a notification to writer
+  }>;
+  lastAdminEdit?: {
+    editedAt: string;
+    editedBy: string;
+    changes: string[];
+    notificationSent: boolean;
+  };
 }
 
 export type PaperType = 

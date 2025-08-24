@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const users = await db.find('users');
+      const users = await db.find('users') as Array<{ id: string; name: string; email: string; password: string; role: 'writer' | 'admin' }>;
       const foundUser = users.find(u => u.email === email && u.password === password);
       
       if (foundUser) {
@@ -151,7 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Check if user already exists
-      const users = await db.find('users');
+      const users = await db.find('users') as Array<{ id: string; name: string; email: string; password: string; role: 'writer' | 'admin' }>;
       if (users.find(u => u.email === email)) {
         return { success: false, error: 'User with this email already exists' };
       }

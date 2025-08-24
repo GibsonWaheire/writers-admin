@@ -74,7 +74,8 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Generate invoices for POD orders
-    podOrders.forEach(podOrder => {
+    if (podOrders && Array.isArray(podOrders)) {
+      podOrders.forEach(podOrder => {
       if (podOrder.writerId && podOrder.status === 'Payment Received') {
         const totalAmountKES = podOrder.podAmount;
         const writerEarnings = totalAmountKES * 0.8; // 80% to writer
@@ -121,6 +122,7 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
         });
       }
     });
+    }
 
     setInvoices(newInvoices);
   }, [orders, podOrders]);

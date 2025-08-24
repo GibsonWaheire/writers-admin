@@ -25,6 +25,7 @@ import { OrderViewModal } from "../components/OrderViewModal";
 import { OrderAssignmentModal } from "../components/OrderAssignmentModal";
 import { AdminOrdersTable } from "../components/AdminOrdersTable";
 import { UploadNewOrderModal } from "../components/UploadNewOrderModal";
+import { OrderManagementModal } from "../components/OrderManagementModal";
 import { useOrders } from "../contexts/OrderContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useUsers } from "../contexts/UsersContext";
@@ -37,6 +38,8 @@ export default function AdminOrdersPage() {
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [orderToAssign, setOrderToAssign] = useState<Order | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showManagementModal, setShowManagementModal] = useState(false);
+  const [orderToManage, setOrderToManage] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState("under-review");
   const [filterDiscipline, setFilterDiscipline] = useState<string>("");
   const [filterPaperType, setFilterPaperType] = useState<string>("");
@@ -50,7 +53,10 @@ export default function AdminOrdersPage() {
     getWriterActiveOrders,
     getWriterOrderStats,
     getWriterTotalEarnings,
-    createOrder
+    createOrder,
+    updateOrder,
+    deleteOrder,
+    addAdminMessage
   } = useOrders();
   const { user } = useAuth();
   const { writers } = useUsers();
@@ -275,6 +281,12 @@ export default function AdminOrdersPage() {
     }
   };
 
+  // Handle order management
+  const handleManageOrder = (order: Order) => {
+    setOrderToManage(order);
+    setShowManagementModal(true);
+  };
+
   // Get unique disciplines and paper types for filters
   const disciplines = Array.from(new Set(orders.map(order => order.discipline))).sort();
   const paperTypes = Array.from(new Set(orders.map(order => order.paperType))).sort();
@@ -463,6 +475,7 @@ export default function AdminOrdersPage() {
           setOrderToAssign(order);
           setShowAssignmentModal(true);
         }}
+        onManage={handleManageOrder}
       />
 
       {/* Legacy Tabs - Keep for specific workflows if needed */}
@@ -804,6 +817,22 @@ export default function AdminOrdersPage() {
         onClose={() => setShowUploadModal(false)}
         onSubmit={handleCreateOrder}
       />
+
+      {/* Order Management Modal */}
+      {orderToManage && (
+        <OrderManagementModal
+          isOpen={showManagementModal}
+          onClose={() => {
+            setShowManagementModal(false);
+            setOrderToManage(null);
+          }}
+          order={orderToManage}
+          onSave={updateOrder}
+          onDelete={deleteOrder}
+          onAddMessage={addAdminMessage}
+          userRole={userRole}
+        />
+      )}
     </div>
   );
 }

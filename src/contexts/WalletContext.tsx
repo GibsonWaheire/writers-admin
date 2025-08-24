@@ -93,7 +93,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Calculate earnings from POD orders
-    podOrders.forEach(podOrder => {
+    if (podOrders && Array.isArray(podOrders)) {
+      podOrders.forEach(podOrder => {
       if (podOrder.writerId && podOrder.status === 'Payment Received') {
         const podAmount = podOrder.podAmount;
         podEarnings += podAmount;
@@ -112,6 +113,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         pendingEarnings += podOrder.podAmount;
       }
     });
+    }
 
     // Preserve existing transactions (withdrawals, etc.) and merge with new earnings
     const existingTransactions = prevWalletRef.current.transactions.filter(tx => 
@@ -226,13 +228,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [wallet.transactions]);
 
   const getPendingOrdersCount = useCallback(() => {
-    const pendingRegular = orders.filter(order => 
+    const pendingRegular = orders && Array.isArray(orders) ? orders.filter(order => 
       order.writerId && order.status === 'Approved'
-    ).length;
+    ).length : 0;
     
-    const pendingPOD = podOrders.filter(podOrder => 
+    const pendingPOD = podOrders && Array.isArray(podOrders) ? podOrders.filter(podOrder => 
       podOrder.writerId && ['Delivered', 'Ready for Delivery'].includes(podOrder.status)
-    ).length;
+    ).length : 0;
     
     return pendingRegular + pendingPOD;
   }, [orders, podOrders]);
@@ -241,18 +243,22 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     let pending = 0;
     
     // Regular orders pending payment
-    orders.forEach(order => {
-      if (order.writerId && order.status === 'Approved') {
-        pending += order.pages * 350;
-      }
-    });
+    if (orders && Array.isArray(orders)) {
+      orders.forEach(order => {
+        if (order.writerId && order.status === 'Approved') {
+          pending += order.pages * 350;
+        }
+      });
+    }
     
     // POD orders pending payment
-    podOrders.forEach(podOrder => {
-      if (podOrder.writerId && ['Delivered', 'Ready for Delivery'].includes(podOrder.status)) {
-        pending += podOrder.podAmount;
-      }
-    });
+    if (podOrders && Array.isArray(podOrders)) {
+      podOrders.forEach(podOrder => {
+        if (podOrder.writerId && ['Delivered', 'Ready for Delivery'].includes(podOrder.status)) {
+          pending += podOrder.podAmount;
+        }
+      });
+    }
     
     return pending;
   }, [orders, podOrders]);

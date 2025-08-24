@@ -1,19 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { 
   CheckCircle, 
-  Clock, 
-  AlertTriangle, 
-  FileText, 
-  DollarSign,
-  Calendar,
-  User,
-  MessageSquare,
   Eye,
   Play,
-  RefreshCw
+  RotateCcw,
+  User
 } from 'lucide-react';
 import { AssignmentConfirmationModal } from './AssignmentConfirmationModal';
 import { UnifiedAssignmentModal } from './UnifiedAssignmentModal';
@@ -24,7 +18,11 @@ interface AssignedOrderCardProps {
   order: Order;
   assignment?: AssignmentHistory;
   onView: (order: Order) => void;
-  onConfirmAssignment: (orderId: string, confirmation: any) => void;
+  onConfirmAssignment: (orderId: string, confirmation: {
+    estimatedCompletionTime?: number;
+    questions?: string[];
+    additionalNotes?: string;
+  }) => void;
   onDeclineAssignment: (orderId: string, reason: string) => void;
   onStartWork: (orderId: string, data: {
     estimatedCompletionTime?: number;
@@ -64,7 +62,12 @@ export function AssignedOrderCard({
     setShowUnifiedModal(true);
   };
 
-  const handleUnifiedAction = (actionType: 'start_work' | 'reassign', data: any) => {
+  const handleUnifiedAction = (actionType: 'start_work' | 'reassign', data: {
+    estimatedCompletionTime?: number;
+    questions?: string[];
+    additionalNotes?: string;
+    reason?: string;
+  }) => {
     if (actionType === 'start_work') {
       onStartWork(order.id, data);
     } else if (actionType === 'reassign') {
@@ -220,7 +223,7 @@ export function AssignedOrderCard({
                     onClick={handleReassign}
                     className="text-orange-600 hover:bg-orange-50"
                   >
-                    <RefreshCw className="h-4 w-4 mr-1" />
+                    <RotateCcw className="h-4 w-4 mr-1" />
                     Reassign
                   </Button>
                 )}

@@ -41,44 +41,50 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     const newMessages: Message[] = [];
     
     // Extract messages from regular orders
-    orders.forEach(order => {
-      order.clientMessages.forEach(msg => {
-        newMessages.push({
-          id: `MSG-${order.id}-${msg.id}`,
-          orderId: order.id,
-          orderType: 'regular',
-          orderTitle: order.title,
-          sender: msg.sender,
-          recipient: msg.sender === 'client' ? 'writer' : 'client',
-          message: msg.message,
-          timestamp: msg.timestamp,
-          attachments: msg.attachments,
-          isRead: false,
-          status: 'sent'
-        });
+    if (orders && Array.isArray(orders)) {
+      orders.forEach(order => {
+        if (order.clientMessages && Array.isArray(order.clientMessages)) {
+          order.clientMessages.forEach(msg => {
+            newMessages.push({
+              id: `MSG-${order.id}-${msg.id}`,
+              orderId: order.id,
+              orderType: 'regular',
+              orderTitle: order.title,
+              sender: msg.sender,
+              recipient: msg.sender === 'client' ? 'writer' : 'client',
+              message: msg.message,
+              timestamp: msg.timestamp,
+              attachments: msg.attachments,
+              isRead: false,
+              status: 'sent'
+            });
+          });
+        }
       });
-    });
+    }
 
     // Extract messages from POD orders
-    podOrders.forEach(podOrder => {
-      if (podOrder.clientMessages) {
-        podOrder.clientMessages.forEach(msg => {
-          newMessages.push({
-            id: `MSG-POD-${podOrder.id}-${msg.id}`,
-            orderId: podOrder.id,
-            orderType: 'pod',
-            orderTitle: podOrder.title,
-            sender: msg.sender,
-            recipient: msg.sender === 'client' ? 'writer' : 'client',
-            message: msg.message,
-            timestamp: msg.timestamp,
-            attachments: msg.attachments,
-            isRead: false,
-            status: 'sent'
+    if (podOrders && Array.isArray(podOrders)) {
+      podOrders.forEach(podOrder => {
+        if (podOrder.clientMessages && Array.isArray(podOrder.clientMessages)) {
+          podOrder.clientMessages.forEach(msg => {
+            newMessages.push({
+              id: `MSG-POD-${podOrder.id}-${msg.id}`,
+              orderId: podOrder.id,
+              orderType: 'pod',
+              orderTitle: podOrder.title,
+              sender: msg.sender,
+              recipient: msg.sender === 'client' ? 'writer' : 'client',
+              message: msg.message,
+              timestamp: msg.timestamp,
+              attachments: msg.attachments,
+              isRead: false,
+              status: 'sent'
+              });
           });
-        });
-      }
-    });
+        }
+      });
+    }
 
     setMessages(newMessages);
   }, [orders, podOrders]);

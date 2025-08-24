@@ -16,6 +16,7 @@ import { AvailableOrdersTable } from '../../components/AvailableOrdersTable';
 import { OrderViewModal } from '../../components/OrderViewModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { db } from '../../services/database';
 import type { Order, WriterConfirmation, WriterQuestion } from '../../types/order';
 
 export default function AvailableOrdersPage() {
@@ -33,6 +34,27 @@ export default function AvailableOrdersPage() {
   
   const { user } = useAuth();
   const availableOrders = getAvailableOrders();
+
+  // Debug function to troubleshoot order visibility
+  const debugOrders = async () => {
+    try {
+      const debugInfo = await db.debugOrderVisibility();
+      console.log('🔍 Debug Order Visibility:', debugInfo);
+      
+      // Show alert with debug info
+      alert(`Debug Info:
+Total Orders: ${debugInfo.totalOrders}
+Available Orders: ${debugInfo.availableOrders}
+LocalStorage Orders: ${debugInfo.localStorageOrders}
+db.json Orders: ${debugInfo.dbJsonOrders}
+Sync Status: ${debugInfo.syncStatus}
+
+Check console for full details.`);
+    } catch (error) {
+      console.error('Debug failed:', error);
+      alert('Debug failed. Check console for details.');
+    }
+  };
 
   // Filter orders based on search and filters
   const filterOrders = (orders: Order[]) => {
@@ -102,9 +124,19 @@ export default function AvailableOrdersPage() {
           <h1 className="text-3xl font-bold text-gray-900">Available Orders</h1>
           <p className="text-gray-600 mt-1">Browse and pick orders that match your expertise</p>
         </div>
-        <Badge variant="outline" className="text-lg px-4 py-2">
-          {filteredOrders.length} Orders Available
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={debugOrders}
+            className="text-xs"
+          >
+            🔍 Debug Orders
+          </Button>
+          <Badge variant="outline" className="text-lg px-4 py-2">
+            {filteredOrders.length} Orders Available
+          </Badge>
+        </div>
       </div>
 
       {/* Stats Cards */}

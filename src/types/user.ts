@@ -12,6 +12,7 @@ export interface Writer {
   // Profile information
   bio?: string;
   specializations: string[]; // Disciplines they specialize in
+  specialties: string[]; // Alias for specializations (for backward compatibility)
   languages: string[];
   timezone: string;
   country: string;
@@ -71,6 +72,7 @@ export interface Writer {
   
   // Account settings
   maxConcurrentOrders: number;
+  maxOrders: number; // Alias for maxConcurrentOrders (for backward compatibility)
   preferredPaymentMethod?: string;
   paymentDetails?: {
     bankName?: string;
