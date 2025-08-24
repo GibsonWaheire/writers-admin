@@ -195,7 +195,8 @@ class DatabaseService {
         
         // Check if there are actual changes
         if (this.hasSignificantChanges(jsonData)) {
-          this.db = jsonData;
+          // Merge data instead of completely overwriting
+          this.db = this.mergeData(this.db || jsonData, jsonData);
           this.lastSyncTime = now;
           this.retryCount = 0;
           
@@ -204,8 +205,8 @@ class DatabaseService {
           
           console.log('🔄 Database synchronized with db.json', {
             timestamp: new Date().toISOString(),
-            ordersCount: jsonData.orders?.length || 0,
-            availableOrders: jsonData.orders?.filter((o: any) => o.status === 'Available').length || 0
+            ordersCount: this.db.orders?.length || 0,
+            availableOrders: this.db.orders?.filter((o: any) => o.status === 'Available').length || 0
           });
         }
       } else {
@@ -219,6 +220,30 @@ class DatabaseService {
     }
   }
 
+  // Merge local data with db.json data, preserving newer local data
+  private mergeData(localData: Database, jsonData: Database): Database {
+    if (!localData) return jsonData;
+    
+    const merged = { ...jsonData };
+    
+    // Preserve local orders if they're newer or don't exist in db.json
+    if (localData.orders && localData.orders.length > 0) {
+      const localOrderIds = new Set(localData.orders.map(o => o.id));
+      const jsonOrderIds = new Set(jsonData.orders?.map(o => o.id) || []);
+      
+      // Add local orders that don't exist in db.json
+      localData.orders.forEach(localOrder => {
+        if (!jsonOrderIds.has(localOrder.id)) {
+          merged.orders = merged.orders || [];
+          merged.orders.push(localOrder);
+          console.log('🔄 Preserving local order:', localOrder.id);
+        }
+      });
+    }
+    
+    return merged;
+  }
+
   // Check if there are significant changes that warrant an update
   private hasSignificantChanges(newData: Database): boolean {
     if (!this.db) return true;
@@ -227,13 +252,22 @@ class DatabaseService {
     const currentOrders = this.db.orders || [];
     const newOrders = newData.orders || [];
     
-    // Check if number of available orders changed
+    // If local has more orders than db.json, don't overwrite (local is more up-to-date)
+    if (currentOrders.length > newOrders.length) {
+      console.log('🔄 Local has more orders than db.json, skipping overwrite');
+      return false;
+    }
+    
+    // Check if number of available orders changed (but only if we're not losing data)
     const currentAvailable = currentOrders.filter((o) => o.status === 'Available').length;
     const newAvailable = newOrders.filter((o) => o.status === 'Available').length;
     
-    if (currentAvailable !== newAvailable) return true;
+    // Only consider it a significant change if we're not losing orders
+    if (currentAvailable !== newAvailable && newOrders.length >= currentOrders.length) {
+      return true;
+    }
     
-    // Check if any order statuses changed
+    // Check if any existing order statuses changed (but only for orders that exist in both)
     for (let i = 0; i < Math.min(currentOrders.length, newOrders.length); i++) {
       if (currentOrders[i].status !== newOrders[i].status) return true;
       if (currentOrders[i].writerId !== newOrders[i].writerId) return true;
