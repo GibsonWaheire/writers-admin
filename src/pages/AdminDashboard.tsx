@@ -19,7 +19,8 @@ import {
   UserPlus,
   Plus,
   BarChart3,
-  Star
+  Star,
+  Download
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -103,6 +104,49 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleExportDatabase = () => {
+    try {
+      // Get current database state from localStorage
+      const dbKey = 'writers_admin_db';
+      const currentDb = localStorage.getItem(dbKey);
+      
+      if (currentDb) {
+        // Parse the database
+        const db = JSON.parse(currentDb);
+        
+        // Create download link
+        const jsonData = JSON.stringify(db, null, 2);
+        const blob = new Blob([jsonData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        // Trigger download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'db.json';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        console.log('✅ Database exported successfully:', {
+          ordersCount: db.orders?.length || 0,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Show success message
+        alert(`Database exported successfully!\nOrders: ${db.orders?.length || 0}\n\nPlease save the downloaded 'db.json' file to your project root to replace the existing one.`);
+        
+      } else {
+        console.error('No database found in localStorage');
+        alert('No database found in localStorage');
+      }
+    } catch (error) {
+      console.error('Failed to export database:', error);
+      alert('Failed to export database. Check console for details.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -112,13 +156,35 @@ export default function AdminDashboard() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
             <p className="text-gray-600">Welcome to the administrative control panel. Manage your writing platform from here.</p>
           </div>
-          <Button 
-            onClick={() => setShowUploadModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg"
-          >
-            <Plus className="mr-2 h-6 w-6" />
-            Upload New Order
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={() => setShowUploadModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg"
+            >
+              <Plus className="mr-2 h-6 w-6" />
+              Upload New Order
+            </Button>
+            
+            <Button 
+              onClick={handleExportDatabase}
+              variant="outline"
+              className="border-green-300 text-green-700 hover:bg-green-50 hover:border-green-400 px-6 py-3 text-lg"
+            >
+              <Download className="mr-2 h-6 w-6" />
+              Export Database
+            </Button>
+          </div>
+        </div>
+        
+        {/* Database Management Instructions */}
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="text-blue-600 text-lg">💡</div>
+            <div className="text-sm text-blue-800">
+              <p className="font-medium mb-1">Database Management:</p>
+              <p>After creating orders, use "Export Database" to download the updated db.json file. Replace your project's db.json with this file to ensure orders persist and are visible to writers.</p>
+            </div>
+          </div>
         </div>
       </div>
 

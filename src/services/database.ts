@@ -61,6 +61,7 @@ class DatabaseService {
   private retryCount: number = 0;
   private readonly MAX_RETRIES = 3;
   private readonly SYNC_INTERVAL = 3000; // 3 seconds for faster updates
+  private exportUrl: string | null = null; // URL for database export
 
   private constructor() {
     this.loadDatabase();
@@ -352,24 +353,134 @@ class DatabaseService {
     }
   }
 
-  // Save database to localStorage and trigger sync with improved error handling
+  // Save database to localStorage and db.json file
   private saveDatabase(): void {
     if (this.db) {
       try {
+        // Save to localStorage
         localStorage.setItem(this.DB_KEY, JSON.stringify(this.db));
         console.log('💾 Database saved to localStorage');
+        
+        // Save to db.json file
+        this.saveToDbJson();
         
         // Notify subscribers of the change
         this.notifyAllSubscribers();
         
-        // Trigger immediate sync with db.json
-        this.forceSync();
       } catch (error) {
         console.error('Failed to save database:', error);
-        // Try to recover by forcing a sync
-        this.forceSync();
       }
     }
+  }
+
+  // Save database to db.json file
+  private saveToDbJson(): void {
+    try {
+      if (this.db) {
+        // Create a download link with the current database
+        const jsonData = JSON.stringify(this.db, null, 2);
+        const blob = new Blob([jsonData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        // Store the URL for potential download
+        this.exportUrl = url;
+        
+        console.log('💾 Database ready for db.json save:', {
+          ordersCount: this.db?.orders?.length || 0,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Auto-download in development mode
+        if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+          this.autoDownloadDbJson();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save database to file:', error);
+    }
+  }
+
+  // Auto-download db.json in development mode
+  private autoDownloadDbJson(): void {
+    try {
+      if (this.exportUrl && this.db) {
+        const a = document.createElement('a');
+        a.href = this.exportUrl;
+        a.download = 'db.json';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        console.log('📥 db.json auto-downloaded. Please replace your project db.json with this file.');
+        
+        // Show user notification
+        this.showDbUpdateNotification();
+      }
+    } catch (error) {
+      console.error('Failed to auto-download db.json:', error);
+    }
+  }
+
+  // Show notification to user about database update
+  private showDbUpdateNotification(): void {
+    // Create a notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #10b981;
+      color: white;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 9999;
+      max-width: 400px;
+      font-family: system-ui, sans-serif;
+    `;
+    
+    notification.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <span style="font-size: 18px;">💾</span>
+        <strong>Database Updated!</strong>
+      </div>
+      <div style="font-size: 14px; line-height: 1.4;">
+        Your db.json file has been downloaded. Please replace your project's db.json with this file to persist the changes.
+      </div>
+      <button onclick="this.parentElement.remove()" style="
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-top: 8px;
+        cursor: pointer;
+        font-size: 12px;
+      ">Dismiss</button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+      if (notification.parentElement) {
+        notification.remove();
+      }
+    }, 10000);
+  }
+
+  // Public method to force download of current db.json
+  public forceDownloadDbJson(): void {
+    if (this.db) {
+      this.saveToDbJson();
+      this.autoDownloadDbJson();
+    }
+  }
+
+  // Public method to get the export URL
+  public getExportUrl(): string | null {
+    return this.exportUrl;
   }
 
   // Ensure database is loaded
