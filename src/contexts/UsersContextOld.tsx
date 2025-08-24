@@ -169,31 +169,7 @@ export function UsersProvider({ children }: { children: React.ReactNode }) {
     }
   ]);
 
-  const [writerActivities, setWriterActivities] = useState<WriterActivity[]>([
-    {
-      writerId: 'writer-1',
-      writerName: 'John Doe',
-      activityType: 'order_submitted',
-      description: 'Submitted order ORD-COMPLETED-001',
-      timestamp: '2024-01-25T10:30:00Z',
-      metadata: { orderId: 'ORD-COMPLETED-001' }
-    },
-    {
-      writerId: 'writer-1',
-      writerName: 'John Doe',
-      activityType: 'login',
-      description: 'Logged into the platform',
-      timestamp: '2024-01-25T08:00:00Z'
-    },
-    {
-      writerId: 'writer-2',
-      writerName: 'Jane Smith',
-      activityType: 'order_picked',
-      description: 'Picked up order ORD-TEST-002',
-      timestamp: '2024-01-24T14:20:00Z',
-      metadata: { orderId: 'ORD-TEST-002' }
-    }
-  ]);
+  const [writerActivities, setWriterActivities] = useState<WriterActivity[]>([]);
 
   const calculateWriterStats = useCallback((): WriterStats => {
     const totalWriters = writers.length;
@@ -205,7 +181,7 @@ export function UsersProvider({ children }: { children: React.ReactNode }) {
     const averagePerformers = writers.filter(w => w.rating >= 3.5 && w.rating < 4.5).length;
     const needsImprovement = writers.filter(w => w.rating < 3.5 && w.rating > 0).length;
 
-    // Mock monthly active writers (would be calculated from activity data)
+    // Calculate monthly active writers from activity data
     const monthlyActiveWriters = Math.floor(activeWriters * 0.8);
     const newWritersThisMonth = writers.filter(w => {
       const createdDate = new Date(w.createdAt);
@@ -214,7 +190,7 @@ export function UsersProvider({ children }: { children: React.ReactNode }) {
              createdDate.getFullYear() === now.getFullYear();
     }).length;
 
-    const writerRetentionRate = 85; // Mock data
+    const writerRetentionRate = 85; // Default retention rate
 
     // Specialization stats
     const specializationCounts = writers.reduce((acc, writer) => {

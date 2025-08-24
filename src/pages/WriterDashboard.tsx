@@ -10,7 +10,8 @@ import {
   Star,
   TrendingUp,
   Calendar,
-  ArrowRight
+  ArrowRight,
+  BookOpen
 } from "lucide-react";
 import { OrderViewModal } from "../components/OrderViewModal";
 import { RealTimeOrderIndicator } from "../components/RealTimeOrderIndicator";
@@ -27,7 +28,7 @@ import type { Order } from "../types/order";
 export default function WriterDashboard() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { orders, getWriterActiveOrders, getWriterOrderStats, getAvailableOrders } = useOrders();
+  const { orders, getWriterActiveOrders, getWriterOrderStats, getAvailableOrders, availableOrdersCount, forceResetDatabase } = useOrders();
   const { wallet, getMonthlyEarnings } = useWallet();
   const { getWriterStats: getReviewStats } = useReviews();
   const { getWriterFinancials } = useFinancial();
@@ -69,6 +70,26 @@ export default function WriterDashboard() {
   const earningsChange = lastMonthEarnings > 0 ? Math.round(((thisMonthEarnings - lastMonthEarnings) / lastMonthEarnings) * 100) : 0;
   
   const stats = [
+    {
+      title: "Available Orders",
+      value: availableOrdersCount.toString(),
+      icon: BookOpen,
+      change: `${availableOrdersCount} orders ready to pick`,
+      changeType: availableOrdersCount > 0 ? "positive" as const : "neutral" as const,
+      onClick: () => navigate('/available-orders'), // Navigate to available orders
+      details: {
+        description: "Orders currently available for you to pick up and work on.",
+        items: [
+          { label: "Available Now", value: availableOrdersCount.toString(), icon: BookOpen },
+          { label: "Your Active Orders", value: writerStats.inProgress.toString(), icon: FileText },
+          { label: "Completed This Month", value: writerStats.completed.toString(), icon: CheckCircle }
+        ],
+        action: {
+          label: "View Available Orders",
+          onClick: () => navigate('/available-orders')
+        }
+      }
+    },
     {
       title: "Wallet Balance",
       value: `KES ${wallet.availableBalance.toLocaleString()}`,
@@ -221,6 +242,13 @@ export default function WriterDashboard() {
             >
               <DollarSign className="mr-2 h-4 w-4" />
               Wallet
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={forceResetDatabase}
+              className="border-red-200 text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              Reset Database
             </Button>
           </div>
         </div>

@@ -37,17 +37,15 @@ export default function AdminDashboard() {
       .filter(o => ['Completed', 'Approved'].includes(o.status))
       .reduce((sum, order) => sum + (order.pages * 350), 0);
     
-    // Calculate writer satisfaction (mock calculation based on completion rate)
+    // Calculate completion rate
     const completionRate = totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0;
-    const writerSatisfaction = Math.min(5, Math.max(1, (completionRate / 20) + 3.5)); // Scale to 1-5 range
     
     return {
       totalOrders,
       activeWriters,
       pendingReviews,
       completedOrders,
-      totalRevenue,
-      writerSatisfaction: writerSatisfaction.toFixed(1)
+      totalRevenue
     };
   };
 
@@ -167,14 +165,7 @@ export default function AdminDashboard() {
           changeType="positive"
           onClick={() => navigate('/admin/financial')}
         />
-        <StatCard
-          title="Writer Satisfaction"
-          value={stats.writerSatisfaction}
-          icon={Star}
-          change={`${stats.writerSatisfaction}/5 rating`}
-          changeType="positive"
-          onClick={() => navigate('/admin/reviews')}
-        />
+
       </div>
 
       {/* Main Navigation Grid */}

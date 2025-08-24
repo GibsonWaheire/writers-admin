@@ -54,6 +54,8 @@ interface OrderContextType {
   isConnected: boolean;
   lastUpdate: string;
   availableOrdersCount: number;
+  // Database management
+  forceResetDatabase: () => Promise<void>;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -98,15 +100,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           });
         }
       } catch (error) {
-        console.error('Failed to refresh orders from real-time update:', error);
+        console.error('Failed to refresh orders:', error);
         setIsConnected(false);
       }
     });
 
-    // Cleanup subscription on unmount
-    return () => {
-      unsubscribe();
-    };
+    return unsubscribe;
   }, []);
 
   // Function to refresh orders from database
@@ -124,350 +123,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Hardcoded orders removed - all data now comes from database
-  /* const [oldOrders] = useState<Order[]>([
-    {
-      id: 'ORD-001',
-      title: 'Research Paper on Climate Change',
-      description: 'Comprehensive analysis of climate change impacts on coastal communities',
-      subject: 'Environmental Science',
-      discipline: 'Environmental Science',
-      paperType: 'Research Paper',
-      pages: 15,
-      words: 3750,
-      format: 'APA',
-      price: 450,
-      priceKES: 67500,
-      cpp: 4500,
-      totalPriceKES: 67500,
-      deadline: '2024-02-15',
-      status: 'Available',
-      assignedWriter: undefined,
-      writerId: undefined,
-      createdAt: '2024-01-15',
-      updatedAt: '2024-01-15',
-      isOverdue: false,
-      confirmationStatus: 'pending',
-      paymentType: 'advance',
-      clientMessages: [
-        {
-          id: 'msg-1',
-          sender: 'client',
-          message: 'Need this for academic publication',
-          timestamp: '2024-01-15T10:00:00Z'
-        }
-      ],
-      uploadedFiles: [],
-      additionalInstructions: 'Include recent studies from 2020-2024'
-    },
-    {
-      id: 'ORD-002',
-      title: 'Business Plan for Tech Startup',
-      description: 'Comprehensive business plan for a mobile app development startup',
-      subject: 'Business',
-      discipline: 'Business Administration',
-      paperType: 'Business Plan',
-      pages: 12,
-      words: 3000,
-      format: 'APA',
-      price: 360,
-      priceKES: 42000,
-      cpp: 350,
-      totalPriceKES: 42000,
-      deadline: '2024-02-10',
-      status: 'Submitted',
-      assignedWriter: 'John Doe',
-      writerId: 'writer-1',
-      createdAt: '2024-01-16',
-      updatedAt: '2024-01-16',
-      isOverdue: false,
-      confirmationStatus: 'confirmed',
-      paymentType: 'advance',
-      clientMessages: [
-        {
-          id: 'msg-2',
-          sender: 'client',
-          message: 'Focus on B2B market and include pricing strategies',
-          timestamp: '2024-01-16T09:00:00Z'
-        },
-        {
-          id: 'msg-3',
-          sender: 'writer',
-          message: 'Working on the competitive analysis section. Will include pricing strategies as requested.',
-          timestamp: '2024-01-17T14:30:00Z'
-        }
-      ],
-      uploadedFiles: [
-        {
-          id: 'file-2',
-          filename: 'market_data.xlsx',
-          originalName: 'Market_Data.xlsx',
-          size: 1048576,
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          url: '/files/market_data.xlsx',
-          uploadedAt: '2024-01-16T09:00:00Z'
-        }
-      ],
-      additionalInstructions: 'Include SWOT analysis and market positioning'
-    },
-    {
-      id: 'ORD-003',
-      title: 'Literature Review - Cognitive Behavioral Therapy',
-      description: 'Systematic review of cognitive behavioral therapy effectiveness in treating anxiety disorders',
-      subject: 'Psychology',
-      discipline: 'Psychology',
-      paperType: 'Literature Review',
-      pages: 12,
-      words: 3000,
-      format: 'APA',
-      price: 360,
-      priceKES: 54000,
-      cpp: 4500,
-      totalPriceKES: 54000,
-      deadline: '2024-02-20',
-      status: 'In Progress',
-      assignedWriter: 'John Doe',
-      writerId: 'writer-1',
-      createdAt: '2024-01-17',
-      updatedAt: '2024-01-17',
-      isOverdue: false,
-      confirmationStatus: 'confirmed',
-      paymentType: 'advance',
-      clientMessages: [],
-      uploadedFiles: [],
-      additionalInstructions: 'Focus on studies from the last 10 years and include meta-analysis'
-    },
-    {
-      id: 'ORD-004',
-      title: 'Technical Documentation for Mobile API',
-      description: 'Comprehensive API documentation for mobile application development with code examples',
-      subject: 'Technology',
-      discipline: 'Computer Science',
-      paperType: 'Technical Documentation',
-      pages: 10,
-      words: 2500,
-      format: 'IEEE',
-      price: 320,
-      priceKES: 48000,
-      cpp: 4800,
-      totalPriceKES: 48000,
-      deadline: '2024-02-05',
-      status: 'Submitted',
-      assignedWriter: 'John Doe',
-      writerId: 'writer-1',
-      createdAt: '2024-01-18',
-      updatedAt: '2024-01-18',
-      isOverdue: false,
-      confirmationStatus: 'confirmed',
-      paymentType: 'advance',
-      clientMessages: [
-        {
-          id: 'msg-4',
-          sender: 'client',
-          message: 'Need this for our development team onboarding',
-          timestamp: '2024-01-18T11:00:00Z'
-        }
-      ],
-      uploadedFiles: [
-        {
-          id: 'file-3',
-          filename: 'api_docs.pdf',
-          originalName: 'API_Documentation.pdf',
-          size: 2097152,
-          type: 'application/pdf',
-          url: '/files/api_docs.pdf',
-          uploadedAt: '2024-01-18T11:00:00Z'
-        }
-      ],
-      additionalInstructions: 'Include authentication examples and error handling'
-    },
-    {
-      id: 'ORD-005',
-      title: 'Case Study - Digital Transformation',
-      description: 'Analysis of successful digital transformation in traditional retail companies',
-      subject: 'Business',
-      discipline: 'Business Strategy',
-      paperType: 'Case Study',
-      pages: 8,
-      words: 2000,
-      format: 'Harvard',
-      price: 240,
-      priceKES: 28000,
-      cpp: 350,
-      totalPriceKES: 28000,
-      deadline: '2024-02-12',
-      status: 'Revision',
-      assignedWriter: 'Jane Smith',
-      writerId: 'writer-2',
-      createdAt: '2024-01-19',
-      updatedAt: '2024-01-19',
-      isOverdue: false,
-      confirmationStatus: 'confirmed',
-      paymentType: 'advance',
-      clientMessages: [
-        {
-          id: 'msg-5',
-          sender: 'admin',
-          message: 'Please revise the methodology section and add more recent examples',
-          timestamp: '2024-01-19T15:00:00Z'
-        }
-      ],
-      uploadedFiles: [
-        {
-          id: 'file-4',
-          filename: 'case_study_v1.pdf',
-          originalName: 'Digital_Transformation_Case_Study.pdf',
-          size: 1572864,
-          type: 'application/pdf',
-          url: '/files/case_study_v1.pdf',
-          uploadedAt: '2024-01-19T15:00:00Z'
-        }
-      ],
-      additionalInstructions: 'Focus on companies that successfully adapted to e-commerce'
-    },
-    // Add some test orders for admin assignment testing
-    {
-      id: 'ORD-TEST-001',
-      title: 'Marketing Strategy Analysis',
-      description: 'Comprehensive marketing strategy analysis for a new product launch in the technology sector',
-      subject: 'Marketing',
-      discipline: 'Business Administration',
-      paperType: 'Marketing Analysis',
-      pages: 8,
-      words: 2000,
-      format: 'APA',
-      price: 280,
-      priceKES: 28000,
-      cpp: 350,
-      totalPriceKES: 28000,
-      deadline: '2024-02-25',
-      status: 'Available',
-      assignedWriter: undefined,
-      writerId: undefined,
-      createdAt: '2024-01-20',
-      updatedAt: '2024-01-20',
-      isOverdue: false,
-      confirmationStatus: 'pending',
-      paymentType: 'advance',
-      clientMessages: [],
-      uploadedFiles: [],
-      additionalInstructions: 'Focus on digital marketing strategies and social media presence',
-      requiresAdminApproval: false,
-      urgencyLevel: 'normal'
-    },
-    {
-      id: 'ORD-TEST-002',
-      title: 'Data Science Project Report',
-      description: 'Machine learning model development and evaluation report for predictive analytics',
-      subject: 'Computer Science',
-      discipline: 'Computer Science',
-      paperType: 'Technical Documentation',
-      pages: 15,
-      words: 3750,
-      format: 'IEEE',
-      price: 525,
-      priceKES: 52500,
-      cpp: 350,
-      totalPriceKES: 52500,
-      deadline: '2024-02-28',
-      status: 'Available',
-      assignedWriter: undefined,
-      writerId: undefined,
-      createdAt: '2024-01-21',
-      updatedAt: '2024-01-21',
-      isOverdue: false,
-      confirmationStatus: 'pending',
-      paymentType: 'advance',
-      clientMessages: [],
-      uploadedFiles: [],
-      additionalInstructions: 'Include code examples and performance metrics',
-      requiresAdminApproval: false,
-      urgencyLevel: 'urgent'
-    },
-    // Add a test order that's currently assigned to test "Make Available" functionality
-    {
-      id: 'ORD-TEST-003',
-      title: 'Business Ethics Case Study',
-      description: 'Analysis of ethical dilemmas in modern business practices with real-world examples',
-      subject: 'Business Ethics',
-      discipline: 'Business Administration',
-      paperType: 'Case Study',
-      pages: 10,
-      words: 2500,
-      format: 'Harvard',
-      price: 350,
-      priceKES: 35000,
-      cpp: 350,
-      totalPriceKES: 35000,
-      deadline: '2024-02-22',
-      status: 'Assigned',
-      assignedWriter: 'John Doe',
-      writerId: 'writer-1',
-      createdAt: '2024-01-19',
-      updatedAt: '2024-01-19',
-      isOverdue: false,
-      confirmationStatus: 'confirmed',
-      paymentType: 'advance',
-      clientMessages: [],
-      uploadedFiles: [],
-      additionalInstructions: 'Focus on recent corporate scandals and their ethical implications',
-      requiresAdminApproval: false,
-      urgencyLevel: 'normal'
-    },
-    // Add a completed order for testing the completed tab and balance update
-    {
-      id: 'ORD-COMPLETED-001',
-      title: 'Marketing Strategy for Social Media Platform',
-      description: 'Comprehensive marketing strategy for a new social media platform targeting Gen Z users',
-      subject: 'Marketing',
-      discipline: 'Business Administration',
-      paperType: 'Marketing Analysis',
-      pages: 6,
-      words: 1500,
-      format: 'APA',
-      price: 210,
-      priceKES: 21000,
-      cpp: 350,
-      totalPriceKES: 21000,
-      deadline: '2024-01-20',
-      status: 'Completed',
-      assignedWriter: 'John Doe',
-      writerId: 'writer-1',
-      createdAt: '2024-01-10',
-      updatedAt: '2024-01-22',
-      isOverdue: false,
-      confirmationStatus: 'confirmed',
-      paymentType: 'advance',
-      clientMessages: [
-        {
-          id: 'msg-completed-1',
-          sender: 'admin',
-          message: 'Excellent work! This marketing strategy is comprehensive and well-researched.',
-          timestamp: '2024-01-22T10:00:00Z'
-        }
-      ],
-      uploadedFiles: [
-        {
-          id: 'file-completed-1',
-          filename: 'marketing_strategy_final.pdf',
-          originalName: 'Social_Media_Marketing_Strategy.pdf',
-          size: 2048576,
-          type: 'application/pdf',
-          url: '/files/marketing_strategy_final.pdf',
-          uploadedAt: '2024-01-21T16:00:00Z'
-        }
-      ],
-      additionalInstructions: 'Include competitor analysis and budget allocation',
-      requiresAdminApproval: false,
-      urgencyLevel: 'normal',
-      submittedToAdminAt: '2024-01-21T16:00:00Z',
-      adminReviewedAt: '2024-01-22T10:00:00Z',
-      adminReviewedBy: 'admin-1',
-      approvedAt: '2024-01-22T10:00:00Z',
-      completedAt: '2024-01-22T10:00:00Z',
-      adminReviewNotes: 'Outstanding quality. Clear structure, excellent research, and practical recommendations.'
-    }
-  ]); */
+  // All mock data removed - orders are loaded from database only
 
   const handleOrderAction = useCallback(async (action: string, orderId: string, additionalData?: Record<string, unknown>) => {
     console.log('🔄 OrderContext: Processing action:', {
@@ -540,6 +196,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           updates.madeAvailableAt = new Date().toISOString();
           updates.madeAvailableBy = additionalData?.source === 'writer_reassignment' ? 'writer' : 'admin';
           updates.reassignedAt = new Date().toISOString();
+          
+          // Clear assignment-related fields
+          updates.assignedAt = undefined;
+          updates.assignedBy = undefined;
+          updates.assignmentPriority = undefined;
+          updates.assignmentDeadline = undefined;
+          updates.requiresConfirmation = undefined;
           
           console.log('🔄 OrderContext: Making order available:', {
             orderId,
@@ -876,6 +539,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           if (additionalData?.notes) {
             orderWithUpdates.assignmentNotes = additionalData.notes;
           }
+          // Clear assignment-related fields
+          orderWithUpdates.assignedAt = undefined;
+          orderWithUpdates.assignedBy = undefined;
+          orderWithUpdates.assignmentPriority = undefined;
+          orderWithUpdates.assignmentDeadline = undefined;
+          orderWithUpdates.requiresConfirmation = undefined;
           break;
           
         case 'start_work':
@@ -990,7 +659,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   // Get available orders (excluding assigned orders)
   const getAvailableOrders = useCallback(() => {
     return orders.filter(order => 
-      (order.status === 'Available' || order.status === 'Auto-Reassigned') && 
+      order.status === 'Available' && 
       !order.writerId && 
       !order.assignedWriter
     );
@@ -1009,7 +678,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     return {
       total: writerOrders.length,
       pending: writerOrders.filter(o => o.status === 'Submitted').length,
-      available: writerOrders.filter(o => o.status === 'Available').length,
+      available: 0, // Writers don't have available orders - they can only see unassigned orders
       inProgress: writerOrders.filter(o => o.status === 'In Progress').length,
       submitted: writerOrders.filter(o => o.status === 'Submitted').length,
       approved: writerOrders.filter(o => o.status === 'Approved').length,
@@ -1029,7 +698,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     
     return {
       pending: writerOrders.filter(o => o.status === 'Submitted'),
-      available: writerOrders.filter(o => o.status === 'Available'),
+      available: [], // Writers don't have available orders - they can only see unassigned orders
       inProgress: writerOrders.filter(o => o.status === 'In Progress'),
       submitted: writerOrders.filter(o => o.status === 'Submitted'),
       approved: writerOrders.filter(o => o.status === 'Approved'),
@@ -1082,9 +751,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         cpp: orderData.cpp || 350,
         totalPriceKES: orderData.totalPriceKES || 350,
         deadline: orderData.deadline || new Date().toISOString(),
-        status: orderData.status || 'Available',
-        assignedWriter: orderData.assignedWriter,
-        writerId: orderData.writerId,
+        status: 'Available', // Always start as available unless explicitly assigned
+        assignedWriter: undefined, // No writer assigned initially
+        writerId: undefined, // No writer ID initially
         createdAt: orderData.createdAt || new Date().toISOString(),
         updatedAt: orderData.updatedAt || new Date().toISOString(),
         isOverdue: false,
@@ -1136,6 +805,20 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   // Get available orders count for real-time display
   const availableOrdersCount = orders.filter(order => order.status === 'Available').length;
 
+  // Force reset database to clear any cached data
+  const forceResetDatabase = useCallback(async () => {
+    try {
+      await db.reset();
+      // Reload orders after reset
+      const ordersData = await db.find<Order>('orders');
+      setOrders(ordersData);
+      setLastUpdate(new Date().toISOString());
+      console.log('✅ Database reset completed, orders cleared');
+    } catch (error) {
+      console.error('❌ Failed to reset database:', error);
+    }
+  }, []);
+
   return (
     <OrderContext.Provider value={{
       orders,
@@ -1154,7 +837,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       // New real-time features
       isConnected,
       lastUpdate,
-      availableOrdersCount
+      availableOrdersCount,
+      // Database management
+      forceResetDatabase
     }}>
       {children}
     </OrderContext.Provider>

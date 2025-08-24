@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useUsers } from '../contexts/UsersContext';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useOrders } from '../contexts/OrderContext';
 import type { Order } from '../types/order';
 import type { SmartAssignmentSuggestion } from '../types/notification';
 
@@ -70,21 +71,49 @@ export function OrderAssignmentModal({
   const [showSmartSuggestions, setShowSmartSuggestions] = useState(true);
 
   // Filter writers based on search and specialty
-  // Convert writers to the format expected by the component
-  const mockWriters = writers.filter(w => w.status === 'active').map(writer => ({
-    id: writer.id,
-    name: writer.name,
-    email: writer.email,
-    rating: writer.rating,
-    activeOrders: 2, // Mock data - could be calculated from orders context
-    maxOrders: writer.maxConcurrentOrders,
-    completedOrders: writer.completedOrders,
-    totalEarnings: writer.totalEarnings,
-    specialties: writer.specializations,
-    avgCompletionTime: 48 // Mock data - could be calculated
-  }));
+  // Use real data from orders context to calculate active orders
+  const { orders } = useOrders();
+  
+  const realWriters = writers.filter(w => w.status === 'active').map(writer => {
+    // Calculate real active orders from orders context
+    const writerActiveOrders = orders.filter(order => 
+      order.writerId === writer.id && 
+      ['Assigned', 'In Progress', 'Submitted', 'Revision'].includes(order.status)
+    ).length;
+    
+    // Calculate average completion time from completed orders
+    const completedOrders = orders.filter(order => 
+      order.writerId === writer.id && 
+      order.status === 'Completed' && 
+      order.completedAt && 
+      order.assignedAt
+    );
+    
+    let avgCompletionTime = 48; // Default 48 hours
+    if (completedOrders.length > 0) {
+      const totalTime = completedOrders.reduce((sum, order) => {
+        const assigned = new Date(order.assignedAt!);
+        const completed = new Date(order.completedAt!);
+        return sum + (completed.getTime() - assigned.getTime());
+      }, 0);
+      avgCompletionTime = Math.round(totalTime / (completedOrders.length * 1000 * 60 * 60)); // Convert to hours
+    }
+    
+    return {
+      id: writer.id,
+      name: writer.name,
+      email: writer.email,
+      rating: writer.rating,
+      activeOrders: writerActiveOrders,
+      maxOrders: writer.maxConcurrentOrders,
+      completedOrders: writer.completedOrders,
+      totalEarnings: writer.totalEarnings,
+      specialties: writer.specializations,
+      avgCompletionTime
+    };
+  });
 
-  const filteredWriters = mockWriters.filter(writer => {
+  const filteredWriters = realWriters.filter(writer => {
     const matchesSearch = 
       writer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       writer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -96,10 +125,10 @@ export function OrderAssignmentModal({
   });
 
   // Get unique specialties for filter
-  const specialties = Array.from(new Set(mockWriters.flatMap(w => w.specialties))).sort();
+  const specialties = Array.from(new Set(realWriters.flatMap(w => w.specialties))).sort();
 
   // Get writer by ID
-  const selectedWriter = selectedWriterId ? mockWriters.find(w => w.id === selectedWriterId) : null;
+  const selectedWriter = selectedWriterId ? realWriters.find(w => w.id === selectedWriterId) : null;
 
   // Check if writer can take the order
   const canTakeOrder = (writer: Writer) => {

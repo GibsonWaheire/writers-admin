@@ -87,7 +87,7 @@ export default function AdminOrdersPage() {
   const approvedOrders = getOrdersByStatus('Approved');
   const rejectedOrders = getOrdersByStatus('Rejected');
   const completedOrders = getOrdersByStatus('Completed');
-  const pendingAssignmentOrders = getAvailableOrders(); // Available orders that need assignment
+  const availableOrders = getAvailableOrders(); // Available orders that can be assigned
 
   // Get writer-specific orders for monitoring (not for action)
   const allWriters = Array.from(new Set(orders.filter(o => o.writerId).map(o => o.writerId!)));
@@ -320,25 +320,7 @@ export default function AdminOrdersPage() {
             Upload New Order
           </Button>
           
-          {/* Test button for debugging */}
-          <Button 
-            variant="outline"
-            onClick={() => {
-              console.log('🧪 Testing make_available functionality...');
-              const testOrder = orders.find(o => o.id === 'ORD-TEST-003');
-              if (testOrder) {
-                console.log('🧪 Test order found:', testOrder);
-                handleOrderAction('make_available', 'ORD-TEST-003', { 
-                  notes: 'Test make available',
-                  source: 'test_button'
-                });
-              } else {
-                console.log('🧪 Test order not found');
-              }
-            }}
-          >
-            🧪 Test Make Available
-          </Button>
+
           
           {/* Manual refresh button */}
           <Button 
@@ -498,7 +480,7 @@ export default function AdminOrdersPage() {
 
           <TabsTrigger value="pending-assignment" className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
-            Pending Assignment ({filterOrders(pendingAssignmentOrders).length})
+            Pending Assignment ({filterOrders(availableOrders).length})
           </TabsTrigger>
           
           <TabsTrigger value="approved" className="flex items-center gap-2">
@@ -592,11 +574,11 @@ export default function AdminOrdersPage() {
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Orders Pending Assignment</h3>
             <p className="text-sm text-gray-600">
-              {pendingAssignmentOrders.length} orders available for writer assignment
+              {availableOrders.length} orders available for writer assignment
             </p>
           </div>
           
-          {filterOrders(pendingAssignmentOrders).length > 0 ? (
+          {filterOrders(availableOrders).length > 0 ? (
             <div className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center gap-2 text-blue-800">
@@ -608,7 +590,7 @@ export default function AdminOrdersPage() {
                 </p>
               </div>
               
-              {filterOrders(pendingAssignmentOrders).map((order) => (
+              {filterOrders(availableOrders).map((order) => (
                 <OrderCard
                   key={order.id}
                   order={order}
