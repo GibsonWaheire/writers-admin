@@ -234,6 +234,33 @@ export function OrderCard({
               <BookOpen className="h-4 w-4 mr-2" />
               Make Available
             </Button>
+            <Button 
+              onClick={() => onAction?.('reassign', order.id, { reason: 'Admin reassignment' })}
+              size="sm"
+              variant="outline"
+              className="text-blue-600 hover:bg-blue-50"
+            >
+              <UserX className="h-4 w-4 mr-2" />
+              Reassign
+            </Button>
+            <Button 
+              onClick={() => onAction?.('put_on_hold', order.id, { reason: 'Order paused by admin' })}
+              size="sm"
+              variant="outline"
+              className="text-yellow-600 hover:bg-yellow-50"
+            >
+              <Clock className="h-4 w-4 mr-2" />
+              Put on Hold
+            </Button>
+            <Button 
+              onClick={() => onAction?.('mark_urgent', order.id, { reason: 'Marked as urgent' })}
+              size="sm"
+              variant="outline"
+              className="text-red-600 hover:bg-red-50"
+            >
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Mark Urgent
+            </Button>
           </div>
         );
       }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -11,7 +11,14 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  DollarSign
+  DollarSign,
+  ClipboardList,
+  UserCheck,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Users,
+  BarChart3
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -21,9 +28,29 @@ import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
 import { useMessages } from '../contexts/MessagesContext';
 
-const writerMenuItems = [
+interface MenuItem {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  path: string;
+  emoji: string;
+  subItems?: MenuItem[];
+}
+
+const writerMenuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/writer', emoji: '📊' },
-  { icon: FileText, label: 'Orders', path: '/orders', emoji: '📝' },
+  { 
+    icon: FileText, 
+    label: 'Order Management', 
+    path: '/orders/available', 
+    emoji: '📝',
+    subItems: [
+      { icon: ClipboardList, label: 'Available Orders', path: '/orders/available', emoji: '📋' },
+      { icon: UserCheck, label: 'Assigned Orders', path: '/orders/assigned', emoji: '👤' },
+      { icon: AlertTriangle, label: 'Revisions', path: '/orders/revisions', emoji: '🔄' },
+      { icon: CheckCircle, label: 'Completed', path: '/orders/completed', emoji: '✅' },
+      { icon: XCircle, label: 'Rejected', path: '/orders/rejected', emoji: '❌' }
+    ]
+  },
   { icon: DollarSign, label: 'POD Orders', path: '/pod-orders', emoji: '💰' },
   { icon: Wallet, label: 'Wallet', path: '/wallet', emoji: '💳' },
   { icon: Star, label: 'Reviews', path: '/reviews', emoji: '⭐' },
@@ -31,9 +58,21 @@ const writerMenuItems = [
   { icon: Receipt, label: 'Invoices', path: '/invoices', emoji: '📜' },
 ];
 
-const adminMenuItems = [
+const adminMenuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin', emoji: '📊' },
-  { icon: FileText, label: 'Orders', path: '/admin/orders', emoji: '📝' },
+  { 
+    icon: FileText, 
+    label: 'Order Management', 
+    path: '/admin/orders', 
+    emoji: '📝',
+    subItems: [
+      { icon: ClipboardList, label: 'All Orders', path: '/admin/orders/all', emoji: '📋' },
+      { icon: AlertTriangle, label: 'Pending Review', path: '/admin/orders/review', emoji: '⚠️' },
+      { icon: UserCheck, label: 'Assignment Center', path: '/admin/orders/assign', emoji: '👤' },
+      { icon: Users, label: 'Writer Monitor', path: '/admin/orders/writers', emoji: '👥' },
+      { icon: BarChart3, label: 'Order Analytics', path: '/admin/orders/analytics', emoji: '📊' }
+    ]
+  },
   { icon: DollarSign, label: 'Writers', path: '/admin/writers', emoji: '👥' },
   { icon: Star, label: 'Reviews', path: '/admin/reviews', emoji: '⭐' },
   { icon: Wallet, label: 'Financial', path: '/admin/financial', emoji: '💰' },
@@ -44,6 +83,8 @@ const adminMenuItems = [
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  // Auto-expand Order Management for both admin and writer users
+  const [expandedItems, setExpandedItems] = useState<string[]>(['/admin/orders', '/orders/available']);
   const location = useLocation();
   const isMobile = useIsMobile();
   
@@ -74,15 +115,86 @@ export function Sidebar() {
     setIsMobileOpen(false);
   };
 
+  const toggleExpanded = (itemPath: string) => {
+    setExpandedItems(prev => 
+      prev.includes(itemPath) 
+        ? prev.filter(p => p !== itemPath)
+        : [...prev, itemPath]
+    );
+  };
+
   const isActive = (path: string) => {
     if (path === '/writer' && location.pathname === '/') return true;
     if (path === '/admin' && location.pathname === '/admin') return true;
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
+
+  const isSubItemActive = (path: string) => {
     return location.pathname === path;
   };
 
-  const renderMenuItem = (item: typeof menuItems[0]) => {
+  const renderMenuItem = (item: MenuItem) => {
     const active = isActive(item.path);
     const showBadge = item.label === 'Messages' && unreadCount > 0;
+    const hasSubItems = item.subItems && item.subItems.length > 0;
+    const isExpanded = expandedItems.includes(item.path);
+    const isOrderManagement = item.path === '/admin/orders' || item.path === '/orders/available';
+    
+    if (hasSubItems) {
+      return (
+        <div key={item.path}>
+          {/* Main menu item */}
+          <div
+            onClick={isOrderManagement ? undefined : () => toggleExpanded(item.path)}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+              isOrderManagement ? '' : 'cursor-pointer'
+            } ${
+              active
+                ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-500'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <span className="text-xl">{item.emoji}</span>
+            {!isCollapsed && (
+              <>
+                <span className="font-medium flex-1">{item.label}</span>
+                {!isOrderManagement && (
+                  <ChevronRight 
+                    className={`h-4 w-4 transition-transform ${
+                      isExpanded ? 'transform rotate-90' : ''
+                    }`} 
+                  />
+                )}
+                {isOrderManagement && (
+                  <ChevronRight className="h-4 w-4 transform rotate-90 text-blue-500" />
+                )}
+              </>
+            )}
+          </div>
+          
+          {/* Sub-items - Always show for Order Management, conditional for others */}
+          {!isCollapsed && (isOrderManagement || isExpanded) && (
+            <div className="ml-6 mt-1 space-y-1">
+              {item.subItems?.map((subItem: MenuItem) => (
+                <Link
+                  key={subItem.path}
+                  to={subItem.path}
+                  onClick={closeMobile}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                    isSubItemActive(subItem.path)
+                      ? 'bg-blue-50 text-blue-600 border-l-2 border-blue-400'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="text-sm">{subItem.emoji}</span>
+                  <span className="text-sm font-medium">{subItem.label}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
     
     return (
       <Link

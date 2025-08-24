@@ -54,9 +54,18 @@ class DatabaseService {
   private static instance: DatabaseService;
   private db: Database | null = null;
   private readonly DB_KEY = 'writers_admin_db';
+  private updateCallbacks: Map<string, Set<() => void>> = new Map();
+  private syncInterval: NodeJS.Timeout | null = null;
+  private lastSyncTime: number = 0;
+  private syncInProgress: boolean = false;
+  private retryCount: number = 0;
+  private readonly MAX_RETRIES = 3;
+  private readonly SYNC_INTERVAL = 3000; // 3 seconds for faster updates
 
   private constructor() {
     this.loadDatabase();
+    this.startAutoSync();
+    this.setupVisibilityChangeHandler();
   }
 
   public static getInstance(): DatabaseService {
@@ -64,6 +73,190 @@ class DatabaseService {
       DatabaseService.instance = new DatabaseService();
     }
     return DatabaseService.instance;
+  }
+
+  // Subscribe to specific collection updates
+  public subscribeToCollection(collection: keyof Database, callback: () => void): () => void {
+    if (!this.updateCallbacks.has(collection)) {
+      this.updateCallbacks.set(collection, new Set());
+    }
+    
+    const callbacks = this.updateCallbacks.get(collection)!;
+    callbacks.add(callback);
+    
+    return () => {
+      const callbacks = this.updateCallbacks.get(collection);
+      if (callbacks) {
+        callbacks.delete(callback);
+        if (callbacks.size === 0) {
+          this.updateCallbacks.delete(collection);
+        }
+      }
+    };
+  }
+
+  // Subscribe to all database updates
+  public subscribeToAllUpdates(callback: () => void): () => void {
+    return this.subscribeToCollection('orders', callback); // Use orders as the main collection
+  }
+
+  // Notify subscribers of specific collection changes
+  private notifyCollectionSubscribers(collection: keyof Database): void {
+    const callbacks = this.updateCallbacks.get(collection);
+    if (callbacks) {
+      callbacks.forEach(callback => {
+        try {
+          callback();
+        } catch (error) {
+          console.error('Error in update callback:', error);
+        }
+      });
+    }
+  }
+
+  // Notify all subscribers
+  private notifyAllSubscribers(): void {
+    this.updateCallbacks.forEach((callbacks, collection) => {
+      callbacks.forEach(callback => {
+        try {
+          callback();
+        } catch (error) {
+          console.error(`Error in ${collection} update callback:`, error);
+        }
+      });
+    });
+  }
+
+  // Handle page visibility changes for better sync
+  private setupVisibilityChangeHandler(): void {
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        // Page became visible, sync immediately
+        this.forceSync();
+      }
+    });
+
+    // Sync when window gains focus
+    window.addEventListener('focus', () => {
+      this.forceSync();
+    });
+  }
+
+  // Start automatic synchronization with db.json
+  private startAutoSync(): void {
+    this.syncInterval = setInterval(async () => {
+      if (!this.syncInProgress && !document.hidden) {
+        await this.syncWithJSON();
+      }
+    }, this.SYNC_INTERVAL);
+  }
+
+  // Stop auto-sync (useful for cleanup)
+  public stopAutoSync(): void {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+      this.syncInterval = null;
+    }
+  }
+
+  // Force immediate sync
+  public async forceSync(): Promise<void> {
+    if (this.syncInProgress) return;
+    
+    try {
+      this.syncInProgress = true;
+      await this.syncWithJSON();
+    } finally {
+      this.syncInProgress = false;
+    }
+  }
+
+  // Synchronize local database with db.json with improved error handling
+  private async syncWithJSON(): Promise<void> {
+    if (this.syncInProgress) return;
+    
+    try {
+      this.syncInProgress = true;
+      const now = Date.now();
+      
+      // Don't sync too frequently
+      if (now - this.lastSyncTime < 1000) return;
+      
+      const response = await fetch('/db.json', {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (response.ok) {
+        const jsonData = await response.json();
+        
+        // Check if there are actual changes
+        if (this.hasSignificantChanges(jsonData)) {
+          this.db = jsonData;
+          this.lastSyncTime = now;
+          this.retryCount = 0;
+          
+          // Notify subscribers of the change
+          this.notifyAllSubscribers();
+          
+          console.log('🔄 Database synchronized with db.json', {
+            timestamp: new Date().toISOString(),
+            ordersCount: jsonData.orders?.length || 0,
+            availableOrders: jsonData.orders?.filter((o: any) => o.status === 'Available').length || 0
+          });
+        }
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.warn('Auto-sync warning:', error);
+      this.handleSyncError(error);
+    } finally {
+      this.syncInProgress = false;
+    }
+  }
+
+  // Check if there are significant changes that warrant an update
+  private hasSignificantChanges(newData: Database): boolean {
+    if (!this.db) return true;
+    
+    // Check orders collection specifically
+    const currentOrders = this.db.orders || [];
+    const newOrders = newData.orders || [];
+    
+    // Check if number of available orders changed
+    const currentAvailable = currentOrders.filter((o) => o.status === 'Available').length;
+    const newAvailable = newOrders.filter((o) => o.status === 'Available').length;
+    
+    if (currentAvailable !== newAvailable) return true;
+    
+    // Check if any order statuses changed
+    for (let i = 0; i < Math.min(currentOrders.length, newOrders.length); i++) {
+      if (currentOrders[i].status !== newOrders[i].status) return true;
+      if (currentOrders[i].writerId !== newOrders[i].writerId) return true;
+    }
+    
+    return false;
+  }
+
+  // Handle sync errors with exponential backoff
+  private handleSyncError(error: unknown): void {
+    this.retryCount++;
+    
+    if (this.retryCount <= this.MAX_RETRIES) {
+      const delay = Math.min(1000 * Math.pow(2, this.retryCount), 10000);
+      console.log(`Retrying sync in ${delay}ms (attempt ${this.retryCount}/${this.MAX_RETRIES})`);
+      
+      setTimeout(() => {
+        this.syncWithJSON();
+      }, delay);
+    } else {
+      console.error('Max sync retries reached, stopping auto-sync');
+      this.stopAutoSync();
+    }
   }
 
   // Load database from localStorage or initialize with default data
@@ -115,6 +308,9 @@ class DatabaseService {
           transactionLogs: []
         },
         notifications: [],
+        notificationPreferences: [],
+        assignmentHistory: [],
+        assignmentConfirmations: [],
         messages: [],
         settings: {}
       };
@@ -122,14 +318,22 @@ class DatabaseService {
     }
   }
 
-  // Save database to localStorage
+  // Save database to localStorage and trigger sync with improved error handling
   private saveDatabase(): void {
     if (this.db) {
       try {
         localStorage.setItem(this.DB_KEY, JSON.stringify(this.db));
         console.log('💾 Database saved to localStorage');
+        
+        // Notify subscribers of the change
+        this.notifyAllSubscribers();
+        
+        // Trigger immediate sync with db.json
+        this.forceSync();
       } catch (error) {
         console.error('Failed to save database:', error);
+        // Try to recover by forcing a sync
+        this.forceSync();
       }
     }
   }
@@ -174,6 +378,7 @@ class DatabaseService {
     return this.findOne<T>(collection, (item) => item.id === id);
   }
 
+  // Create with immediate availability and better logging
   async create<T extends { id: string }>(collection: keyof Database, item: T): Promise<T> {
     const db = await this.ensureLoaded();
     const data = db[collection] as T[];
@@ -181,11 +386,32 @@ class DatabaseService {
     if (Array.isArray(data)) {
       data.push(item);
       this.saveDatabase();
+      
+      // For orders, ensure they're immediately available
+      if (collection === 'orders') {
+        const order = item as Order;
+        console.log('🚀 New order created:', {
+          orderId: order.id,
+          status: order.status,
+          title: order.title,
+          discipline: order.discipline,
+          pages: order.pages,
+          deadline: order.deadline,
+          isAvailable: order.status === 'Available',
+          timestamp: new Date().toISOString()
+        });
+        
+        // If order is available, notify immediately
+        if (order.status === 'Available') {
+          this.notifyCollectionSubscribers('orders');
+        }
+      }
     }
     
     return item;
   }
 
+  // Update with immediate notification and better tracking
   async update<T extends { id: string }>(
     collection: keyof Database, 
     id: string, 
@@ -206,20 +432,36 @@ class DatabaseService {
     }
     
     const oldItem = data[index];
-    data[index] = { ...data[index], ...updates };
+    const updatedItem = { ...data[index], ...updates, updatedAt: new Date().toISOString() };
+    data[index] = updatedItem;
     
-    console.log('💾 Database: Updated item:', {
-      collection,
-      id,
-      oldStatus: oldItem.status,
-      newStatus: data[index].status,
-      oldWriterId: oldItem.writerId,
-      newWriterId: data[index].writerId
-    });
+    // Type-safe logging for orders
+    if (collection === 'orders') {
+      const oldOrder = oldItem as Order;
+      const updatedOrder = updatedItem as Order;
+      console.log('💾 Database: Updated order:', {
+        collection,
+        id,
+        oldStatus: oldOrder.status,
+        newStatus: updatedOrder.status,
+        oldWriterId: oldOrder.writerId,
+        newWriterId: updatedOrder.writerId,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      console.log('💾 Database: Updated item:', {
+        collection,
+        id,
+        timestamp: new Date().toISOString()
+      });
+    }
     
     this.saveDatabase();
     
-    return data[index];
+    // Notify specific collection subscribers
+    this.notifyCollectionSubscribers(collection);
+    
+    return updatedItem;
   }
 
   async delete(collection: keyof Database, id: string): Promise<boolean> {
@@ -244,7 +486,7 @@ class DatabaseService {
   // Specialized methods for nested financial data
   async findFinancial<T>(subCollection: keyof Database['financial']): Promise<T[]> {
     const db = await this.ensureLoaded();
-    return db.financial[subCollection] as T[];
+    return db.financial[subCollection] as unknown as T[];
   }
 
   async createFinancial<T extends { id: string }>(
@@ -252,7 +494,7 @@ class DatabaseService {
     item: T
   ): Promise<T> {
     const db = await this.ensureLoaded();
-    const data = db.financial[subCollection] as T[];
+    const data = db.financial[subCollection] as unknown as T[];
     data.push(item);
     this.saveDatabase();
     return item;
@@ -264,7 +506,7 @@ class DatabaseService {
     updates: Partial<T>
   ): Promise<T | null> {
     const db = await this.ensureLoaded();
-    const data = db.financial[subCollection] as T[];
+    const data = db.financial[subCollection] as unknown as T[];
     
     const index = data.findIndex(item => item.id === id);
     if (index === -1) {
@@ -301,6 +543,45 @@ class DatabaseService {
       console.error('Failed to import database:', error);
       throw new Error('Invalid JSON data');
     }
+  }
+
+  // Force refresh from db.json with better error handling
+  async forceRefresh(): Promise<void> {
+    try {
+      console.log('🔄 Starting force refresh...');
+      await this.initializeFromJSON();
+      this.lastSyncTime = Date.now();
+      this.retryCount = 0;
+      this.notifyAllSubscribers();
+      console.log('✅ Database force refreshed from db.json');
+    } catch (error) {
+      console.error('❌ Failed to force refresh database:', error);
+      throw error;
+    }
+  }
+
+  // Get real-time order statistics
+  async getOrderStats(): Promise<{
+    total: number;
+    available: number;
+    assigned: number;
+    inProgress: number;
+    submitted: number;
+    completed: number;
+    lastUpdated: string;
+  }> {
+    const db = await this.ensureLoaded();
+    const orders = db.orders || [];
+    
+    return {
+      total: orders.length,
+      available: orders.filter((o: any) => o.status === 'Available').length,
+      assigned: orders.filter((o: any) => o.status === 'Assigned').length,
+      inProgress: orders.filter((o: any) => o.status === 'In Progress').length,
+      submitted: orders.filter((o: any) => o.status === 'Submitted').length,
+      completed: orders.filter((o: any) => ['Completed', 'Approved'].includes(o.status)).length,
+      lastUpdated: new Date().toISOString()
+    };
   }
 
   // Get database statistics

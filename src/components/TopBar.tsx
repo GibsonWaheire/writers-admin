@@ -31,7 +31,7 @@ export function TopBar() {
         {/* Right Side Actions */}
         <div className="flex items-center space-x-4">
           {/* Notifications */}
-          <NotificationDropdown />
+          <NotificationDropdown userRole={user?.role || 'writer'} />
 
           {/* Settings */}
           <Button 

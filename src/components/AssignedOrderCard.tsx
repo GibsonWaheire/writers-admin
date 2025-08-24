@@ -16,6 +16,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { AssignmentConfirmationModal } from './AssignmentConfirmationModal';
+import { UnifiedAssignmentModal } from './UnifiedAssignmentModal';
 import type { Order } from '../types/order';
 import type { AssignmentHistory } from '../types/notification';
 
@@ -25,8 +26,15 @@ interface AssignedOrderCardProps {
   onView: (order: Order) => void;
   onConfirmAssignment: (orderId: string, confirmation: any) => void;
   onDeclineAssignment: (orderId: string, reason: string) => void;
-  onStartWork: (orderId: string) => void;
-  onRequestReassignment: (orderId: string) => void;
+  onStartWork: (orderId: string, data: {
+    estimatedCompletionTime?: number;
+    questions?: string[];
+    additionalNotes?: string;
+  }) => void;
+  onRequestReassignment: (orderId: string, data: {
+    reason: string;
+    additionalNotes?: string;
+  }) => void;
 }
 
 export function AssignedOrderCard({
@@ -39,148 +47,136 @@ export function AssignedOrderCard({
   onRequestReassignment
 }: AssignedOrderCardProps) {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showUnifiedModal, setShowUnifiedModal] = useState(false);
+  const [unifiedModalAction, setUnifiedModalAction] = useState<'start_work' | 'reassign'>('start_work');
 
-  const formatCurrency = (amount: number) => `KES ${amount.toLocaleString()}`;
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    return `${Math.floor(diffInHours / 24)}d ago`;
+  const needsConfirmation = order.status === 'Assigned' && assignment?.status === 'pending';
+  const canStartWork = order.status === 'Assigned' && assignment?.status === 'confirmed';
+  const canReassign = order.status === 'Assigned' || order.status === 'In Progress';
+
+  const handleStartWork = () => {
+    setUnifiedModalAction('start_work');
+    setShowUnifiedModal(true);
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'medium': return 'bg-blue-100 text-blue-800 border-blue-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  const handleReassign = () => {
+    setUnifiedModalAction('reassign');
+    setShowUnifiedModal(true);
+  };
+
+  const handleUnifiedAction = (actionType: 'start_work' | 'reassign', data: any) => {
+    if (actionType === 'start_work') {
+      onStartWork(order.id, data);
+    } else if (actionType === 'reassign') {
+      onRequestReassignment(order.id, {
+        reason: data.reason || 'No reason provided',
+        additionalNotes: data.additionalNotes
+      });
     }
   };
 
   const getDeadlineStatus = () => {
-    const deadline = new Date(order.deadline);
     const now = new Date();
-    const diffInHours = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const deadline = new Date(order.deadline);
+    const diffTime = deadline.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffInHours < 0) return { color: 'text-red-600', bg: 'bg-red-50', urgent: true };
-    if (diffInHours < 24) return { color: 'text-orange-600', bg: 'bg-orange-50', urgent: true };
-    if (diffInHours < 72) return { color: 'text-yellow-600', bg: 'bg-yellow-50', urgent: false };
-    return { color: 'text-green-600', bg: 'bg-green-50', urgent: false };
+    if (diffDays < 0) {
+      return { text: `Overdue by ${Math.abs(diffDays)} days`, color: 'text-red-600', bg: 'bg-red-50' };
+    } else if (diffDays === 0) {
+      return { text: 'Due today', color: 'text-orange-600', bg: 'bg-orange-50' };
+    } else if (diffDays <= 3) {
+      return { text: `Due in ${diffDays} days`, color: 'text-yellow-600', bg: 'bg-yellow-50' };
+    } else {
+      return { text: `Due in ${diffDays} days`, color: 'text-green-600', bg: 'bg-green-50' };
+    }
   };
 
   const deadlineStatus = getDeadlineStatus();
-  const needsConfirmation = assignment?.status === 'pending';
-  const isAutoConfirmSoon = assignment && new Date(assignment.autoConfirmDeadline).getTime() - new Date().getTime() < 2 * 60 * 60 * 1000; // 2 hours
 
   return (
     <>
-      <Card className={`border-l-4 ${
-        needsConfirmation 
-          ? 'border-l-yellow-500 bg-yellow-50' 
-          : 'border-l-blue-500'
-      } hover:shadow-md transition-shadow`}>
-        <CardHeader className="pb-3">
-          <div className="flex justify-between items-start">
+      <Card className="hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-white to-gray-50">
+        <CardHeader className="pb-4">
+          <div className="flex items-start justify-between">
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <h3 className="text-lg font-semibold line-clamp-1">{order.title}</h3>
-                {assignment && (
-                  <Badge className={`${getPriorityColor(assignment.priority)} border text-xs`}>
-                    {assignment.priority}
-                  </Badge>
-                )}
-              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{order.title}</h3>
+              <p className="text-gray-600 text-sm mb-3 line-clamp-2">{order.description}</p>
               
-              <p className="text-gray-600 text-sm line-clamp-2 mb-2">
-                {order.description}
-              </p>
-
-              <div className="flex items-center gap-4 text-sm text-gray-600">
-                <div className="flex items-center gap-1">
-                  <User className="h-3 w-3" />
-                  <span>{assignment?.assignedByName || 'Admin'}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  <span>{assignment ? formatTimeAgo(assignment.assignedAt) : 'Recently'}</span>
-                </div>
-                {assignment?.deadline && (
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    <span>Custom deadline: {new Date(assignment.deadline).toLocaleDateString()}</span>
-                  </div>
-                )}
+              <div className="flex flex-wrap gap-2 mb-3">
+                <Badge variant="outline" className="text-blue-600 border-blue-200">
+                  {order.discipline}
+                </Badge>
+                <Badge variant="outline" className="text-green-600 border-green-200">
+                  {order.paperType}
+                </Badge>
+                <Badge variant="outline" className="text-purple-600 border-purple-200">
+                  {order.pages} pages
+                </Badge>
+                <Badge variant="outline" className="text-orange-600 border-orange-200">
+                  {order.format}
+                </Badge>
               </div>
             </div>
-
-            <div className="text-right">
-              <div className="text-lg font-semibold text-green-600 mb-1">
-                {formatCurrency(order.pages * 350)}
+            
+            <div className="text-right ml-4">
+              <div className="text-2xl font-bold text-green-600 mb-1">
+                KES {order.totalPriceKES?.toLocaleString() || (order.pages * 350).toLocaleString()}
               </div>
-              <div className={`text-sm ${deadlineStatus.color}`}>
-                Due: {order.deadline}
-              </div>
+              <div className="text-sm text-gray-500">Earnings</div>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="pt-0">
-          {/* Assignment Info */}
-          {assignment?.notes && (
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-              <div className="flex items-start gap-2">
-                <MessageSquare className="h-4 w-4 text-blue-600 mt-0.5" />
-                <div>
-                  <p className="font-medium text-blue-800 text-sm">Admin Notes:</p>
-                  <p className="text-blue-700 text-sm">{assignment.notes}</p>
-                </div>
+        <CardContent className="space-y-4">
+          {/* Status and Deadline Info */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Badge 
+                variant={order.status === 'Assigned' ? 'default' : 'secondary'}
+                className={order.status === 'Assigned' ? 'bg-blue-100 text-blue-800' : ''}
+              >
+                {order.status}
+              </Badge>
+              <div className={`text-sm ${deadlineStatus.color} ${deadlineStatus.bg} px-2 py-1 rounded-full`}>
+                {deadlineStatus.text}
               </div>
             </div>
-          )}
-
-          {/* Confirmation Warning */}
-          {needsConfirmation && (
-            <div className={`mb-4 p-3 rounded-lg ${isAutoConfirmSoon ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'}`}>
-              <div className="flex items-center gap-2">
-                <AlertTriangle className={`h-4 w-4 ${isAutoConfirmSoon ? 'text-red-600' : 'text-yellow-600'}`} />
-                <div>
-                  <p className={`font-medium text-sm ${isAutoConfirmSoon ? 'text-red-800' : 'text-yellow-800'}`}>
-                    {isAutoConfirmSoon ? 'Urgent: Auto-confirmation soon!' : 'Confirmation Required'}
-                  </p>
-                  <p className={`text-xs ${isAutoConfirmSoon ? 'text-red-700' : 'text-yellow-700'}`}>
-                    {isAutoConfirmSoon 
-                      ? 'This assignment will be auto-confirmed very soon. Please confirm or decline now.'
-                      : 'Please confirm this assignment or it will be auto-confirmed.'
-                    }
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Order Details */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 text-sm">
-            <div>
-              <span className="text-gray-500">Subject:</span>
-              <p className="font-medium">{order.discipline}</p>
-            </div>
-            <div>
-              <span className="text-gray-500">Type:</span>
-              <p className="font-medium">{order.paperType}</p>
-            </div>
-            <div>
-              <span className="text-gray-500">Pages:</span>
-              <p className="font-medium">{order.pages}</p>
-            </div>
-            <div>
-              <span className="text-gray-500">Format:</span>
-              <p className="font-medium">{order.format}</p>
+            
+            <div className="text-sm text-gray-500">
+              Due: {new Date(order.deadline).toLocaleDateString()}
             </div>
           </div>
+
+          {/* Assignment Details */}
+          {assignment && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <User className="h-4 w-4 text-blue-600" />
+                <span className="font-medium text-blue-800">Assignment Details</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-blue-700">Assigned:</span>
+                  <span className="text-blue-900 ml-2">
+                    {new Date(assignment.assignedAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-blue-700">Priority:</span>
+                  <Badge className="ml-2 bg-blue-100 text-blue-800">
+                    {assignment.priority}
+                  </Badge>
+                </div>
+                {assignment.notes && (
+                  <div className="col-span-2">
+                    <span className="text-blue-700">Notes:</span>
+                    <span className="text-blue-900 ml-2">{assignment.notes}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex gap-2">
@@ -207,30 +203,34 @@ export function AssignedOrderCard({
               </>
             ) : (
               <>
-                <Button
-                  size="sm"
-                  onClick={() => onStartWork(order.id)}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
-                >
-                  <Play className="h-4 w-4 mr-1" />
-                  Start Work
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onRequestReassignment(order.id)}
-                  className="text-orange-600 hover:bg-orange-50"
-                >
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  Reassign
-                </Button>
+                {canStartWork && (
+                  <Button
+                    size="sm"
+                    onClick={handleStartWork}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Play className="h-4 w-4 mr-1" />
+                    Start Work
+                  </Button>
+                )}
+                {canReassign && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleReassign}
+                    className="text-orange-600 hover:bg-orange-50"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Reassign
+                  </Button>
+                )}
               </>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Confirmation Modal */}
+      {/* Confirmation Modal for Assignment */}
       {showConfirmationModal && assignment && (
         <AssignmentConfirmationModal
           isOpen={showConfirmationModal}
@@ -247,6 +247,16 @@ export function AssignedOrderCard({
           }}
         />
       )}
+
+      {/* Unified Modal for Start Work and Reassign */}
+      <UnifiedAssignmentModal
+        isOpen={showUnifiedModal}
+        onClose={() => setShowUnifiedModal(false)}
+        order={order}
+        assignment={assignment}
+        actionType={unifiedModalAction}
+        onConfirm={handleUnifiedAction}
+      />
     </>
   );
 }

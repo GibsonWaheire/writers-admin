@@ -13,6 +13,7 @@ import {
   ArrowRight
 } from "lucide-react";
 import { OrderViewModal } from "../components/OrderViewModal";
+import { RealTimeOrderIndicator } from "../components/RealTimeOrderIndicator";
 import { useOrders } from "../contexts/OrderContext";
 import { useWallet } from "../contexts/WalletContext";
 import { useReviews } from "../contexts/ReviewsContext";
@@ -98,12 +99,12 @@ export default function WriterDashboard() {
       changeType: "positive" as const,
       onClick: () => navigate('/orders'), // Direct navigation
       details: {
-        description: "Complete overview of all your writing assignments.",
+        description: "Your order history and current workload.",
         items: [
           { label: "Total Orders", value: writerStats.total.toString(), icon: FileText },
           { label: "Active Orders", value: writerStats.inProgress.toString(), icon: Clock },
           { label: "Completed Orders", value: writerStats.completed.toString(), icon: CheckCircle },
-          { label: "Success Rate", value: `${writerStats.total > 0 ? Math.round((writerStats.completed / writerStats.total) * 100) : 0}%`, icon: Star }
+          { label: "Success Rate", value: `${Math.round((writerStats.completed / Math.max(writerStats.total, 1)) * 100)}%`, icon: Star }
         ],
         action: {
           label: "View All Orders",
@@ -112,382 +113,292 @@ export default function WriterDashboard() {
       }
     },
     {
-      title: "Pending Orders",
-      value: writerStats.pending.toString(),
+      title: "Active Orders",
+      value: writerStats.inProgress.toString(),
       icon: Clock,
-      change: writerStats.pending > 0 ? `${writerStats.pending} awaiting review` : "All caught up!",
-      changeType: writerStats.pending > 0 ? "neutral" as const : "positive" as const,
-      onClick: () => navigate('/orders'), // Navigate to orders page
-      details: {
-        description: writerStats.pending > 0 
-          ? "Orders waiting for client review and approval." 
-          : "Great job! All your orders are processed.",
-        items: writerStats.pending > 0 ? [
-          { label: "Pending Review", value: writerStats.pending.toString(), icon: Clock },
-          { label: "Average Wait Time", value: "2-3 days", icon: Calendar },
-          { label: "Next Steps", value: "Awaiting feedback", icon: ArrowRight }
-        ] : [
-          { label: "Status", value: "All caught up!", icon: CheckCircle },
-          { label: "Next Action", value: "Take new orders", icon: FileText }
-        ],
-        action: writerStats.pending > 0 ? {
-          label: "View Pending Orders",
-          onClick: () => navigate('/orders')
-        } : {
-          label: "Browse New Orders",
-          onClick: () => navigate('/orders')
-        }
-      }
-    },
-    {
-      title: "Completed Orders",
-      value: writerStats.completed.toString(),
-      icon: CheckCircle,
-      change: `+${completedOrders.filter(order => {
-        const orderDate = new Date(order.updatedAt);
-        const now = new Date();
-        const diffDays = Math.ceil((now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
-        return diffDays <= 7;
-      }).length} this week`,
+      change: `${activeOrders.length} in progress`,
       changeType: "positive" as const,
-      onClick: () => navigate('/orders'), // Navigate to orders page
+      onClick: () => navigate('/orders'), // Direct navigation
       details: {
-        description: "Successfully completed assignments and their earnings.",
-        items: [
-          { label: "Total Completed", value: writerStats.completed.toString(), icon: CheckCircle },
-          { label: "This Week", value: completedOrders.filter(order => {
-            const orderDate = new Date(order.updatedAt);
-            const now = new Date();
-            const diffDays = Math.ceil((now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
-            return diffDays <= 7;
-          }).length.toString(), icon: Calendar },
-          { label: "Total Earnings", value: `KES ${financialData.totalEarned.toLocaleString()}`, icon: DollarSign },
-          { label: "Average per Order", value: `KES ${Math.round(financialData.averageOrderValue)}`, icon: TrendingUp }
-        ],
+        description: "Orders you're currently working on.",
+        items: activeOrders.slice(0, 3).map(order => ({
+          label: order.title.substring(0, 30) + (order.title.length > 30 ? '...' : ''),
+          value: order.status,
+          icon: Clock
+        })),
         action: {
-          label: "View Completed Orders",
+          label: "View Active Orders",
           onClick: () => navigate('/orders')
         }
       }
     },
     {
-      title: "Average Rating",
-      value: reviewStats.averageRating > 0 ? reviewStats.averageRating.toFixed(1) : "N/A",
-      icon: Star,
-      change: `${reviewStats.totalReviews} reviews`,
-      changeType: "neutral" as const,
+      title: "This Month",
+      value: `KES ${thisMonthEarnings.toLocaleString()}`,
+      icon: TrendingUp,
+      change: `${earningsChange > 0 ? '+' : ''}${earningsChange}% from last month`,
+      changeType: earningsChange > 0 ? "positive" as const : earningsChange < 0 ? "negative" as const : "neutral" as const,
+      onClick: () => navigate('/wallet'), // Direct navigation
       details: {
-        description: "Your performance rating based on client feedback and order completion.",
+        description: "Your earnings performance this month.",
         items: [
-          { label: "Current Rating", value: `${reviewStats.averageRating.toFixed(1)}/5.0`, icon: Star },
-          { label: "Total Reviews", value: reviewStats.totalReviews.toString(), icon: FileText },
-          { label: "Recent Reviews", value: reviewStats.recentReviews.length.toString(), icon: Star },
-          { label: "Success Rate", value: `${performanceData.completionRate.toFixed(1)}%`, icon: CheckCircle }
+          { label: "This Month", value: `KES ${thisMonthEarnings.toLocaleString()}`, icon: TrendingUp },
+          { label: "Last Month", value: `KES ${lastMonthEarnings.toLocaleString()}`, icon: Calendar },
+          { label: "Change", value: `${earningsChange > 0 ? '+' : ''}${earningsChange}%`, icon: earningsChange > 0 ? TrendingUp : TrendingUp },
+          { label: "Total Earned", value: `KES ${totalEarnings.toLocaleString()}`, icon: DollarSign }
         ],
         action: {
-          label: "View All Reviews",
+          label: "View Earnings",
+          onClick: () => navigate('/wallet')
+        }
+      }
+    },
+    {
+      title: "Rating",
+      value: (reviewStats.averageRating || 0).toFixed(1),
+      icon: Star,
+      change: `${reviewStats.totalReviews || 0} reviews`,
+      changeType: "positive" as const,
+      onClick: () => navigate('/reviews'), // Direct navigation
+      details: {
+        description: "Your performance rating and client feedback.",
+        items: [
+          { label: "Average Rating", value: (reviewStats.averageRating || 0).toFixed(1), icon: Star },
+          { label: "Total Reviews", value: (reviewStats.totalReviews || 0).toString(), icon: FileText },
+          { label: "Recent Reviews", value: (reviewStats.recentReviews?.length || 0).toString(), icon: Star },
+          { label: "Performance", value: `${Math.round((reviewStats.averageRating || 0) * 20)}%`, icon: CheckCircle }
+        ],
+        action: {
+          label: "View Reviews",
           onClick: () => navigate('/reviews')
         }
       }
     },
     {
-      title: "This Month Earnings",
-      value: `KES ${thisMonthEarnings.toLocaleString()}`,
-      icon: TrendingUp,
-      change: earningsChange !== 0 ? `${earningsChange > 0 ? '+' : ''}${earningsChange}% from last month` : "Starting fresh!",
-      changeType: earningsChange > 0 ? "positive" as const : earningsChange < 0 ? "negative" as const : "neutral" as const,
-      onClick: () => navigate('/wallet'), // Direct navigation
+      title: "Performance",
+      value: `${performanceData.completionRate || 0}%`,
+      icon: CheckCircle,
+      change: `${performanceData.onTimeDeliveryRate || 0}% on-time`,
+      changeType: "positive" as const,
+      onClick: () => navigate('/analytics'), // Direct navigation
       details: {
-        description: "Your earnings performance for the current month.",
+        description: "Your overall performance metrics.",
         items: [
-          { label: "This Month", value: `KES ${thisMonthEarnings.toLocaleString()}`, icon: TrendingUp },
-          { label: "Last Month", value: `KES ${lastMonthEarnings.toLocaleString()}`, icon: Calendar },
-          { label: "Change", value: `${earningsChange > 0 ? '+' : ''}${earningsChange}%`, icon: ArrowRight },
-          { label: "Projected Annual", value: `KES ${(thisMonthEarnings * 12).toLocaleString()}`, icon: DollarSign }
+          { label: "Completion Rate", value: `${performanceData.completionRate || 0}%`, icon: CheckCircle },
+          { label: "On-Time Delivery", value: `${performanceData.onTimeDeliveryRate || 0}%`, icon: Clock },
+          { label: "Client Satisfaction", value: `${performanceData.clientSatisfactionScore || 0}%`, icon: Star },
+          { label: "Revision Rate", value: `${performanceData.revisionRate || 0}%`, icon: TrendingUp }
         ],
         action: {
-          label: "View Earnings Report",
-          onClick: () => navigate('/wallet')
+          label: "View Analytics",
+          onClick: () => navigate('/analytics')
         }
       }
     }
   ];
 
-  // Get recent orders - show recent available orders for writers to pick
-  const availableOrders = getAvailableOrders();
-  
-  // Debug: Log available orders and ensure real-time updates
-  useEffect(() => {
-    console.log('📋 WriterDashboard: Available orders updated:', {
-      count: availableOrders.length,
-      orders: availableOrders.map(o => ({ 
-        id: o.id, 
-        title: o.title,
-        status: o.status, 
-        writerId: o.writerId,
-        assignedWriter: o.assignedWriter,
-        createdAt: o.createdAt
-      }))
-    });
-    
-    // Show notification when new orders are available
-    if (availableOrders.length > 0) {
-      console.log('🎯 WriterDashboard: Orders ready for pickup!');
-    }
-  }, [availableOrders]);
-  
-  const recentOrders = availableOrders
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
-
-  const getStatusBadge = (status: string): "default" | "secondary" | "outline" | "destructive" => {
-    const statusColors: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-      "In Progress": "default",
-      "Pending Review": "secondary", 
-      "Available": "outline",
-      "Completed": "default",
-      "Rejected": "destructive"
-    };
-    return statusColors[status] || "default";
-  };
-
-  const handleQuickAction = (action: string) => {
-    switch (action) {
-      case 'browse':
-        navigate('/orders');
-        break;
-      case 'withdrawal':
-        navigate('/wallet');
-        break;
-      case 'reviews':
-        navigate('/reviews');
-        break;
-      case 'messages':
-        navigate('/messages');
-        break;
-      default:
-        break;
-    }
-  };
-
-  const getPerformanceMetrics = () => {
-    const onTimeDeliveries = completedOrders.filter(order => {
-      const deadline = new Date(order.deadline);
-      const completed = new Date(order.updatedAt);
-      return completed <= deadline;
-    }).length;
-    
-    const onTimePercentage = completedOrders.length > 0 ? Math.round((onTimeDeliveries / completedOrders.length) * 100) : 100;
-    
-    return {
-      onTimeDelivery: onTimePercentage,
-      clientSatisfaction: 4.8,
-      monthlyGoal: Math.round((completedOrders.length / Math.max(writerOrders.length, 1)) * 100)
-    };
-  };
-
-  const performance = getPerformanceMetrics();
-
   return (
     <div className="space-y-6">
-      {/* Welcome Header */}
+      {/* Header */}
       <div className="bg-white rounded-lg p-6 border border-gray-200">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, John! 👋</h1>
-        <p className="text-gray-600">Here's what's happening with your writing assignments today.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Writer Dashboard</h1>
+            <p className="text-gray-600">Welcome back! Here's your writing performance overview.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={() => navigate('/orders')}
+              variant="outline"
+              className="border-blue-200 text-blue-700 hover:bg-blue-50"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              View Orders
+            </Button>
+            <Button 
+              onClick={() => navigate('/wallet')}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <DollarSign className="mr-2 h-4 w-4" />
+              Wallet
+            </Button>
+          </div>
+        </div>
       </div>
 
+      {/* Real-time Order Indicator */}
+      <RealTimeOrderIndicator userRole="writer" />
+
       {/* Stats Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {stats.map((stat) => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {stats.map((stat, index) => (
           <StatCard
-            key={stat.title}
+            key={index}
             title={stat.title}
             value={stat.value}
             icon={stat.icon}
             change={stat.change}
             changeType={stat.changeType}
             gradient={stat.gradient}
-            onClick={stat.onClick} // Pass onClick handler
+            onClick={stat.onClick}
             details={stat.details}
           />
         ))}
       </div>
 
-      {/* Recent Orders and Quick Actions */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Recent Orders */}
-        <div className="lg:col-span-2">
-          <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="text-xl">📄</span>
-                Recent Available Orders
-                {recentOrders.length === 0 && (
-                  <span className="text-sm text-gray-500 font-normal">(No available orders)</span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {recentOrders.length > 0 ? (
-                recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg">📚</span>
-                        <h4 className="font-semibold text-gray-900">{order.title}</h4>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
-                        <span className="flex items-center gap-1">
-                          <span>📄</span>
-                          {order.pages} pages
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span>💰</span>
-                          ${order.price}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span>📅</span>
-                          Due: {new Date(order.deadline).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant={getStatusBadge(order.status)} className="flex items-center gap-1">
-                        {order.status === "In Progress" && <span className="w-2 h-2 bg-blue-500 rounded-full"></span>}
-                        {order.status === "Submitted" && <span className="text-yellow-600">👁️</span>}
-                        {order.status === "Available" && <span className="text-green-600">🔓</span>}
-                        {order.status}
-                      </Badge>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="hover:bg-blue-50 hover:border-blue-300 transition-colors duration-200"
-                        onClick={() => {
-                          setSelectedOrder(order);
-                          setIsModalOpen(true);
-                        }}
-                      >
-                        <span className="mr-2">👁️</span>
-                        View
-                      </Button>
-                    </div>
+      {/* Main Content Grid */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Active Orders */}
+        <Card className="hover:shadow-lg transition-all duration-300 cursor-pointer border-0 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-blue-500 text-white shadow-lg">
+                <Clock className="h-6 w-6" />
+              </div>
+              <div>
+                <CardTitle className="text-xl text-blue-800">Active Orders</CardTitle>
+                <p className="text-blue-600 text-sm">{activeOrders.length} orders in progress</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {activeOrders.slice(0, 3).map((order) => (
+                <div key={order.id} className="flex items-center justify-between p-3 bg-white/70 rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-sm text-gray-900 truncate">{order.title}</h4>
+                    <p className="text-xs text-gray-600">{order.discipline}</p>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <span className="text-4xl mb-4 block">📝</span>
-                  <p>No available orders right now. Check back later or browse all orders!</p>
-                  <Button 
-                    className="mt-4"
-                    onClick={() => navigate('/orders')}
-                  >
-                    Browse All Orders
-                  </Button>
+                  <Badge variant="secondary" className="text-blue-600 bg-blue-100">
+                    {order.status}
+                  </Badge>
+                </div>
+              ))}
+              {activeOrders.length === 0 && (
+                <div className="text-center py-4 text-gray-500">
+                  <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm">No active orders</p>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+            {activeOrders.length > 0 && (
+              <Button 
+                variant="ghost" 
+                className="w-full mt-4 text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                onClick={() => navigate('/orders')}
+              >
+                View All Active Orders
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
+          </CardContent>
+        </Card>
 
-        {/* Quick Actions */}
-        <div className="space-y-4">
-          <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="text-xl">⚡</span>
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+        {/* Available Orders */}
+        <Card className="hover:shadow-lg transition-all duration-300 cursor-pointer border-0 bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-green-500 text-white shadow-lg">
+                <FileText className="h-6 w-6" />
+              </div>
+              <div>
+                <CardTitle className="text-xl text-green-800">Available Orders</CardTitle>
+                <p className="text-green-600 text-sm">{getAvailableOrders().length} orders waiting</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {getAvailableOrders().slice(0, 3).map((order) => (
+                <div key={order.id} className="flex items-center justify-between p-3 bg-white/70 rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-sm text-gray-900 truncate">{order.title}</h4>
+                    <p className="text-xs text-gray-600">{order.discipline} • {order.pages} pages</p>
+                  </div>
+                  <Badge variant="secondary" className="text-green-600 bg-green-100">
+                    KES {order.totalPriceKES?.toLocaleString() || 'N/A'}
+                  </Badge>
+                </div>
+              ))}
+              {getAvailableOrders().length === 0 && (
+                <div className="text-center py-4 text-gray-500">
+                  <FileText className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm">No available orders</p>
+                </div>
+              )}
+            </div>
+            {getAvailableOrders().length > 0 && (
               <Button 
-                className="w-full justify-start hover:bg-blue-50 hover:border-blue-300 transition-all duration-200" 
-                variant="outline"
-                onClick={() => handleQuickAction('browse')}
+                variant="ghost" 
+                className="w-full mt-4 text-green-600 hover:text-green-700 hover:bg-green-100"
+                onClick={() => navigate('/orders')}
               >
-                <span className="mr-2">📑</span>
-                Browse Available Orders
+                Pick Up Orders
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-              <Button 
-                className="w-full justify-start hover:bg-green-50 hover:border-green-300 transition-all duration-200" 
-                variant="outline"
-                onClick={() => handleQuickAction('withdrawal')}
-              >
-                <span className="mr-2">💵</span>
-                Request Withdrawal
-              </Button>
-              <Button 
-                className="w-full justify-start hover:bg-yellow-50 hover:border-yellow-300 transition-all duration-200" 
-                variant="outline"
-                onClick={() => handleQuickAction('reviews')}
-              >
-                <span className="mr-2">⭐</span>
-                View My Reviews
-              </Button>
-              <Button 
-                className="w-full justify-start hover:bg-purple-50 hover:border-purple-300 transition-all duration-200" 
-                variant="outline"
-                onClick={() => handleQuickAction('messages')}
-              >
-                <span className="mr-2">💬</span>
-                Check Messages
-              </Button>
-            </CardContent>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
 
-          {/* Performance Summary */}
-          <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="text-xl">📊</span>
-                Performance
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <span className="text-sm text-gray-600 flex items-center gap-2">
-                  <span>⏰</span>
-                  On-time delivery
-                </span>
-                <span className="text-sm font-medium text-green-600">{performance.onTimeDelivery}%</span>
+        {/* Recent Activity */}
+        <Card className="hover:shadow-lg transition-all duration-300 cursor-pointer border-0 bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-purple-500 text-white shadow-lg">
+                <TrendingUp className="h-6 w-6" />
               </div>
-              <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <span className="text-sm text-gray-600 flex items-center gap-2">
-                  <span>😊</span>
-                  Client satisfaction
-                </span>
-                <span className="text-sm font-medium text-green-600">{performance.clientSatisfaction}/5</span>
+              <div>
+                <CardTitle className="text-xl text-purple-800">Recent Activity</CardTitle>
+                <p className="text-purple-600 text-sm">Your latest achievements</p>
               </div>
-              <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <span className="text-sm text-gray-600 flex items-center gap-2">
-                  <span>🎯</span>
-                  Monthly goal
-                </span>
-                <span className="text-sm font-medium text-blue-600">{performance.monthlyGoal}%</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {completedOrders.slice(0, 3).map((order) => (
+                <div key={order.id} className="flex items-center gap-3 p-3 bg-white/70 rounded-lg">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-sm text-gray-900 truncate">{order.title}</h4>
+                    <p className="text-xs text-gray-600">Completed • KES {order.totalPriceKES?.toLocaleString() || 'N/A'}</p>
+                  </div>
+                </div>
+              ))}
+              {completedOrders.length === 0 && (
+                <div className="text-center py-4 text-gray-500">
+                  <TrendingUp className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm">No completed orders yet</p>
+                </div>
+              )}
+            </div>
+            {completedOrders.length > 0 && (
+              <Button 
+                variant="ghost" 
+                className="w-full mt-4 text-purple-600 hover:text-purple-700 hover:bg-purple-100"
+                onClick={() => navigate('/orders')}
+              >
+                View History
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       </div>
-      
+
       {/* Order View Modal */}
       {selectedOrder && (
         <OrderViewModal
+          order={selectedOrder}
           isOpen={isModalOpen}
           onClose={() => {
             setIsModalOpen(false);
             setSelectedOrder(null);
           }}
-          order={selectedOrder}
-          userRole="writer"
-          onAction={(action, orderId) => {
-            if (action === 'pick') {
-              // Handle pick order action
-              console.log('Picking order:', orderId);
-            }
-            setIsModalOpen(false);
-            setSelectedOrder(null);
+          userRole={user?.role || 'writer'}
+          onAction={async (action: string, orderId: string, data?: Record<string, unknown>) => {
+            // Handle order actions from modal
+            console.log('Order action:', action, orderId, data);
           }}
-          activeOrdersCount={activeOrders.length}
         />
       )}
     </div>

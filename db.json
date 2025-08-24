@@ -346,6 +346,40 @@
       ],
       "uploadedFiles": [],
       "additionalInstructions": "Focus on practical applications and decision-making frameworks"
+    },
+    {
+      "id": "ORD-004",
+      "title": "Marketing Strategy for Social Media Platform",
+      "description": "Develop a comprehensive marketing strategy for a new social media platform targeting Gen Z",
+      "subject": "Marketing",
+      "discipline": "Business",
+      "paperType": "Case Study",
+      "pages": 8,
+      "words": 2000,
+      "format": "APA",
+      "price": 280,
+      "priceKES": 42000,
+      "cpp": 350,
+      "totalPriceKES": 42000,
+      "deadline": "2024-02-28T23:59:59Z",
+      "status": "Available",
+      "assignedWriter": null,
+      "writerId": null,
+      "createdAt": "2024-01-21T00:00:00Z",
+      "updatedAt": "2024-01-21T00:00:00Z",
+      "isOverdue": false,
+      "confirmationStatus": "pending",
+      "paymentType": "advance",
+      "clientMessages": [
+        {
+          "id": "msg-4",
+          "sender": "client",
+          "message": "Focus on digital marketing trends and influencer partnerships",
+          "timestamp": "2024-01-21T09:00:00Z"
+        }
+      ],
+      "uploadedFiles": [],
+      "additionalInstructions": "Include competitor analysis and budget recommendations"
     }
   ],
   "podOrders": [

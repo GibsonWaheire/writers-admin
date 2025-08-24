@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { Order, OrderStatus, WriterConfirmation, WriterQuestion } from '../types/order';
 import { db } from '../services/database';
+import { notificationHelpers } from '../services/notificationService';
 
 interface OrderContextType {
   orders: Order[];
@@ -49,42 +50,77 @@ interface OrderContextType {
     calculatedAt: string;
   };
   getWriterTotalEarnings: (writerId: string) => number;
+  // New real-time features
+  isConnected: boolean;
+  lastUpdate: string;
+  availableOrdersCount: number;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export function OrderProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [isConnected, setIsConnected] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(new Date().toISOString());
 
-  // Load orders from database on mount
+  // Load orders from database on mount and subscribe to real-time updates
   useEffect(() => {
     const loadOrders = async () => {
       try {
         const ordersData = await db.find<Order>('orders');
         setOrders(ordersData);
+        setLastUpdate(new Date().toISOString());
+        setIsConnected(true);
       } catch (error) {
         console.error('Failed to load orders:', error);
+        setIsConnected(false);
       }
     };
 
+    // Initial load
     loadOrders();
+
+    // Subscribe to real-time updates
+    const unsubscribe = db.subscribeToCollection('orders', async () => {
+      try {
+        console.log('🔄 OrderContext: Real-time update received, refreshing orders...');
+        const ordersData = await db.find<Order>('orders');
+        setOrders(ordersData);
+        setLastUpdate(new Date().toISOString());
+        setIsConnected(true);
+        
+        // Log new available orders
+        const availableOrders = ordersData.filter(o => o.status === 'Available');
+        if (availableOrders.length > 0) {
+          console.log('📋 OrderContext: Available orders updated:', {
+            count: availableOrders.length,
+            orders: availableOrders.map(o => ({ id: o.id, title: o.title, discipline: o.discipline }))
+          });
+        }
+      } catch (error) {
+        console.error('Failed to refresh orders from real-time update:', error);
+        setIsConnected(false);
+      }
+    });
+
+    // Cleanup subscription on unmount
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Function to refresh orders from database
   const refreshOrders = useCallback(async () => {
     try {
-      console.log('🔄 OrderContext: Starting refresh...');
+      console.log('🔄 OrderContext: Starting manual refresh...');
       const ordersData = await db.find<Order>('orders');
-      console.log('📥 OrderContext: Fetched orders from database:', {
-        count: ordersData.length,
-        available: ordersData.filter(o => o.status === 'Available').length,
-        assigned: ordersData.filter(o => o.status === 'Assigned').length,
-        sample: ordersData.slice(0, 3).map(o => ({ id: o.id, status: o.status, writerId: o.writerId }))
-      });
       setOrders(ordersData);
+      setLastUpdate(new Date().toISOString());
+      setIsConnected(true);
       console.log('✅ OrderContext: Orders refreshed from database');
     } catch (error) {
       console.error('❌ OrderContext: Failed to refresh orders:', error);
+      setIsConnected(false);
     }
   }, []);
 
@@ -495,33 +531,63 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           newStatus = 'Available';
           updates.writerId = undefined;
           updates.assignedWriter = undefined;
+          if (additionalData?.reason) {
+            updates.reassignmentReason = additionalData.reason;
+          }
           if (additionalData?.notes) {
             updates.assignmentNotes = additionalData.notes;
           }
           updates.madeAvailableAt = new Date().toISOString();
-          updates.madeAvailableBy = 'admin';
+          updates.madeAvailableBy = additionalData?.source === 'writer_reassignment' ? 'writer' : 'admin';
+          updates.reassignedAt = new Date().toISOString();
           
           console.log('🔄 OrderContext: Making order available:', {
             orderId,
             oldStatus,
             newStatus,
-            writerId: updates.writerId,
-            assignedWriter: updates.assignedWriter,
-            notes: additionalData?.notes,
-            source: additionalData?.source
+            reason: additionalData?.reason,
+            source: additionalData?.source,
+            madeAvailableBy: updates.madeAvailableBy
           });
           break;
           
         case 'start_work':
           newStatus = 'In Progress';
           updates.startedAt = new Date().toISOString();
+          if (additionalData?.estimatedCompletionTime) {
+            updates.estimatedCompletionTime = additionalData.estimatedCompletionTime;
+          }
+          if (additionalData?.questions && Array.isArray(additionalData.questions)) {
+            updates.writerQuestions = additionalData.questions.map((q, index) => ({
+              id: `q-${Date.now()}-${index}`,
+              question: q as string,
+              askedAt: new Date().toISOString(),
+              isRequired: false
+            }));
+          }
+          if (additionalData?.additionalNotes) {
+            updates.workStartNotes = additionalData.additionalNotes;
+          }
           
-          console.log('🔄 OrderContext: Writer started work on order:', {
+          console.log('🚀 OrderContext: Writer started work on order:', {
             orderId,
             writerId: order.writerId,
             writerName: order.assignedWriter,
-            startedAt: updates.startedAt
+            startedAt: updates.startedAt,
+            estimatedTime: updates.estimatedCompletionTime,
+            questionsCount: updates.writerQuestions ? (updates.writerQuestions as Array<{id: string; question: string; askedAt: string; isRequired: boolean}>).length : 0
           });
+          
+          // Notify admin that work has started
+          if (order.writerId && order.assignedWriter) {
+            notificationHelpers.notifyAdminWorkStarted(
+              orderId, 
+              order.title, 
+              order.assignedWriter
+            ).catch(error => {
+              console.error('Failed to send work started notification:', error);
+            });
+          }
           break;
           
         case 'submit':
@@ -601,6 +667,15 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
               type: 'rejection'
             });
           }
+          
+          console.log('❌ OrderContext: Order rejected by admin:', {
+            orderId,
+            oldStatus,
+            newStatus: 'Rejected',
+            writerId: order.writerId,
+            fineAmount: updates.fineAmount,
+            adminNotes: updates.adminReviewNotes
+          });
           break;
           
         case 'request_revision':
@@ -610,6 +685,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           if (additionalData?.notes) {
             updates.adminReviewNotes = additionalData.notes;
           }
+          
+          console.log('📝 OrderContext: Revision requested by admin:', {
+            orderId,
+            oldStatus,
+            newStatus: 'Revision',
+            writerId: order.writerId,
+            adminNotes: updates.adminReviewNotes
+          });
           break;
           
         case 'resubmit':
@@ -625,6 +708,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           if (additionalData?.notes) {
             updates.adminReviewNotes = additionalData.notes;
           }
+          
+          console.log('📤 OrderContext: Order resubmitted after revision:', {
+            orderId,
+            oldStatus,
+            newStatus: 'Resubmitted',
+            writerId: order.writerId,
+            revisionNotes: updates.revisionResponseNotes
+          });
           break;
           
         case 'complete':
@@ -635,10 +726,17 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           newStatus = 'Available';
           updates.reassignmentReason = additionalData?.reason || 'No reason provided';
           updates.reassignedAt = new Date().toISOString();
-          updates.reassignedBy = additionalData?.writerId || 'unknown';
+          updates.reassignedBy = additionalData?.adminId || 'admin';
           updates.originalWriterId = order.writerId;
           updates.writerId = undefined;
           updates.assignedWriter = undefined;
+          
+          console.log('🔄 OrderContext: Order reassigned:', {
+            orderId,
+            originalWriter: order.assignedWriter,
+            reason: updates.reassignmentReason,
+            adminId: updates.reassignedBy
+          });
           // Apply 10% fine for auto-reassignment
           if (order.originalWriterId) {
             const orderAmount = order.pages * 350;
@@ -666,7 +764,51 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           
         case 'put_on_hold':
           newStatus = 'On Hold';
+          updates.putOnHoldAt = new Date().toISOString();
+          updates.putOnHoldBy = 'admin';
+          updates.holdReason = additionalData?.reason || 'Order temporarily paused by admin';
+          
+          console.log('⏸️ OrderContext: Order put on hold:', {
+            orderId,
+            reason: updates.holdReason,
+            adminId: updates.putOnHoldBy
+          });
           break;
+          
+        case 'mark_urgent':
+          // Don't change status, just mark as urgent
+          updates.urgencyLevel = 'urgent';
+          updates.markedUrgentAt = new Date().toISOString();
+          updates.markedUrgentBy = additionalData?.adminId || 'admin';
+          updates.urgentReason = additionalData?.reason || 'Order marked as urgent by admin';
+          
+          console.log('🚨 OrderContext: Order marked as urgent:', {
+            orderId,
+            reason: updates.urgentReason,
+            adminId: updates.markedUrgentBy
+          });
+          break;
+          
+        case 'extend_deadline': {
+          // Extend the deadline
+          const newDeadline = additionalData?.newDeadline;
+          if (newDeadline) {
+            updates.deadline = newDeadline;
+            updates.deadlineExtendedAt = new Date().toISOString();
+            updates.deadlineExtendedBy = additionalData?.adminId || 'admin';
+            updates.originalDeadline = order.deadline;
+            updates.extensionReason = additionalData?.reason || 'Deadline extended by admin';
+            
+            console.log('⏰ OrderContext: Order deadline extended:', {
+              orderId,
+              originalDeadline: order.deadline,
+              newDeadline,
+              reason: updates.extensionReason,
+              adminId: updates.deadlineExtendedBy
+            });
+          }
+          break;
+        }
         }
         
         const updatedOrder = { ...order, status: newStatus, ...updates };
@@ -692,32 +834,34 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         updatedOrders.filter(o => o.status === 'Assigned').length
       );
       
-              // Save updated order to database (async operation)
-        const updatedOrder = updatedOrders.find(o => o.id === orderId);
-        if (updatedOrder) {
-          console.log('💾 OrderContext: Saving order to database:', {
-            orderId,
-            newStatus: updatedOrder.status,
-            writerId: updatedOrder.writerId,
-            assignedWriter: updatedOrder.assignedWriter
-          });
-          
-          // Use Promise to handle async database update
-          db.update('orders', orderId, updatedOrder)
-            .then(() => {
-              console.log('✅ OrderContext: Order saved to database successfully');
-              // Force immediate state refresh to ensure UI updates
-              setTimeout(() => {
-                console.log('🔄 OrderContext: Forcing refresh after database update...');
-                refreshOrders();
-              }, 100);
-            })
-            .catch(error => {
-              console.error('❌ OrderContext: Failed to save order to database:', error);
-            });
-        }
+      // Save updated order to database (async operation)
+      const updatedOrder = updatedOrders.find(o => o.id === orderId);
+      if (updatedOrder) {
+        console.log('💾 OrderContext: Saving order to database:', {
+          orderId,
+          newStatus: updatedOrder.status,
+          writerId: updatedOrder.writerId,
+          assignedWriter: updatedOrder.assignedWriter
+        });
         
-        return updatedOrders;
+        // Use Promise to handle async database update
+        db.update('orders', orderId, updatedOrder)
+          .then(() => {
+            console.log('✅ OrderContext: Order saved to database successfully');
+            // Force immediate state refresh to ensure UI updates
+            setTimeout(() => {
+              console.log('🔄 OrderContext: Forcing refresh after database update...');
+              refreshOrders();
+            }, 100);
+          })
+          .catch((error) => {
+            console.error('❌ OrderContext: Failed to save order to database:', error);
+            // Revert the change if database update fails
+            setOrders(prev);
+          });
+      }
+      
+      return updatedOrders;
     });
   }, [refreshOrders]);
 
@@ -815,54 +959,61 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     handleOrderAction('pick', orderId, { writerId, writerName });
   }, [handleOrderAction]);
 
-  // Create a new order
+  // Create a new order with immediate availability
   const createOrder = useCallback(async (orderData: Partial<Order>): Promise<Order> => {
-    const newOrder: Order = {
-      id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      title: orderData.title || '',
-      description: orderData.description || '',
-      subject: orderData.discipline || '',
-      discipline: orderData.discipline || '',
-      paperType: orderData.paperType || 'Essay',
-      pages: orderData.pages || 1,
-      words: orderData.words || 275,
-      format: orderData.format || 'APA',
-      price: orderData.price || 350,
-      priceKES: orderData.priceKES || 350,
-      cpp: orderData.cpp || 350,
-      totalPriceKES: orderData.totalPriceKES || 350,
-      deadline: orderData.deadline || new Date().toISOString(),
-      status: orderData.status || 'Available',
-      assignedWriter: orderData.assignedWriter,
-      writerId: orderData.writerId,
-      createdAt: orderData.createdAt || new Date().toISOString(),
-      updatedAt: orderData.updatedAt || new Date().toISOString(),
-      isOverdue: false,
-      confirmationStatus: 'pending',
-      paymentType: 'advance',
-      clientMessages: orderData.clientMessages || [],
-      uploadedFiles: orderData.uploadedFiles || [],
-      additionalInstructions: orderData.additionalInstructions,
-      requiresAdminApproval: false,
-      // Add urgency level if provided
-      urgencyLevel: orderData.urgencyLevel || 'normal',
-      // Add attachments if provided
-      attachments: orderData.attachments || []
-    };
+    try {
+      const newOrder: Order = {
+        id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        title: orderData.title || '',
+        description: orderData.description || '',
+        subject: orderData.discipline || '',
+        discipline: orderData.discipline || '',
+        paperType: orderData.paperType || 'Essay',
+        pages: orderData.pages || 1,
+        words: orderData.words || 275,
+        format: orderData.format || 'APA',
+        price: orderData.price || 350,
+        priceKES: orderData.priceKES || 350,
+        cpp: orderData.cpp || 350,
+        totalPriceKES: orderData.totalPriceKES || 350,
+        deadline: orderData.deadline || new Date().toISOString(),
+        status: orderData.status || 'Available',
+        assignedWriter: orderData.assignedWriter,
+        writerId: orderData.writerId,
+        createdAt: orderData.createdAt || new Date().toISOString(),
+        updatedAt: orderData.updatedAt || new Date().toISOString(),
+        isOverdue: false,
+        confirmationStatus: 'pending',
+        paymentType: 'advance',
+        clientMessages: orderData.clientMessages || [],
+        uploadedFiles: orderData.uploadedFiles || [],
+        additionalInstructions: orderData.additionalInstructions,
+        requiresAdminApproval: false,
+        urgencyLevel: orderData.urgencyLevel || 'normal',
+        attachments: orderData.attachments || []
+      };
 
-    // Save to database and update local state
-    const savedOrder = await db.create('orders', newOrder);
-    setOrders(prev => [savedOrder, ...prev]);
-    
-    console.log('✅ OrderContext: New order created and added to available orders:', {
-      orderId: savedOrder.id,
-      title: savedOrder.title,
-      status: savedOrder.status,
-      writerId: savedOrder.writerId,
-      assignedWriter: savedOrder.assignedWriter
-    });
-    
-    return savedOrder;
+      // Save to database - this will trigger real-time updates
+      const savedOrder = await db.create('orders', newOrder);
+      
+      // Update local state immediately for instant UI feedback
+      setOrders(prev => [savedOrder, ...prev]);
+      setLastUpdate(new Date().toISOString());
+      
+      console.log('✅ OrderContext: New order created and immediately available:', {
+        orderId: savedOrder.id,
+        title: savedOrder.title,
+        status: savedOrder.status,
+        writerId: savedOrder.writerId,
+        assignedWriter: savedOrder.assignedWriter,
+        timestamp: new Date().toISOString()
+      });
+      
+      return savedOrder;
+    } catch (error) {
+      console.error('❌ OrderContext: Failed to create order:', error);
+      throw error;
+    }
   }, []);
 
   // Get writer's total earnings
@@ -876,6 +1027,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       return total + (order.pages * 350);
     }, 0);
   }, [orders]);
+
+  // Get available orders count for real-time display
+  const availableOrdersCount = orders.filter(order => order.status === 'Available').length;
 
   return (
     <OrderContext.Provider value={{
@@ -891,7 +1045,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       getWriterOrderStats,
       getWriterOrdersByCategory,
       calculateOrderEarnings,
-      getWriterTotalEarnings
+      getWriterTotalEarnings,
+      // New real-time features
+      isConnected,
+      lastUpdate,
+      availableOrdersCount
     }}>
       {children}
     </OrderContext.Provider>

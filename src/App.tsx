@@ -6,12 +6,21 @@ import { Layout } from "./components/Layout";
 import WriterDashboard from "./pages/WriterDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminOrdersPage from "./pages/AdminOrdersPage";
+import AllOrdersPage from "./pages/admin/AllOrdersPage";
+import PendingReviewPage from "./pages/admin/PendingReviewPage";
+import AssignmentCenterPage from "./pages/admin/AssignmentCenterPage";
+import WriterMonitorPage from "./pages/admin/WriterMonitorPage";
+import OrderAnalyticsPage from "./pages/admin/OrderAnalyticsPage";
 import AdminWritersPage from "./pages/AdminWritersPage";
 import AdminReviewsPage from "./pages/AdminReviewsPage";
 import AdminFinancialPage from "./pages/AdminFinancialPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import AdminAnalyticsPage from "./pages/AdminAnalyticsPage";
-import OrdersPage from "./pages/OrdersPage";
+import AvailableOrdersPage from "./pages/writer/AvailableOrdersPage";
+import AssignedOrdersPage from "./pages/writer/AssignedOrdersPage";
+import RevisionsPage from "./pages/writer/RevisionsPage";
+import CompletedOrdersPage from "./pages/writer/CompletedOrdersPage";
+import RejectedOrdersPage from "./pages/writer/RejectedOrdersPage";
 import PODOrdersPage from "./pages/PODOrdersPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import WalletPage from "./pages/WalletPage";
@@ -97,10 +106,39 @@ function AppRouter() {
           </Layout>
         </ProtectedRoute>
       } />
-      <Route path="/orders" element={
+      <Route path="/orders" element={<Navigate to="/orders/available" replace />} />
+      <Route path="/orders/available" element={
         <ProtectedRoute>
           <Layout>
-            <OrdersPage />
+            <AvailableOrdersPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/orders/assigned" element={
+        <ProtectedRoute>
+          <Layout>
+            <AssignedOrdersPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/orders/revisions" element={
+        <ProtectedRoute>
+          <Layout>
+            <RevisionsPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/orders/completed" element={
+        <ProtectedRoute>
+          <Layout>
+            <CompletedOrdersPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/orders/rejected" element={
+        <ProtectedRoute>
+          <Layout>
+            <RejectedOrdersPage />
           </Layout>
         </ProtectedRoute>
       } />
@@ -111,13 +149,7 @@ function AppRouter() {
           </Layout>
         </ProtectedRoute>
       } />
-      <Route path="/my-orders" element={
-        <ProtectedRoute>
-          <Layout>
-            <OrdersPage />
-          </Layout>
-        </ProtectedRoute>
-      } />
+      <Route path="/my-orders" element={<Navigate to="/orders/assigned" replace />} />
       <Route path="/wallet" element={
         <ProtectedRoute>
           <Layout>
@@ -157,6 +189,41 @@ function AppRouter() {
         <ProtectedRoute requiredRole="admin">
           <Layout>
             <AdminOrdersPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/orders/all" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <AllOrdersPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/orders/review" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <PendingReviewPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/orders/assign" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <AssignmentCenterPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/orders/writers" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <WriterMonitorPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/orders/analytics" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <OrderAnalyticsPage />
           </Layout>
         </ProtectedRoute>
       } />
