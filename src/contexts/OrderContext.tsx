@@ -841,7 +841,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     const updatedOrder = orders.find(o => o.id === orderId);
     if (updatedOrder) {
       // Apply the same updates that were applied to local state
-      const orderWithUpdates = { ...updatedOrder };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const orderWithUpdates = { ...updatedOrder } as any;
       
       // Apply the updates based on action (simplified)
       switch (action) {
@@ -851,12 +852,103 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           orderWithUpdates.assignedWriter = additionalData?.writerName as string;
           orderWithUpdates.assignedAt = new Date().toISOString();
           orderWithUpdates.assignedBy = 'admin';
+          if (additionalData?.notes) {
+            orderWithUpdates.assignmentNotes = additionalData.notes;
+          }
+          if (additionalData?.priority) {
+            orderWithUpdates.assignmentPriority = additionalData.priority;
+          }
           break;
+          
+        case 'pick':
+          orderWithUpdates.status = 'Assigned';
+          orderWithUpdates.writerId = additionalData?.writerId as string;
+          orderWithUpdates.assignedWriter = additionalData?.writerName as string;
+          orderWithUpdates.assignedAt = new Date().toISOString();
+          orderWithUpdates.pickedBy = 'writer';
+          break;
+          
         case 'make_available':
           orderWithUpdates.status = 'Available';
           orderWithUpdates.writerId = undefined;
           orderWithUpdates.assignedWriter = undefined;
+          orderWithUpdates.madeAvailableAt = new Date().toISOString();
+          if (additionalData?.notes) {
+            orderWithUpdates.assignmentNotes = additionalData.notes;
+          }
           break;
+          
+        case 'start_work':
+          orderWithUpdates.status = 'In Progress';
+          orderWithUpdates.startedAt = new Date().toISOString();
+          if (additionalData?.estimatedCompletionTime) {
+            orderWithUpdates.estimatedCompletionTime = additionalData.estimatedCompletionTime;
+          }
+          if (additionalData?.additionalNotes) {
+            orderWithUpdates.workStartNotes = additionalData.additionalNotes;
+          }
+          break;
+          
+        case 'submit_to_admin':
+          orderWithUpdates.status = 'Submitted';
+          orderWithUpdates.submittedAt = new Date().toISOString();
+          if (additionalData?.submissionNotes) {
+            orderWithUpdates.submissionNotes = additionalData.submissionNotes;
+          }
+          break;
+          
+        case 'approve':
+          orderWithUpdates.status = 'Completed';
+          orderWithUpdates.approvedAt = new Date().toISOString();
+          orderWithUpdates.approvedBy = additionalData?.adminId as string || 'admin';
+          if (additionalData?.adminNotes) {
+            orderWithUpdates.adminApprovalNotes = additionalData.adminNotes;
+          }
+          break;
+          
+        case 'reject':
+          orderWithUpdates.status = 'Rejected';
+          orderWithUpdates.rejectedAt = new Date().toISOString();
+          orderWithUpdates.rejectedBy = additionalData?.adminId as string || 'admin';
+          if (additionalData?.reason) {
+            orderWithUpdates.rejectionReason = additionalData.reason;
+          }
+          break;
+          
+        case 'request_revision':
+          orderWithUpdates.status = 'Revision';
+          orderWithUpdates.revisionRequestedAt = new Date().toISOString();
+          orderWithUpdates.revisionRequestedBy = additionalData?.adminId as string || 'admin';
+          if (additionalData?.revisionNotes) {
+            orderWithUpdates.revisionNotes = additionalData.revisionNotes;
+          }
+          break;
+          
+        case 'resubmit':
+          orderWithUpdates.status = 'Submitted';
+          orderWithUpdates.resubmittedAt = new Date().toISOString();
+          if (additionalData?.revisionNotes) {
+            orderWithUpdates.resubmissionNotes = additionalData.revisionNotes;
+          }
+          break;
+          
+        case 'confirm':
+          orderWithUpdates.status = 'In Progress';
+          if (additionalData?.confirmation) {
+            orderWithUpdates.confirmation = additionalData.confirmation;
+          }
+          if (additionalData?.questions) {
+            orderWithUpdates.questions = additionalData.questions;
+          }
+          break;
+          
+        case 'refresh':
+          // No database update needed for refresh
+          return;
+          
+        default:
+          console.warn('🔄 OrderContext: Unknown action in database update:', action);
+          return;
       }
 
       console.log('💾 OrderContext: Saving order to database:', {
