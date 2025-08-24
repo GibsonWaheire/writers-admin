@@ -216,18 +216,24 @@ export default function WriterDashboard() {
   // Get recent orders - show recent available orders for writers to pick
   const availableOrders = getAvailableOrders();
   
-  // Debug: Log available orders
+  // Debug: Log available orders and ensure real-time updates
   useEffect(() => {
-    console.log('📋 WriterDashboard: Available orders:', {
+    console.log('📋 WriterDashboard: Available orders updated:', {
       count: availableOrders.length,
       orders: availableOrders.map(o => ({ 
         id: o.id, 
         title: o.title,
         status: o.status, 
         writerId: o.writerId,
-        assignedWriter: o.assignedWriter
+        assignedWriter: o.assignedWriter,
+        createdAt: o.createdAt
       }))
     });
+    
+    // Show notification when new orders are available
+    if (availableOrders.length > 0) {
+      console.log('🎯 WriterDashboard: Orders ready for pickup!');
+    }
   }, [availableOrders]);
   
   const recentOrders = availableOrders

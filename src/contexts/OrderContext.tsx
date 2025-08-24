@@ -853,6 +853,15 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     // Save to database and update local state
     const savedOrder = await db.create('orders', newOrder);
     setOrders(prev => [savedOrder, ...prev]);
+    
+    console.log('✅ OrderContext: New order created and added to available orders:', {
+      orderId: savedOrder.id,
+      title: savedOrder.title,
+      status: savedOrder.status,
+      writerId: savedOrder.writerId,
+      assignedWriter: savedOrder.assignedWriter
+    });
+    
     return savedOrder;
   }, []);
 

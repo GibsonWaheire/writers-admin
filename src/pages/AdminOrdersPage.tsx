@@ -258,11 +258,20 @@ export default function AdminOrdersPage() {
   // Handle create order
   const handleCreateOrder = async (orderData: Partial<Order>) => {
     try {
-      await createOrder(orderData);
+      const newOrder = await createOrder(orderData);
       setShowUploadModal(false);
-      // Order will be automatically available for writers
+      
+      console.log('✅ AdminOrdersPage: Order uploaded successfully and is now available for writers:', {
+        orderId: newOrder.id,
+        title: newOrder.title,
+        status: newOrder.status
+      });
+      
+      // Optional: Add a toast notification here
+      // toast.success(`Order "${newOrder.title}" uploaded and is now available for writers to pick up!`);
+      
     } catch (error) {
-      console.error('Error creating order:', error);
+      console.error('❌ AdminOrdersPage: Error creating order:', error);
     }
   };
 
