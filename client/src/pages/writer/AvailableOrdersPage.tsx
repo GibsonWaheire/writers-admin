@@ -29,7 +29,8 @@ export default function AvailableOrdersPage() {
 
   const { 
     getAvailableOrders,
-    handleOrderAction
+    handleOrderAction,
+    orders
   } = useOrders();
   
   const { user } = useAuth();
@@ -46,26 +47,6 @@ export default function AvailableOrdersPage() {
   };
   const availableOrders = getAvailableOrders();
 
-  // Debug function to troubleshoot order visibility
-  const debugOrders = async () => {
-    try {
-      const debugInfo = await db.debugOrderVisibility();
-      console.log('🔍 Debug Order Visibility:', debugInfo);
-      
-      // Show alert with debug info
-      alert(`Debug Info:
-Total Orders: ${debugInfo.totalOrders}
-Available Orders: ${debugInfo.availableOrders}
-LocalStorage Orders: ${debugInfo.localStorageOrders}
-db.json Orders: ${debugInfo.dbJsonOrders}
-Sync Status: ${debugInfo.syncStatus}
-
-Check console for full details.`);
-    } catch (error) {
-      console.error('Debug failed:', error);
-      alert('Debug failed. Check console for details.');
-    }
-  };
 
   // Filter orders based on search and filters
   const filterOrders = (orders: Order[]) => {
@@ -136,14 +117,6 @@ Check console for full details.`);
           <p className="text-gray-600 mt-1">Browse and pick orders that match your expertise</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={debugOrders}
-            className="text-xs"
-          >
-            🔍 Debug Orders
-          </Button>
           <Badge variant="outline" className="text-lg px-4 py-2">
             {filteredOrders.length} Orders Available
           </Badge>
@@ -175,10 +148,18 @@ Check console for full details.`);
               <div>
                 <p className="text-sm font-medium text-gray-600">Avg. Earnings</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  KES {availableOrders.length > 0 ? 
-                    Math.round(availableOrders.reduce((sum, order) => 
-                      sum + (order.totalPriceKES || order.pages * 350), 0) / availableOrders.length
-                    ).toLocaleString() : '0'}
+                  KES {(() => {
+                    const writerId = getWriterIdForUser(user?.id);
+                    const completedOrders = orders.filter(order => 
+                      order.writerId === writerId && 
+                      ['Completed', 'Approved'].includes(order.status)
+                    );
+                    return completedOrders.length > 0 
+                      ? Math.round(completedOrders.reduce((sum, order) => 
+                          sum + (order.totalPriceKES || order.pages * 350), 0) / completedOrders.length
+                        ).toLocaleString()
+                      : '0';
+                  })()}
                 </p>
               </div>
             </div>

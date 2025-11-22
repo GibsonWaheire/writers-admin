@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify
-from models import Order
+from models import Order, OrderActivity
 from db import db
 import json as json_lib
 from datetime import datetime
+from utils import generate_order_number
 
 bp = Blueprint('orders', __name__, url_prefix='/api/orders')
 
@@ -33,8 +34,12 @@ def create_order():
     data = request.get_json()
     import uuid
     
+    # Generate 4-character order number
+    order_number = data.get('orderNumber') or generate_order_number()
+    
     order = Order(
         id=data.get('id', f"ORD-{uuid.uuid4().hex[:6].upper()}"),
+        order_number=order_number,
         title=data.get('title'),
         description=data.get('description'),
         subject=data.get('subject'),
@@ -66,6 +71,24 @@ def create_order():
     
     db.session.add(order)
     db.session.commit()
+    
+    # Log order creation activity
+    activity = OrderActivity(
+        id=f"ACT-{uuid.uuid4().hex[:8].upper()}",
+        order_id=order.id,
+        order_number=order.order_number,
+        action_type='created',
+        action_by=data.get('createdBy', 'admin'),
+        action_by_name=data.get('createdByName', 'Admin'),
+        action_by_role='admin',
+        old_status=None,
+        new_status='Available',
+        description=f"Order {order.order_number} created: {order.title}",
+        metadata=json_lib.dumps({'pages': order.pages, 'deadline': order.deadline.isoformat() if order.deadline else None})
+    )
+    db.session.add(activity)
+    db.session.commit()
+    
     return jsonify(order.to_dict()), 201
 
 @bp.route('/<order_id>', methods=['PUT'])

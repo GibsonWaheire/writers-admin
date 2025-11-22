@@ -31,7 +31,11 @@ export function SubmitToAdminModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    if (uploadedFiles.length === 0) return;
+    // Validation: Must have at least one file uploaded
+    if (uploadedFiles.length === 0) {
+      alert('Please upload at least one file before submitting.');
+      return;
+    }
     
     setIsSubmitting(true);
     try {

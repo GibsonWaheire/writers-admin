@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { useOrders } from '../contexts/OrderContext';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useAuth } from '../contexts/AuthContext';
 import type { Notification } from '../types/notification';
 
 interface NotificationDropdownProps {
@@ -13,14 +14,21 @@ interface NotificationDropdownProps {
 
 export function NotificationDropdown({ userRole }: NotificationDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useAuth();
   
   // Get context values - these will throw errors if contexts are not available
   const notificationContext = useNotifications();
   const orderContext = useOrders();
   
   // Extract values with safe defaults
-  const notifications = notificationContext?.notifications || [];
-  const unreadCount = notificationContext?.unreadCount || 0;
+  const allNotifications = notificationContext?.notifications || [];
+  
+  // Filter notifications by userId - only show notifications for the current user
+  const notifications = user 
+    ? allNotifications.filter(n => n.userId === user.id || n.userId === user.id.toString())
+    : [];
+  
+  const unreadCount = notifications.filter(n => !n.isRead).length;
   const markAsRead = notificationContext?.markAsRead || (async () => {});
   const isConnected = orderContext?.isConnected ?? true;
   const lastUpdate = orderContext?.lastUpdate || new Date().toISOString();
@@ -95,12 +103,12 @@ export function NotificationDropdown({ userRole }: NotificationDropdownProps) {
         className="relative h-10 w-10 rounded-full hover:bg-gray-100"
       >
         <Bell className="h-5 w-5" />
-        {(unreadCount > 0 || hasNewOrders) && (
+        {unreadCount > 0 && (
           <Badge 
             variant="destructive" 
             className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
           >
-            {unreadCount + (hasNewOrders ? 1 : 0)}
+            {unreadCount}
           </Badge>
         )}
       </Button>
@@ -132,43 +140,6 @@ export function NotificationDropdown({ userRole }: NotificationDropdownProps) {
             </CardHeader>
 
             <CardContent className="space-y-3">
-              {/* New Orders Alert for Writers */}
-              {hasNewOrders && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-green-600" />
-                    <div className="flex-1">
-                      <div className="font-medium text-green-800">New Orders Available!</div>
-                      <div className="text-sm text-green-600">
-                        {availableOrdersCount} orders are now available for you to pick up.
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setNewOrdersAlert(false)}
-                      className="text-green-600 hover:text-green-700"
-                    >
-                      Dismiss
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Available Orders Count for Writers */}
-              {userRole === 'writer' && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-blue-600" />
-                    <div className="flex-1">
-                      <div className="font-medium text-blue-800">Available Orders</div>
-                      <div className="text-sm text-blue-600">
-                        {availableOrdersCount} orders waiting to be picked up
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Connection Status */}
               {!isConnected && (

@@ -29,7 +29,15 @@ export function SubmitRevisionModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    if (uploadedFiles.length === 0) return;
+    // Validation: Must have at least one file and revision explanation
+    if (uploadedFiles.length === 0) {
+      alert('Please upload at least one file before submitting the revision.');
+      return;
+    }
+    if (!revisionNotes.trim()) {
+      alert('Please provide a revision summary explaining what changes were made.');
+      return;
+    }
     
     setIsSubmitting(true);
     try {

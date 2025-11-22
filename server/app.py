@@ -27,7 +27,7 @@ db.init_app(app)
 from models import *
 
 # Import routes
-from routes import auth, users, writers, orders, pod_orders, reviews, financial, notifications, messages, misc
+from routes import auth, users, writers, orders, pod_orders, reviews, financial, notifications, messages, misc, order_activities
 
 # Register blueprints
 app.register_blueprint(auth.bp)
@@ -40,6 +40,7 @@ app.register_blueprint(financial.bp)
 app.register_blueprint(notifications.bp)
 app.register_blueprint(messages.bp)
 app.register_blueprint(misc.bp)
+app.register_blueprint(order_activities.bp)
 
 @app.route('/api/health')
 def health():

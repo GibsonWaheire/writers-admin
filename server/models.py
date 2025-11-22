@@ -110,6 +110,7 @@ class Order(db.Model):
     __tablename__ = 'orders'
     
     id = db.Column(db.String(50), primary_key=True)
+    order_number = db.Column(db.String(4), unique=True)  # 4-character order number (e.g., A001, B002)
     title = db.Column(db.String(500), nullable=False)
     description = db.Column(db.Text)
     subject = db.Column(db.String(200))
@@ -147,6 +148,7 @@ class Order(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'orderNumber': self.order_number,
             'title': self.title,
             'description': self.description,
             'subject': self.subject,
@@ -171,8 +173,11 @@ class Order(db.Model):
             'assignedAt': self.assigned_at.isoformat() if self.assigned_at else None,
             'startedAt': self.started_at.isoformat() if self.started_at else None,
             'submittedAt': self.submitted_at.isoformat() if self.submitted_at else None,
+            'submittedToAdminAt': self.submitted_at.isoformat() if self.submitted_at else None,
             'completedAt': self.completed_at.isoformat() if self.completed_at else None,
+            'approvedAt': self.completed_at.isoformat() if self.completed_at and self.status == 'Completed' else None,
             'attachments': json.loads(self.attachments) if self.attachments else [],
+            'uploadedFiles': json.loads(self.attachments) if self.attachments else [],
             'revisionRequests': json.loads(self.revision_requests) if self.revision_requests else [],
             'reviews': json.loads(self.reviews) if self.reviews else [],
             'clientMessages': json.loads(self.client_messages) if self.client_messages else [],
@@ -180,6 +185,39 @@ class Order(db.Model):
             'lastAdminEdit': json.loads(self.last_admin_edit) if self.last_admin_edit else None,
             'createdAt': self.created_at.isoformat() if self.created_at else None,
             'updatedAt': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+# Order Activity Model - Tracks all actions on orders
+class OrderActivity(db.Model):
+    __tablename__ = 'order_activities'
+    
+    id = db.Column(db.String(50), primary_key=True)
+    order_id = db.Column(db.String(50), db.ForeignKey('orders.id'), nullable=False)
+    order_number = db.Column(db.String(4))  # For quick reference
+    action_type = db.Column(db.String(50), nullable=False)  # pick, assign, submit, approve, reject, reassign, etc.
+    action_by = db.Column(db.String(50), nullable=False)  # User ID who performed the action
+    action_by_name = db.Column(db.String(200))  # Name of person who performed action
+    action_by_role = db.Column(db.String(20))  # 'writer' or 'admin'
+    old_status = db.Column(db.String(50))
+    new_status = db.Column(db.String(50))
+    description = db.Column(db.Text)  # Description of the action
+    metadata = db.Column(db.Text)  # JSON string for additional data
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'orderId': self.order_id,
+            'orderNumber': self.order_number,
+            'actionType': self.action_type,
+            'actionBy': self.action_by,
+            'actionByName': self.action_by_name,
+            'actionByRole': self.action_by_role,
+            'oldStatus': self.old_status,
+            'newStatus': self.new_status,
+            'description': self.description,
+            'metadata': json.loads(self.metadata) if self.metadata else {},
+            'createdAt': self.created_at.isoformat() if self.created_at else None
         }
 
 # POD Order Model

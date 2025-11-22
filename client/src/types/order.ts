@@ -1,5 +1,6 @@
 export interface Order {
   id: string;
+  orderNumber?: string; // 4-character order number (e.g., A001, B234)
   title: string;
   description: string;
   subject: string;

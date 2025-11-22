@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { Order, OrderStatus, WriterConfirmation, WriterQuestion, UploadedFile } from '../types/order';
 import { db } from '../services/database';
+import { api } from '../services/api';
 import { notificationHelpers } from '../services/notificationService';
+import { useAuth } from './AuthContext';
+import { useWallet } from './WalletContext';
 
 interface OrderContextType {
   orders: Order[];
@@ -65,6 +68,17 @@ interface OrderContextType {
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export function OrderProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  
+  // Try to get wallet context, but don't fail if it's not available
+  let addEarning: ((orderId: string, amount: number, description: string, orderType: 'regular' | 'pod') => void) | null = null;
+  try {
+    const walletContext = useWallet();
+    addEarning = walletContext?.addEarning || null;
+  } catch (e) {
+    // WalletProvider not available yet, will use null
+  }
+  
   const [orders, setOrders] = useState<Order[]>([]);
   const [isConnected, setIsConnected] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date().toISOString());
@@ -129,6 +143,99 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   // All mock data removed - orders are loaded from database only
 
+  // Helper function to log order activity
+  const logOrderActivity = useCallback(async (
+    orderId: string,
+    orderNumber: string | undefined,
+    actionType: string,
+    oldStatus: string,
+    newStatus: string,
+    description: string,
+    metadata?: Record<string, unknown>
+  ) => {
+    if (!user) return;
+    
+    try {
+      await api.createOrderActivity({
+        orderId,
+        orderNumber,
+        actionType,
+        actionBy: user.id,
+        actionByName: user.name,
+        actionByRole: user.role as 'writer' | 'admin',
+        oldStatus,
+        newStatus,
+        description,
+        metadata
+      });
+    } catch (error) {
+      console.error('Failed to log order activity:', error);
+    }
+  }, [user]);
+
+  // Helper function to send notifications (will be called after order updates)
+  const sendOrderNotification = useCallback(async (writerId: string | undefined, type: string, order: Order, data?: Record<string, unknown>) => {
+    if (!writerId) return;
+    
+    try {
+      const { notificationService } = await import('../services/notificationService');
+      const orderTitle = order.title || 'Order';
+      
+      switch (type) {
+        case 'assigned':
+          await notificationService.sendNotification({
+            userId: writerId,
+            type: 'order_assigned',
+            title: 'New Order Assigned!',
+            message: `You've been assigned: ${orderTitle}`,
+            actionUrl: `/orders/assigned`,
+            actionLabel: 'View Order',
+            priority: 'high',
+            metadata: { orderId: order.id }
+          });
+          break;
+        case 'approved':
+          await notificationService.sendNotification({
+            userId: writerId,
+            type: 'order_approved',
+            title: 'Order Approved! 🎉',
+            message: `Your work on "${orderTitle}" has been approved`,
+            actionUrl: `/orders/completed`,
+            actionLabel: 'View Order',
+            priority: 'high',
+            metadata: { orderId: order.id }
+          });
+          break;
+        case 'revision':
+          await notificationService.sendNotification({
+            userId: writerId,
+            type: 'order_rejected',
+            title: 'Revision Required',
+            message: `"${orderTitle}" needs revision. ${data?.explanation ? `Reason: ${data.explanation.substring(0, 100)}...` : 'Please check the details.'}`,
+            actionUrl: `/orders/assigned`,
+            actionLabel: 'View Details',
+            priority: 'high',
+            metadata: { orderId: order.id, explanation: data?.explanation }
+          });
+          break;
+        case 'reassigned':
+          await notificationService.sendNotification({
+            userId: writerId,
+            type: 'order_rejected',
+            title: 'Order Reassigned',
+            message: `"${orderTitle}" has been reassigned. ${data?.reason ? `Reason: ${data.reason}` : ''}`,
+            actionUrl: `/orders`,
+            actionLabel: 'View Orders',
+            priority: 'medium',
+            metadata: { orderId: order.id, reason: data?.reason }
+          });
+          break;
+      }
+    } catch (error) {
+      console.error('Failed to send notification:', error);
+    }
+  }, []);
+
   const handleOrderAction = useCallback(async (action: string, orderId: string, additionalData?: Record<string, unknown>) => {
     console.log('🔄 OrderContext: Processing action:', {
       action,
@@ -136,6 +243,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       additionalData,
       timestamp: new Date().toISOString()
     });
+
+    // Get the current order before updating
+    const currentOrder = orders.find(o => o.id === orderId);
+    let notificationType: string | null = null;
+    let notificationData: Record<string, unknown> | undefined = undefined;
+    let updatedOrderForNotification: Order | null = null;
 
     setOrders(prev => {
       const updatedOrders = prev.map(order => {
@@ -177,6 +290,17 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           updates.assignmentDeadline = additionalData?.deadline;
           updates.requiresConfirmation = additionalData?.requireConfirmation || false;
           
+          // Log activity
+          logOrderActivity(
+            orderId,
+            order.orderNumber,
+            'assign',
+            oldStatus,
+            'Assigned',
+            `Order ${order.orderNumber || orderId} assigned to writer ${updates.assignedWriter} by admin`,
+            { writerId: updates.writerId, writerName: updates.assignedWriter, priority: updates.assignmentPriority }
+          ).catch(err => console.error('Failed to log activity:', err));
+          
           console.log('🔄 OrderContext: Order assigned with enhanced data:', {
             orderId,
             writerId: updates.writerId,
@@ -185,6 +309,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             deadline: updates.assignmentDeadline,
             requiresConfirmation: updates.requiresConfirmation
           });
+          
+          // Queue notification to send after state update
+          if (updates.writerId && updates.writerId !== 'unknown') {
+            notificationType = 'assigned';
+            notificationData = additionalData;
+          }
           break;
           
         case 'make_available':
@@ -258,11 +388,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           break;
           
         case 'submit':
-          newStatus = 'Submitted';
-          updates.submittedToAdminAt = new Date().toISOString();
-          if (additionalData?.files && Array.isArray(additionalData.files)) {
-            updates.uploadedFiles = [...order.uploadedFiles, ...additionalData.files];
+          // Validation: Must have files to submit
+          if (!additionalData?.files || !Array.isArray(additionalData.files) || additionalData.files.length === 0) {
+            throw new Error('Cannot submit order without uploaded files. Please upload at least one file.');
           }
+          
+          newStatus = 'Submitted'; // Submitted to admin for review
+          updates.submittedToAdminAt = new Date().toISOString();
+          updates.uploadedFiles = [...(order.uploadedFiles || []), ...additionalData.files];
           if (additionalData?.notes) {
             updates.submissionNotes = additionalData.notes;
           }
@@ -270,12 +403,26 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             updates.estimatedCompletionTime = additionalData.estimatedCompletionTime;
           }
           
+          // Queue activity logging
+          notificationType = null; // No notification for submit (status change is enough)
+          const submitFilesCount = additionalData.files.length;
+          const activityDescription = `Order ${order.orderNumber || orderId} submitted to admin for review with ${submitFilesCount} file(s)`;
+          logOrderActivity(
+            orderId,
+            order.orderNumber,
+            'submit',
+            oldStatus,
+            'Submitted',
+            activityDescription,
+            { filesCount: submitFilesCount, notes: additionalData?.notes }
+          ).catch(err => console.error('Failed to log activity:', err));
+          
           console.log('📤 OrderContext: Order submitted to admin:', {
             orderId,
             oldStatus,
             newStatus: 'Submitted',
             writerId: order.writerId,
-            filesCount: additionalData?.files ? (additionalData.files as Array<unknown>).length : 0,
+            filesCount: submitFilesCount,
             submittedAt: updates.submittedToAdminAt
           });
           break;
@@ -289,15 +436,37 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           if (additionalData?.notes) {
             updates.adminReviewNotes = additionalData.notes;
           }
-          // Mark as approved for payment - wallet will sync automatically
-          if (order.writerId) {
-            console.log('💰 OrderContext: Order approved, payment will be processed by wallet sync:', {
+          
+          // Auto-record earnings when order is approved
+          if (order.writerId && order.pages && addEarning) {
+            const earningsAmount = order.pages * 350; // KES per page
+            const earningsDescription = `Order ${order.orderNumber || orderId} approved: ${order.title}`;
+            addEarning(order.id, earningsAmount, earningsDescription, 'regular');
+            console.log('💰 OrderContext: Earnings recorded:', {
               orderId,
               writerId: order.writerId,
-              amount: order.pages * 350,
-              status: 'Completed'
+              amount: earningsAmount,
+              description: earningsDescription
             });
           }
+          
+          // Queue notification to send after state update
+          if (order.writerId) {
+            notificationType = 'approved';
+            notificationData = additionalData;
+          }
+          
+          // Log activity
+          logOrderActivity(
+            orderId,
+            order.orderNumber,
+            'approve',
+            oldStatus,
+            'Completed',
+            `Order ${order.orderNumber || orderId} approved by admin`,
+            { amount: order.pages ? order.pages * 350 : 0, notes: additionalData?.notes }
+          ).catch(err => console.error('Failed to log activity:', err));
+          
           console.log('✅ OrderContext: Order approved and completed:', {
             orderId,
             oldStatus,
@@ -383,6 +552,17 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             status: 'pending'
           });
           
+          // Log activity
+          logOrderActivity(
+            orderId,
+            order.orderNumber,
+            'request_revision',
+            oldStatus,
+            'Revision',
+            `Order ${order.orderNumber || orderId} sent for revision by admin. Revision #${currentRevisionCount}`,
+            { explanation: updates.revisionExplanation, revisionCount: currentRevisionCount, revisionScore: updates.revisionScore }
+          ).catch(err => console.error('Failed to log activity:', err));
+          
           console.log('📝 OrderContext: Revision requested by admin:', {
             orderId,
             oldStatus,
@@ -393,26 +573,48 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             revisionScore: updates.revisionScore,
             adminNotes: updates.adminReviewNotes
           });
+          
+          // Queue notification to send after state update
+          if (order.writerId) {
+            notificationType = 'revision';
+            notificationData = { explanation: updates.revisionExplanation };
+          }
           break;
           
         case 'resubmit':
-          newStatus = 'Resubmitted';
+          // Validation: Must have files and revision notes to resubmit
+          if (!additionalData?.files || !Array.isArray(additionalData.files) || additionalData.files.length === 0) {
+            throw new Error('Cannot resubmit revision without uploaded files. Please upload at least one file.');
+          }
+          if (!additionalData?.revisionNotes || !additionalData.revisionNotes.trim()) {
+            throw new Error('Cannot resubmit revision without a revision summary. Please explain what changes were made.');
+          }
+          
+          newStatus = 'Submitted'; // Resubmitted goes back to Submitted status for admin review
           updates.submittedToAdminAt = new Date().toISOString();
           updates.revisionSubmittedAt = new Date().toISOString();
-          if (additionalData?.files && Array.isArray(additionalData.files)) {
-            updates.uploadedFiles = [...order.uploadedFiles, ...additionalData.files];
-          }
-          if (additionalData?.revisionNotes) {
-            updates.revisionResponseNotes = additionalData.revisionNotes;
-          }
+          updates.uploadedFiles = [...(order.uploadedFiles || []), ...additionalData.files];
+          updates.revisionResponseNotes = additionalData.revisionNotes;
           if (additionalData?.notes) {
             updates.adminReviewNotes = additionalData.notes;
           }
           
+          // Log activity
+          const resubmitFilesCount = additionalData.files.length;
+          logOrderActivity(
+            orderId,
+            order.orderNumber,
+            'resubmit',
+            oldStatus,
+            'Submitted',
+            `Order ${order.orderNumber || orderId} resubmitted after revision with ${resubmitFilesCount} file(s)`,
+            { filesCount: resubmitFilesCount, revisionNotes: additionalData.revisionNotes }
+          ).catch(err => console.error('Failed to log activity:', err));
+          
           console.log('📤 OrderContext: Order resubmitted after revision:', {
             orderId,
             oldStatus,
-            newStatus: 'Resubmitted',
+            newStatus: 'Submitted',
             writerId: order.writerId,
             revisionNotes: updates.revisionResponseNotes
           });
@@ -437,6 +639,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             reason: updates.reassignmentReason,
             adminId: updates.reassignedBy
           });
+          
+          // Queue notification to send after state update
+          if (order.writerId) {
+            notificationType = 'reassigned';
+            notificationData = { reason: updates.reassignmentReason };
+          }
+          
           // Apply 10% fine for auto-reassignment
           if (order.originalWriterId) {
             const orderAmount = order.pages * 350;
@@ -513,6 +722,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         
         const updatedOrder = { ...order, status: newStatus, ...updates };
         
+        // Store updated order for notification
+        updatedOrderForNotification = updatedOrder as Order;
+        
         console.log('✅ OrderContext: Order updated:', {
           orderId,
           action,
@@ -536,6 +748,20 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       
       return updatedOrders;
     });
+
+    // Send notification after state update (if needed)
+    if (notificationType && updatedOrderForNotification) {
+      const writerId = notificationType === 'assigned' 
+        ? (additionalData?.writerId as string || updatedOrderForNotification.writerId)
+        : updatedOrderForNotification.writerId;
+      
+      if (writerId && writerId !== 'unknown') {
+        // Send notification asynchronously after state update
+        sendOrderNotification(writerId, notificationType, updatedOrderForNotification, notificationData).catch(err => {
+          console.error('Failed to send notification:', err);
+        });
+      }
+    }
 
     // After updating local state, save to database
     const updatedOrder = orders.find(o => o.id === orderId);

@@ -57,7 +57,7 @@ export function OrderCard({
       'Available': { variant: 'outline' as const, color: 'text-blue-600', bg: 'bg-blue-50', icon: '🟢' },
       'Assigned': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '👤' },
       'In Progress': { variant: 'default' as const, color: 'text-blue-600', bg: 'bg-blue-50', icon: '🔵' },
-      'Submitted': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50', icon: '📤' },
+      'Submitted': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50', icon: '📤', text: 'Under Review' },
       'Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50', icon: '✅' },
       'Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50', icon: '❌' },
       'Revision': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50', icon: '✏️' },

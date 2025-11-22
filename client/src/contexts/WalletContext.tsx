@@ -42,6 +42,27 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
+// Inner component that has access to OrderProvider and PODProvider
+function WalletProviderInner({ children, setOrdersRef, setPodOrdersRef }: { 
+  children: React.ReactNode;
+  setOrdersRef: (orders: any[]) => void;
+  setPodOrdersRef: (orders: any[]) => void;
+}) {
+  // Now we can safely use hooks since we're inside the provider tree
+  const { orders } = useOrders();
+  const { podOrders } = usePOD();
+  
+  useEffect(() => {
+    setOrdersRef(orders || []);
+  }, [orders, setOrdersRef]);
+  
+  useEffect(() => {
+    setPodOrdersRef(podOrders || []);
+  }, [podOrders, setPodOrdersRef]);
+  
+  return <>{children}</>;
+}
+
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [wallet, setWallet] = useState<WalletData>({
     availableBalance: 0,
@@ -53,14 +74,26 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     transactions: []
   });
 
-  const { orders } = useOrders();
-  const { podOrders } = usePOD();
+  // Use refs to store orders and POD orders that will be set via syncWithOrders
+  const ordersRef = useRef<any[]>([]);
+  const podOrdersRef = useRef<any[]>([]);
   
   // Use ref to track previous state to avoid infinite loops
   const prevWalletRef = useRef<WalletData>(wallet);
+  
+  const setOrdersRef = useCallback((orders: any[]) => {
+    ordersRef.current = orders;
+  }, []);
+  
+  const setPodOrdersRef = useCallback((orders: any[]) => {
+    podOrdersRef.current = orders;
+  }, []);
 
   // Sync wallet with actual orders and POD orders
   const syncWithOrders = useCallback(() => {
+    const orders = ordersRef.current;
+    const podOrders = podOrdersRef.current;
+    
     let regularEarnings = 0;
     let podEarnings = 0;
     let pendingEarnings = 0;
@@ -142,7 +175,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       prevWalletRef.current = newWallet;
       return newWallet;
     });
-  }, [orders, podOrders]);
+  }, []);
 
   // Sync wallet when orders or POD orders change
   useEffect(() => {
@@ -228,6 +261,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [wallet.transactions]);
 
   const getPendingOrdersCount = useCallback(() => {
+    const orders = ordersRef.current;
+    const podOrders = podOrdersRef.current;
+    
     const pendingRegular = orders && Array.isArray(orders) ? orders.filter(order => 
       order.writerId && order.status === 'Approved'
     ).length : 0;
@@ -237,9 +273,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     ).length : 0;
     
     return pendingRegular + pendingPOD;
-  }, [orders, podOrders]);
+  }, []);
 
   const getPendingEarnings = useCallback(() => {
+    const orders = ordersRef.current;
+    const podOrders = podOrdersRef.current;
     let pending = 0;
     
     // Regular orders pending payment
@@ -261,7 +299,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
     
     return pending;
-  }, [orders, podOrders]);
+  }, []);
 
   const getEarningsBreakdown = useCallback(() => {
     return {
@@ -301,7 +339,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       getPendingWithdrawals,
       syncWithOrders
     }}>
-      {children}
+      <WalletProviderInner setOrdersRef={setOrdersRef} setPodOrdersRef={setPodOrdersRef}>
+        {children}
+      </WalletProviderInner>
     </WalletContext.Provider>
   );
 }
