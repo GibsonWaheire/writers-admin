@@ -12,8 +12,7 @@ import {
   CheckCircle,
   Eye,
   RefreshCw,
-  Search,
-  XCircle
+  Search
 } from 'lucide-react';
 import { OrderViewModal } from '../../components/OrderViewModal';
 import { OrderAssignmentModal } from '../../components/OrderAssignmentModal';
@@ -38,7 +37,6 @@ export default function AssignmentCenterPage() {
     refreshOrders
   } = useOrders();
   const { writers } = useUsers();
-  const { user } = useAuth();
 
   // Get orders available for assignment
   const availableOrders = getAvailableOrders();
