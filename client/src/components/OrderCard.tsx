@@ -23,7 +23,6 @@ import {
   UserX,
   Clock
 } from 'lucide-react';
-import { OrderConfirmationModal } from './OrderConfirmationModal';
 import { OrderReassignmentModal } from './OrderReassignmentModal';
 import { SubmitToAdminModal } from './SubmitToAdminModal';
 import { SubmitRevisionModal } from './SubmitRevisionModal';
@@ -46,7 +45,6 @@ export function OrderCard({
   onConfirm,
   showActions = true 
 }: OrderCardProps) {
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showReassignmentModal, setShowReassignmentModal] = useState(false);
   const [showSubmitToAdminModal, setShowSubmitToAdminModal] = useState(false);
   const [showSubmitRevisionModal, setShowSubmitRevisionModal] = useState(false);
@@ -104,7 +102,7 @@ export function OrderCard({
       if (order.status === 'Available') {
         return (
           <Button 
-            onClick={() => setShowConfirmationModal(true)}
+            onClick={handleAutoBid}
             size="sm"
             className="bg-green-600 hover:bg-green-700"
           >
@@ -117,14 +115,14 @@ export function OrderCard({
       if (order.status === 'Assigned') {
         return (
           <div className="flex gap-2">
-            <Button 
-              onClick={() => setShowConfirmationModal(true)}
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              Confirm Order
-            </Button>
+              <Button 
+                onClick={handleAutoBid}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Bid on Order
+              </Button>
           </div>
         );
       }
@@ -383,11 +381,20 @@ export function OrderCard({
     return null;
   };
 
-  const handleConfirmOrder = (confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
-    if (onConfirm) {
-      onConfirm(order.id, confirmation, questions);
-    }
-    setShowConfirmationModal(false);
+  const handleAutoBid = () => {
+    if (!onConfirm) return;
+    const autoConfirmation: WriterConfirmation = {
+      id: `auto-conf-${Date.now()}`,
+      hasReadInstructions: true,
+      hasUnderstoodRequirements: true,
+      canMeetDeadline: true,
+      hasNoConflicts: true,
+      additionalNotes: '',
+      confirmedAt: new Date().toISOString(),
+      writerId: 'pending-writer'
+    };
+    const autoQuestions: WriterQuestion[] = [];
+    onConfirm(order.id, autoConfirmation, autoQuestions);
   };
 
   const handleReassignOrder = (reason: string) => {
@@ -555,16 +562,6 @@ export function OrderCard({
           )}
         </CardContent>
       </Card>
-
-      {/* Order Confirmation Modal */}
-      {showConfirmationModal && (
-        <OrderConfirmationModal
-          isOpen={showConfirmationModal}
-          onClose={() => setShowConfirmationModal(false)}
-          order={order}
-          onConfirm={handleConfirmOrder}
-        />
-      )}
 
       {/* Order Reassignment Modal */}
       <OrderReassignmentModal

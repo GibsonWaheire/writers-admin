@@ -9,7 +9,6 @@ import {
   CheckCircle, 
   BookOpen
 } from "lucide-react";
-import { OrderConfirmationModal } from './OrderConfirmationModal';
 import type { Order, WriterConfirmation, WriterQuestion } from '../types/order';
 
 interface AvailableOrdersTableProps {
@@ -29,8 +28,6 @@ export function AvailableOrdersTable({
   const [filterDiscipline, setFilterDiscipline] = useState<string>("");
   const [filterPaperType, setFilterPaperType] = useState<string>("");
   const [filterPriceRange, setFilterPriceRange] = useState<string>("");
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
   // Filter orders based on search and filters
   const filteredOrders = orders.filter(order => {
@@ -77,17 +74,20 @@ export function AvailableOrdersTable({
     }
   };
 
-  const handlePickOrder = (order: Order) => {
-    setSelectedOrder(order);
-    setShowConfirmationModal(true);
-  };
+  const createAutoConfirmation = (): WriterConfirmation => ({
+    id: `auto-conf-${Date.now()}`,
+    hasReadInstructions: true,
+    hasUnderstoodRequirements: true,
+    canMeetDeadline: true,
+    hasNoConflicts: true,
+    confirmedAt: new Date().toISOString(),
+    writerId: 'pending-writer'
+  });
 
-  const handleConfirmOrder = (confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
-    if (selectedOrder) {
-      onConfirm(selectedOrder.id, confirmation, questions);
-      setShowConfirmationModal(false);
-      setSelectedOrder(null);
-    }
+  const handleBidOrder = (order: Order) => {
+    const autoConfirmation = createAutoConfirmation();
+    const autoQuestions: WriterQuestion[] = [];
+    onConfirm(order.id, autoConfirmation, autoQuestions);
   };
 
   return (
@@ -280,7 +280,7 @@ export function AvailableOrdersTable({
                       <div className="flex items-center gap-2">
                         {userRole === 'writer' && order.status === 'Available' && !order.writerId && (
                           <Button 
-                            onClick={() => handlePickOrder(order)}
+                            onClick={() => handleBidOrder(order)}
                             size="sm"
                             className="bg-green-600 hover:bg-green-700"
                           >
@@ -327,19 +327,6 @@ export function AvailableOrdersTable({
           </TableBody>
         </Table>
       </div>
-
-      {/* Order Confirmation Modal */}
-      {showConfirmationModal && selectedOrder && (
-        <OrderConfirmationModal
-          isOpen={showConfirmationModal}
-          onClose={() => {
-            setShowConfirmationModal(false);
-            setSelectedOrder(null);
-          }}
-          order={selectedOrder}
-          onConfirm={handleConfirmOrder}
-        />
-      )}
     </div>
   );
 }
