@@ -211,9 +211,9 @@ export function OrderViewModal({
     };
     const writerId = getWriterIdForUser(user?.id) || confirmation.writerId || 'writer-1';
     
-    // Call the confirmOrder function to match the main Pick Order button workflow
-    // This will set the order status to "In Progress" and move it to assigned orders
-    onAction('confirm_order', order.id, { 
+    // Use 'pick' action to properly mark order as picked by writer
+    // This will set the order status to "Assigned" and mark it as picked by writer
+    onAction('pick', order.id, { 
       confirmation, 
       questions,
       writerId: writerId,

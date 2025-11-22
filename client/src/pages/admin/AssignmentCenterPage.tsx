@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { OrderViewModal } from '../../components/OrderViewModal';
 import { OrderAssignmentModal } from '../../components/OrderAssignmentModal';
+import { PickedOrdersCard } from '../../components/PickedOrdersCard';
 import { useOrders } from '../../contexts/OrderContext';
 import { useUsers } from '../../contexts/UsersContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -466,51 +467,14 @@ export default function AssignmentCenterPage() {
             {recentlyPickedOrders.slice(0, 10).map((order) => {
               const writer = writers.find(w => w.id === order.writerId);
               return (
-                <div key={order.id} className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4 className="font-medium">{order.title}</h4>
-                        <Badge variant="secondary">
-                          {order.status}
-                        </Badge>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium">Writer:</span>{' '}
-                          <span className="font-semibold text-blue-700">
-                            {order.assignedWriter || writer?.name || 'Unknown'}
-                          </span>
-                          {writer && (
-                            <span className="text-xs text-gray-500 ml-1">
-                              ({writer.email})
-                            </span>
-                          )}
-                        </div>
-                        <div><span className="font-medium">Picked:</span> {new Date(order.assignedAt || order.updatedAt).toLocaleDateString()}</div>
-                        <div><span className="font-medium">Deadline:</span> {new Date(order.deadline).toLocaleDateString()}</div>
-                        <div><span className="font-medium">Value:</span> KES {(order.pages * 350).toLocaleString()}</div>
-                        <div>
-                          <Badge variant="outline" className="text-xs border-blue-300 text-blue-700">
-                            Picked by Writer
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2 ml-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewOrder(order)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                <PickedOrdersCard
+                  key={order.id}
+                  order={order}
+                  writerName={writer?.name}
+                  writerEmail={writer?.email}
+                  onView={handleViewOrder}
+                  userRole="admin"
+                />
               );
             })}
             

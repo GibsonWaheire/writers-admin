@@ -12,6 +12,7 @@ import {
   FileText
 } from 'lucide-react';
 import { AssignedOrderCard } from '../../components/AssignedOrderCard';
+import { PickedOrdersCard } from '../../components/PickedOrdersCard';
 import { OrderViewModal } from '../../components/OrderViewModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -270,71 +271,12 @@ export default function AssignedOrdersPage() {
           <CardContent>
             <div className="space-y-3">
               {recentlyPickedOrders.slice(0, 10).map((order) => (
-                <div key={order.id} className="border border-blue-200 rounded-lg p-4 bg-white hover:bg-blue-50 transition-colors shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4 className="font-semibold text-gray-900">{order.title}</h4>
-                        <Badge 
-                          variant={(order.status as string) === 'Awaiting Confirmation' ? 'outline' : 'secondary'}
-                          className={(order.status as string) === 'Awaiting Confirmation' 
-                            ? 'border-orange-400 text-orange-700 bg-orange-50' 
-                            : 'bg-blue-100 text-blue-800'
-                          }
-                        >
-                          {(order.status as string) === 'Awaiting Confirmation' ? '⏳ Awaiting Confirmation' : order.status}
-                        </Badge>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                        <div className="bg-gray-50 p-2 rounded">
-                          <span className="font-medium text-gray-700">Picked:</span>
-                          <div className="text-gray-900 mt-1">
-                            {new Date(order.assignedAt || order.updatedAt).toLocaleString()}
-                          </div>
-                        </div>
-                        <div className="bg-purple-50 p-2 rounded">
-                          <span className="font-medium text-purple-700">Deadline:</span>
-                          <div className="text-purple-900 mt-1">
-                            {new Date(order.deadline).toLocaleDateString()}
-                          </div>
-                        </div>
-                        <div className="bg-green-50 p-2 rounded">
-                          <span className="font-medium text-green-700">Value:</span>
-                          <div className="text-green-900 font-semibold mt-1">
-                            KES {(order.pages * 350).toLocaleString()}
-                          </div>
-                        </div>
-                        <div className="bg-blue-50 p-2 rounded">
-                          <span className="font-medium text-blue-700">Order #:</span>
-                          <div className="text-blue-900 font-mono mt-1">
-                            {order.orderNumber || order.id.substring(0, 8)}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {(order.status as string) === 'Awaiting Confirmation' && (
-                        <div className="mt-3 bg-orange-50 border-l-4 border-orange-500 p-2 rounded-r">
-                          <p className="text-xs text-orange-800">
-                            ⏳ Waiting for admin to confirm your pick. Once confirmed, you can start working on this order.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex flex-col gap-2 ml-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewOrder(order)}
-                        className="w-full"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        View Details
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                <PickedOrdersCard
+                  key={order.id}
+                  order={order}
+                  onView={handleViewOrder}
+                  userRole="writer"
+                />
               ))}
             </div>
           </CardContent>

@@ -1058,7 +1058,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           
         case 'confirm_order':
           // Writer is picking/confirming an available order
-          orderWithUpdates.status = 'In Progress';
+          // This should work the same as 'pick' - set to 'Assigned' status
+          orderWithUpdates.status = 'Assigned';
           // Set writerId and assignedWriter from additionalData
           if (additionalData?.writerId) {
             orderWithUpdates.writerId = additionalData.writerId as string;
@@ -1074,6 +1075,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           }
           orderWithUpdates.assignedAt = new Date().toISOString();
           orderWithUpdates.pickedBy = 'writer';
+          orderWithUpdates.assignedBy = 'writer';
+          orderWithUpdates.assignmentPriority = 'medium';
           break;
           
         case 'refresh':
