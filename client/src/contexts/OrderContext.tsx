@@ -911,11 +911,36 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           break;
           
         case 'submit_to_admin':
+          // Validation: Must have files to submit
+          if (!additionalData?.files || !Array.isArray(additionalData.files) || additionalData.files.length === 0) {
+            throw new Error('Cannot submit order without uploaded files. Please upload at least one file.');
+          }
+          
           orderWithUpdates.status = 'Submitted';
           orderWithUpdates.submittedAt = new Date().toISOString();
-          if (additionalData?.submissionNotes) {
-            orderWithUpdates.submissionNotes = additionalData.submissionNotes;
+          orderWithUpdates.submittedToAdminAt = new Date().toISOString();
+          if (additionalData?.files) {
+            orderWithUpdates.uploadedFiles = [...(orderWithUpdates.uploadedFiles || []), ...additionalData.files];
           }
+          if (additionalData?.notes) {
+            orderWithUpdates.submissionNotes = additionalData.notes;
+          }
+          if (additionalData?.estimatedCompletionTime) {
+            orderWithUpdates.estimatedCompletionTime = additionalData.estimatedCompletionTime;
+          }
+          
+          // Log activity
+          const submitFilesCount = additionalData.files.length;
+          logOrderActivity(
+            orderId,
+            orderWithUpdates.orderNumber,
+            'submit',
+            orderWithUpdates.status || 'In Progress',
+            'Submitted',
+            `Order ${orderWithUpdates.orderNumber || orderId} submitted to admin for review with ${submitFilesCount} file(s)`,
+            { filesCount: submitFilesCount, notes: additionalData?.notes }
+          ).catch(err => console.error('Failed to log activity:', err));
+          
           break;
           
         case 'approve':
@@ -953,13 +978,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           }
           
           // Track revision count and reduce score
-          const currentRevisionCount = (order.revisionCount || 0) + 1;
+          const currentRevisionCount = (orderWithUpdates.revisionCount || 0) + 1;
           orderWithUpdates.revisionCount = currentRevisionCount;
           orderWithUpdates.revisionScore = Math.max(0, 10 - currentRevisionCount);
           
           // Add to revision requests array
           if (!orderWithUpdates.revisionRequests) {
-            orderWithUpdates.revisionRequests = order.revisionRequests || [];
+            orderWithUpdates.revisionRequests = orderWithUpdates.revisionRequests || [];
           }
           (orderWithUpdates.revisionRequests as Array<{
             id: string;
@@ -978,11 +1003,42 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           });
           break;
           
-        case 'resubmit':
+        case 'submit':
+          // Validation: Must have files to submit
+          if (!additionalData?.files || !Array.isArray(additionalData.files) || additionalData.files.length === 0) {
+            throw new Error('Cannot submit order without uploaded files. Please upload at least one file.');
+          }
+          
           orderWithUpdates.status = 'Submitted';
+          orderWithUpdates.submittedAt = new Date().toISOString();
+          orderWithUpdates.submittedToAdminAt = new Date().toISOString();
+          if (additionalData?.files) {
+            orderWithUpdates.uploadedFiles = [...(orderWithUpdates.uploadedFiles || []), ...additionalData.files];
+          }
+          if (additionalData?.notes) {
+            orderWithUpdates.submissionNotes = additionalData.notes;
+          }
+          if (additionalData?.estimatedCompletionTime) {
+            orderWithUpdates.estimatedCompletionTime = additionalData.estimatedCompletionTime;
+          }
+          break;
+          
+        case 'resubmit':
+          // Validation: Must have files to resubmit
+          if (!additionalData?.files || !Array.isArray(additionalData.files) || additionalData.files.length === 0) {
+            throw new Error('Cannot resubmit revision without uploaded files. Please upload at least one file.');
+          }
+          
+          orderWithUpdates.status = 'Resubmitted';
           orderWithUpdates.resubmittedAt = new Date().toISOString();
+          if (additionalData?.files) {
+            orderWithUpdates.uploadedFiles = [...(orderWithUpdates.uploadedFiles || []), ...additionalData.files];
+          }
           if (additionalData?.revisionNotes) {
             orderWithUpdates.resubmissionNotes = additionalData.revisionNotes;
+          }
+          if (additionalData?.notes) {
+            orderWithUpdates.submissionNotes = additionalData.notes;
           }
           break;
           

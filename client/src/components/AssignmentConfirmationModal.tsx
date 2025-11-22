@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -123,6 +123,9 @@ export function AssignmentConfirmationModal({
               {assignment.priority} priority
             </Badge>
           </DialogTitle>
+          <DialogDescription>
+            Please confirm or decline this assignment. If you don't respond, it will be automatically confirmed.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">

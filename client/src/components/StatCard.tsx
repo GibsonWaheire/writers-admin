@@ -4,7 +4,8 @@ import {
   Dialog, 
   DialogContent, 
   DialogHeader, 
-  DialogTitle
+  DialogTitle,
+  DialogDescription
 } from "./ui/dialog";
 import { 
   TrendingUp, 
@@ -167,6 +168,9 @@ export function StatCard({
                 <Icon className="h-5 w-5" />
                 {title} Details
               </DialogTitle>
+              <DialogDescription>
+                {details.description || `Detailed information about ${title.toLowerCase()}`}
+              </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4">

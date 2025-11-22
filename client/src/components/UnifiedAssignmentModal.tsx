@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -156,6 +156,11 @@ export function UnifiedAssignmentModal({
               </Badge>
             )}
           </DialogTitle>
+          <DialogDescription>
+            {isStartWork 
+              ? "Confirm that you're ready to start working on this order. You can add questions or notes if needed."
+              : "Provide a reason for reassigning this order. The order will be made available for other writers."}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">

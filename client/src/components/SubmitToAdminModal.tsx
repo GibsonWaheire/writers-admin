@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
@@ -30,10 +30,16 @@ export function SubmitToAdminModal({
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.MouseEvent) => {
+    // Prevent any default behavior or navigation
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     // Validation: Must have at least one file uploaded
     if (uploadedFiles.length === 0) {
-      alert('Please upload at least one file before submitting.');
+      // Show a more prominent error message
       return;
     }
     
@@ -44,10 +50,18 @@ export function SubmitToAdminModal({
         notes: notes.trim(),
         estimatedCompletionTime: estimatedCompletionTime.trim() || undefined
       });
-      onClose();
+      // Don't close modal immediately - let the parent handle it
+      // Reset form state
       setNotes('');
       setEstimatedCompletionTime('');
       setUploadedFiles([]);
+      // Close modal after a brief delay to show success
+      setTimeout(() => {
+        onClose();
+      }, 500);
+    } catch (error) {
+      console.error('Failed to submit work:', error);
+      // Don't close modal on error
     } finally {
       setIsSubmitting(false);
     }
@@ -91,9 +105,9 @@ export function SubmitToAdminModal({
               <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">
                 Submit to Admin Review
               </DialogTitle>
-              <p className="text-sm text-gray-600 mt-1">
+              <DialogDescription className="text-sm text-gray-600 mt-1">
                 Submit your completed work for quality review and approval
-              </p>
+              </DialogDescription>
             </div>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-300 to-transparent"></div>
@@ -174,7 +188,20 @@ export function SubmitToAdminModal({
           <div className="space-y-4">
             <div>
               <Label className="text-sm font-medium text-gray-700">Upload Completed Work *</Label>
-              <div className="mt-3 bg-gradient-to-r from-white/80 to-gray-50/80 border-2 border-dashed border-blue-300/50 rounded-xl p-8 text-center hover:border-blue-400/70 transition-colors duration-200">
+              {uploadedFiles.length === 0 && (
+                <div className="mt-2 mb-3 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                  <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-800">Files Required</p>
+                    <p className="text-xs text-red-700 mt-1">You must upload at least one file before submitting your work.</p>
+                  </div>
+                </div>
+              )}
+              <div className={`mt-3 bg-gradient-to-r from-white/80 to-gray-50/80 border-2 border-dashed rounded-xl p-8 text-center transition-colors duration-200 ${
+                uploadedFiles.length === 0 
+                  ? 'border-red-300/50 hover:border-red-400/70' 
+                  : 'border-blue-300/50 hover:border-blue-400/70'
+              }`}>
                 <div className="p-4 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
                   <Upload className="h-10 w-10 text-blue-600" />
                 </div>
@@ -205,9 +232,15 @@ export function SubmitToAdminModal({
             </div>
 
             {/* Uploaded Files List */}
-            {uploadedFiles.length > 0 && (
+            {uploadedFiles.length > 0 ? (
               <div className="space-y-3">
-                <Label className="text-sm font-medium text-gray-700">Uploaded Files:</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium text-gray-700">Uploaded Files ({uploadedFiles.length}):</Label>
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="font-medium">Files ready</span>
+                  </div>
+                </div>
                 {uploadedFiles.map((file) => (
                   <div key={file.id} className="bg-gradient-to-r from-white/90 to-blue-50/50 border border-blue-200/50 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200">
                     <div className="flex items-center justify-between">
@@ -233,6 +266,16 @@ export function SubmitToAdminModal({
                     </div>
                   </div>
                 ))}
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-sm font-medium">No files uploaded yet</span>
+                </div>
+                <p className="text-xs text-yellow-700 mt-1 ml-6">
+                  Please upload your completed work files above before submitting.
+                </p>
               </div>
             )}
           </div>
@@ -325,14 +368,25 @@ export function SubmitToAdminModal({
                 Cancel
               </Button>
               <Button 
-                onClick={handleSubmit}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSubmit();
+                }}
                 disabled={!isFormValid || isSubmitting}
-                className="px-8 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-8 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+                title={!isFormValid ? "Please upload at least one file before submitting" : "Submit your work for admin review"}
               >
                 {isSubmitting ? (
                   <>
                     <Upload className="h-4 w-4 mr-2 animate-pulse" />
                     Submitting...
+                  </>
+                ) : !isFormValid ? (
+                  <>
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    Upload Files Required
                   </>
                 ) : (
                   <>

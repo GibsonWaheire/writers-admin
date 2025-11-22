@@ -7,6 +7,7 @@ import { Separator } from './ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { OrderConfirmationModal } from './OrderConfirmationModal';
 import { RequestRevisionModal } from './RequestRevisionModal';
+import { SubmitToAdminModal } from './SubmitToAdminModal';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   DollarSign, 
@@ -44,6 +45,7 @@ export function OrderViewModal({
   const [notes, setNotes] = useState('');
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showRevisionModal, setShowRevisionModal] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
@@ -128,7 +130,7 @@ export function OrderViewModal({
       return (
         <div className="flex gap-2">
           <Button 
-            onClick={() => onAction('submit', order.id, { notes })}
+            onClick={() => setShowSubmitModal(true)}
             className="bg-blue-600 hover:bg-blue-700"
           >
             <FileText className="h-4 w-4 mr-2" />
@@ -372,7 +374,7 @@ export function OrderViewModal({
           </TabsList>
 
           {/* Details Tab */}
-          <TabsContent value="details" className="space-y-4">
+          <TabsContent value="details" className="space-y-4 bg-blue-50/30 p-4 rounded-lg">
             <div className="grid md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
@@ -506,7 +508,7 @@ export function OrderViewModal({
           </TabsContent>
 
           {/* Requirements Tab */}
-          <TabsContent value="requirements" className="space-y-4">
+          <TabsContent value="requirements" className="space-y-4 bg-green-50/30 p-4 rounded-lg">
             <Card>
               <CardHeader>
                 <CardTitle>Order Requirements</CardTitle>
@@ -518,16 +520,26 @@ export function OrderViewModal({
                     <ul className="space-y-2 text-sm">
                       <li className="flex items-center gap-2">
                         <FileType className="h-4 w-4 text-blue-600" />
-                        Format: {order.format}
+                        <span className="text-gray-600">Format:</span>
+                        <span className="font-medium">{order.format || 'Not specified'}</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-blue-600" />
-                        Pages: {order.pages} pages
+                        <span className="text-gray-600">Pages:</span>
+                        <span className="font-medium">{order.pages} pages</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-blue-600" />
-                        Words: {order.words.toLocaleString()} words
+                        <span className="text-gray-600">Words:</span>
+                        <span className="font-medium">{order.words.toLocaleString()} words</span>
                       </li>
+                      {order.subject && (
+                        <li className="flex items-center gap-2">
+                          <BookOpen className="h-4 w-4 text-blue-600" />
+                          <span className="text-gray-600">Subject:</span>
+                          <span className="font-medium">{order.subject}</span>
+                        </li>
+                      )}
                     </ul>
                   </div>
                   <div>
@@ -535,21 +547,60 @@ export function OrderViewModal({
                     <ul className="space-y-2 text-sm">
                       <li className="flex items-center gap-2">
                         <BookOpen className="h-4 w-4 text-green-600" />
-                        Discipline: {order.discipline}
+                        <span className="text-gray-600">Discipline:</span>
+                        <span className="font-medium">{order.discipline}</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-green-600" />
-                        Type: {order.paperType}
+                        <span className="text-gray-600">Type:</span>
+                        <span className="font-medium">{order.paperType || 'Not specified'}</span>
                       </li>
                     </ul>
                   </div>
                 </div>
+                
+                {order.requirements && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <h4 className="font-medium mb-2">Detailed Requirements</h4>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap bg-white p-3 rounded border border-gray-200">
+                      {order.requirements}
+                    </p>
+                  </div>
+                )}
+                
+                {order.additionalInstructions && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <h4 className="font-medium mb-2">Additional Instructions</h4>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap bg-white p-3 rounded border border-gray-200">
+                      {order.additionalInstructions}
+                    </p>
+                  </div>
+                )}
+                
+                {order.attachments && order.attachments.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <h4 className="font-medium mb-2">Requirement Attachments</h4>
+                    <div className="space-y-2">
+                      {order.attachments.map((attachment) => (
+                        <div key={attachment.id} className="flex items-center gap-2 p-2 bg-white rounded border border-gray-200">
+                          <FileText className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium">{attachment.originalName}</span>
+                          <span className="text-xs text-gray-500">({formatFileSize(attachment.size)})</span>
+                          <Button size="sm" variant="outline" className="ml-auto">
+                            <Download className="h-3 w-3 mr-1" />
+                            Download
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Messages Tab */}
-          <TabsContent value="messages" className="space-y-4">
+          <TabsContent value="messages" className="space-y-4 bg-purple-50/30 p-4 rounded-lg">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -592,7 +643,7 @@ export function OrderViewModal({
           </TabsContent>
 
           {/* Files Tab */}
-          <TabsContent value="files" className="space-y-4">
+          <TabsContent value="files" className="space-y-4 bg-orange-50/30 p-4 rounded-lg">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -653,6 +704,18 @@ export function OrderViewModal({
               adminId: user?.id || 'admin'
             });
             setShowRevisionModal(false);
+          }}
+        />
+      )}
+      
+      {userRole === 'writer' && (
+        <SubmitToAdminModal
+          order={order}
+          isOpen={showSubmitModal}
+          onClose={() => setShowSubmitModal(false)}
+          onSubmit={async (submission) => {
+            await onAction('submit_to_admin', order.id, submission);
+            setShowSubmitModal(false);
           }}
         />
       )}

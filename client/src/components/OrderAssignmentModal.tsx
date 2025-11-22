@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -183,6 +183,9 @@ export function OrderAssignmentModal({
               </div>
               Order Assignment
             </DialogTitle>
+            <DialogDescription className="text-gray-600 mt-2">
+              Assign this order to a specific writer or make it available for writers to pick up
+            </DialogDescription>
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-300 to-transparent"></div>
           </DialogHeader>
 
