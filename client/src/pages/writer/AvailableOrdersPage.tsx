@@ -46,6 +46,7 @@ export default function AvailableOrdersPage() {
     return userToWriterMap[userId] || userId;
   };
   const availableOrders = getAvailableOrders();
+  const currentWriterId = getWriterIdForUser(user?.id);
 
 
   // Filter orders based on search and filters
@@ -83,7 +84,12 @@ export default function AvailableOrdersPage() {
 
   const handleConfirmOrder = async (orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
     try {
-      await handleOrderAction('confirm', orderId, { confirmation, questions });
+      await handleOrderAction('pick', orderId, { 
+        confirmation, 
+        questions,
+        writerId: currentWriterId,
+        writerName: user?.name || 'Writer'
+      });
     } catch (error) {
       console.error('Failed to confirm order:', error);
     }
