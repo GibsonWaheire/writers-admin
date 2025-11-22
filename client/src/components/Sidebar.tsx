@@ -81,6 +81,7 @@ const adminMenuItems: MenuItem[] = [
       { icon: ClipboardList, label: 'All Orders', path: '/admin/orders/all', emoji: '📋' },
       { icon: AlertTriangle, label: 'Pending Review', path: '/admin/orders/review', emoji: '⚠️' },
       { icon: UserCheck, label: 'Assignment Center', path: '/admin/orders/assign', emoji: '👤' },
+      { icon: Hand, label: 'Picked Orders', path: '/admin/orders/picked', emoji: '✋' },
       { icon: Users, label: 'Writer Monitor', path: '/admin/orders/writers', emoji: '👥' },
       { icon: BarChart3, label: 'Order Analytics', path: '/admin/orders/analytics', emoji: '📊' }
     ]
