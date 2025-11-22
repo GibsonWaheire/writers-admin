@@ -55,6 +55,9 @@ def handle_preflight():
         response.headers.add('Access-Control-Allow-Methods', "*")
         return response
 
+# Import CLI commands
+import cli
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

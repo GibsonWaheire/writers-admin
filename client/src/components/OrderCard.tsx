@@ -130,6 +130,12 @@ export function OrderCard({
       }
       
       if (order.status === 'In Progress') {
+        // Check if order has less than 12 hours remaining
+        const deadline = new Date(order.deadline);
+        const now = new Date();
+        const hoursRemaining = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+        const canReassign = hoursRemaining >= 12;
+        
         return (
           <div className="flex gap-2">
             <Button 
@@ -140,15 +146,28 @@ export function OrderCard({
               <FileText className="h-4 w-4 mr-2" />
               Submit to Admin
             </Button>
-            <Button 
-              onClick={() => setShowReassignmentModal(true)}
-              size="sm"
-              variant="outline"
-              className="border-red-300 text-red-600 hover:bg-red-50"
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reassign Order
-            </Button>
+            {canReassign ? (
+              <Button 
+                onClick={() => setShowReassignmentModal(true)}
+                size="sm"
+                variant="outline"
+                className="border-red-300 text-red-600 hover:bg-red-50"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reassign Order
+              </Button>
+            ) : (
+              <Button 
+                size="sm"
+                variant="outline"
+                disabled
+                className="border-gray-300 text-gray-400"
+                title={`Cannot reassign: Only ${hoursRemaining.toFixed(1)} hours remaining`}
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Cannot Reassign
+              </Button>
+            )}
           </div>
         );
       }
@@ -518,18 +537,18 @@ export function OrderCard({
           </div>
 
           {/* Additional Info */}
-          {(order.clientMessages.length > 0 || order.uploadedFiles.length > 0) && (
+          {((order.clientMessages || []).length > 0 || (order.uploadedFiles || []).length > 0) && (
             <div className="flex items-center gap-4 pt-2 border-t border-gray-100 text-xs text-gray-500">
-              {order.clientMessages.length > 0 && (
+              {(order.clientMessages || []).length > 0 && (
                 <span className="flex items-center gap-1">
                   <MessageSquare className="h-3 w-3" />
-                  {order.clientMessages.length} message{order.clientMessages.length !== 1 ? 's' : ''}
+                  {(order.clientMessages || []).length} message{(order.clientMessages || []).length !== 1 ? 's' : ''}
                 </span>
               )}
-              {order.uploadedFiles.length > 0 && (
+              {(order.uploadedFiles || []).length > 0 && (
                 <span className="flex items-center gap-1">
                   <FileText className="h-3 w-3" />
-                  {order.uploadedFiles.length} file{order.uploadedFiles.length !== 1 ? 's' : ''}
+                  {(order.uploadedFiles || []).length} file{(order.uploadedFiles || []).length !== 1 ? 's' : ''}
                 </span>
               )}
             </div>

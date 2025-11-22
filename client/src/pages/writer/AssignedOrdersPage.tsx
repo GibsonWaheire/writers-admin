@@ -31,7 +31,20 @@ export default function AssignedOrdersPage() {
   } = useOrders();
   
   const { user } = useAuth();
-  const currentWriterId = user?.id || 'writer-1';
+  // Map user ID to writer ID - john.doe@example.com (user ID: 3) maps to writer-1
+  const getWriterIdForUser = (userId: string | undefined) => {
+    if (!userId) return 'writer-1';
+    // Check if it's already a writer ID
+    if (userId.startsWith('writer-')) return userId;
+    // Map user IDs to writer IDs
+    const userToWriterMap: Record<string, string> = {
+      '1': 'writer-1',
+      '2': 'writer-2',
+      '3': 'writer-1', // john.doe@example.com maps to writer-1
+    };
+    return userToWriterMap[userId] || userId;
+  };
+  const currentWriterId = getWriterIdForUser(user?.id);
 
   // Get assigned orders for current writer
   const assignedOrders = orders.filter(order => 
@@ -79,6 +92,26 @@ export default function AssignedOrdersPage() {
       await handleOrderAction('submit_to_admin', orderId, data);
     } catch (error) {
       console.error('Failed to submit work:', error);
+    }
+  };
+
+  const handleConfirmAssignment = async (orderId: string, confirmation: {
+    estimatedCompletionTime?: number;
+    questions?: string[];
+    additionalNotes?: string;
+  }) => {
+    try {
+      await handleOrderAction('confirm', orderId, confirmation);
+    } catch (error) {
+      console.error('Failed to confirm assignment:', error);
+    }
+  };
+
+  const handleDeclineAssignment = async (orderId: string, reason: string) => {
+    try {
+      await handleOrderAction('make_available', orderId, { reason });
+    } catch (error) {
+      console.error('Failed to decline assignment:', error);
     }
   };
 
@@ -235,10 +268,11 @@ export default function AssignedOrdersPage() {
             <AssignedOrderCard
               key={order.id}
               order={order}
+              onView={handleViewOrder}
               onStartWork={handleStartWork}
               onRequestReassignment={handleRequestReassignment}
-              onSubmitWork={handleSubmitWork}
-              onViewDetails={handleViewOrder}
+              onConfirmAssignment={handleConfirmAssignment}
+              onDeclineAssignment={handleDeclineAssignment}
             />
           ))
         ) : (

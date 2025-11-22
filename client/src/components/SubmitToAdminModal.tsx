@@ -185,7 +185,7 @@ export function SubmitToAdminModal({
                     id="file-upload"
                     type="file"
                     multiple
-                    accept=".pdf,.doc,.docx,.txt,.rtf"
+                    accept=".pdf,.doc,.docx,.txt,.rtf,.ppt,.pptx,.xls,.xlsx,.csv,.odt,.ods,.odp"
                     onChange={(e) => {
                       if (e.target.files) {
                         Array.from(e.target.files).forEach(handleFileUpload);
@@ -194,7 +194,7 @@ export function SubmitToAdminModal({
                     className="hidden"
                   />
                   <p className="text-xs text-gray-500 mt-2">
-                    PDF, DOC, DOCX, TXT, RTF files accepted
+                    Supported formats: PDF, Word (.doc, .docx), PowerPoint (.ppt, .pptx), Excel (.xls, .xlsx), CSV, TXT, RTF, and more
                   </p>
                 </div>
               </div>

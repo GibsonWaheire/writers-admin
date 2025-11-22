@@ -148,7 +148,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         
         switch (action) {
         case 'pick':
-          newStatus = 'Assigned';
+          newStatus = 'In Progress'; // Changed to 'In Progress' so it shows in assigned orders immediately
           updates.writerId = additionalData?.writerId || 'unknown';
           updates.assignedWriter = additionalData?.writerName || 'Unknown Writer';
           updates.assignedAt = new Date().toISOString();
@@ -157,7 +157,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           console.log('🎯 OrderContext: Order picked by writer:', {
             orderId,
             oldStatus,
-            newStatus: 'Assigned',
+            newStatus: 'In Progress',
             writerId: updates.writerId,
             writerName: updates.assignedWriter,
             assignedAt: updates.assignedAt
@@ -349,15 +349,48 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           newStatus = 'Revision';
           updates.adminReviewedAt = new Date().toISOString();
           updates.adminReviewedBy = additionalData?.adminId || 'admin';
+          
+          // Store revision explanation (required field)
+          if (additionalData?.explanation) {
+            updates.revisionExplanation = additionalData.explanation;
+          }
           if (additionalData?.notes) {
             updates.adminReviewNotes = additionalData.notes;
           }
+          
+          // Track revision count and reduce revision score (start at 10/10, reduce by 1 each time)
+          const currentRevisionCount = (order.revisionCount || 0) + 1;
+          updates.revisionCount = currentRevisionCount;
+          updates.revisionScore = Math.max(0, 10 - currentRevisionCount); // Reduce from 10
+          
+          // Add to revision requests array
+          if (!updates.revisionRequests) {
+            updates.revisionRequests = order.revisionRequests || [];
+          }
+          (updates.revisionRequests as Array<{
+            id: string;
+            reason: string;
+            explanation: string;
+            requestedAt: string;
+            requestedBy: string;
+            status: 'pending' | 'resolved';
+          }>).push({
+            id: `rev-${Date.now()}`,
+            reason: additionalData?.explanation || 'Revision required',
+            explanation: additionalData?.explanation || '',
+            requestedAt: new Date().toISOString(),
+            requestedBy: additionalData?.adminId || 'admin',
+            status: 'pending'
+          });
           
           console.log('📝 OrderContext: Revision requested by admin:', {
             orderId,
             oldStatus,
             newStatus: 'Revision',
             writerId: order.writerId,
+            revisionExplanation: updates.revisionExplanation,
+            revisionCount: currentRevisionCount,
+            revisionScore: updates.revisionScore,
             adminNotes: updates.adminReviewNotes
           });
           break;
@@ -592,9 +625,42 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           orderWithUpdates.status = 'Revision';
           orderWithUpdates.revisionRequestedAt = new Date().toISOString();
           orderWithUpdates.revisionRequestedBy = additionalData?.adminId as string || 'admin';
-          if (additionalData?.revisionNotes) {
-            orderWithUpdates.revisionNotes = additionalData.revisionNotes;
+          
+          // Store revision explanation (required)
+          if (additionalData?.explanation) {
+            orderWithUpdates.revisionExplanation = additionalData.explanation as string;
           }
+          if (additionalData?.revisionNotes) {
+            orderWithUpdates.revisionNotes = additionalData.revisionNotes as string;
+          }
+          if (additionalData?.notes) {
+            orderWithUpdates.adminReviewNotes = additionalData.notes as string;
+          }
+          
+          // Track revision count and reduce score
+          const currentRevisionCount = (order.revisionCount || 0) + 1;
+          orderWithUpdates.revisionCount = currentRevisionCount;
+          orderWithUpdates.revisionScore = Math.max(0, 10 - currentRevisionCount);
+          
+          // Add to revision requests array
+          if (!orderWithUpdates.revisionRequests) {
+            orderWithUpdates.revisionRequests = order.revisionRequests || [];
+          }
+          (orderWithUpdates.revisionRequests as Array<{
+            id: string;
+            reason: string;
+            explanation: string;
+            requestedAt: string;
+            requestedBy: string;
+            status: 'pending' | 'resolved';
+          }>).push({
+            id: `rev-${Date.now()}`,
+            reason: (additionalData?.explanation as string) || 'Revision required',
+            explanation: (additionalData?.explanation as string) || '',
+            requestedAt: new Date().toISOString(),
+            requestedBy: additionalData?.adminId as string || 'admin',
+            status: 'pending'
+          });
           break;
           
         case 'resubmit':
@@ -613,6 +679,36 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           if (additionalData?.questions) {
             orderWithUpdates.questions = additionalData.questions;
           }
+          // Ensure writerId is set if not already set
+          if (!orderWithUpdates.writerId && additionalData?.writerId) {
+            orderWithUpdates.writerId = additionalData.writerId as string;
+          }
+          if (!orderWithUpdates.assignedWriter && additionalData?.writerName) {
+            orderWithUpdates.assignedWriter = additionalData.writerName as string;
+          }
+          if (!orderWithUpdates.assignedAt) {
+            orderWithUpdates.assignedAt = new Date().toISOString();
+          }
+          break;
+          
+        case 'confirm_order':
+          // Writer is picking/confirming an available order
+          orderWithUpdates.status = 'In Progress';
+          // Set writerId and assignedWriter from additionalData
+          if (additionalData?.writerId) {
+            orderWithUpdates.writerId = additionalData.writerId as string;
+          }
+          if (additionalData?.writerName) {
+            orderWithUpdates.assignedWriter = additionalData.writerName as string;
+          }
+          if (additionalData?.confirmation) {
+            orderWithUpdates.confirmation = additionalData.confirmation;
+          }
+          if (additionalData?.questions) {
+            orderWithUpdates.questions = additionalData.questions;
+          }
+          orderWithUpdates.assignedAt = new Date().toISOString();
+          orderWithUpdates.pickedBy = 'writer';
           break;
           
         case 'refresh':

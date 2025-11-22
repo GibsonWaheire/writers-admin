@@ -50,7 +50,12 @@ export function AssignedOrderCard({
 
   const needsConfirmation = order.status === 'Assigned' && assignment?.status === 'pending';
   const canStartWork = order.status === 'Assigned' && assignment?.status === 'confirmed';
-  const canReassign = order.status === 'Assigned' || order.status === 'In Progress';
+  
+  // Check if order can be reassigned (must have >= 12 hours remaining)
+  const deadline = new Date(order.deadline);
+  const now = new Date();
+  const hoursRemaining = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+  const canReassign = (order.status === 'Assigned' || order.status === 'In Progress') && hoursRemaining >= 12;
 
   const handleStartWork = () => {
     setUnifiedModalAction('start_work');

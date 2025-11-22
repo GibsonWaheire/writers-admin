@@ -54,6 +54,9 @@ export interface Order {
   // Revision tracking
   revisionSubmittedAt?: string; // When revision was submitted
   revisionResponseNotes?: string; // Writer's response to revision feedback
+  revisionExplanation?: string; // Admin's explanation of what needs to be revised
+  revisionScore?: number; // Revision score (starts at 10, reduces with each revision)
+  revisionCount?: number; // Number of times revision was requested
   // Late submission tracking
   isLate?: boolean; // Whether order is past deadline
   hoursLate?: number; // How many hours past deadline
@@ -91,6 +94,7 @@ export interface Order {
   revisionRequests?: Array<{
     id: string;
     reason: string;
+    explanation: string; // Detailed explanation of what needs revision
     requestedAt: string;
     requestedBy: string;
     status: 'pending' | 'resolved';

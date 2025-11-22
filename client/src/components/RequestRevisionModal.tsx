@@ -1,0 +1,140 @@
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
+import { Button } from './ui/button';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
+import type { Order } from '../types/order';
+
+interface RequestRevisionModalProps {
+  order: Order;
+  isOpen: boolean;
+  onClose: () => void;
+  onRequestRevision: (orderId: string, explanation: string, notes?: string) => void;
+}
+
+export function RequestRevisionModal({ 
+  order, 
+  isOpen, 
+  onClose, 
+  onRequestRevision 
+}: RequestRevisionModalProps) {
+  const [explanation, setExplanation] = useState('');
+  const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!explanation.trim()) return;
+    
+    setIsSubmitting(true);
+    try {
+      await onRequestRevision(order.id, explanation.trim(), notes.trim() || undefined);
+      onClose();
+      setExplanation('');
+      setNotes('');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const isFormValid = explanation.trim().length > 0;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-3 text-2xl font-bold">
+            <div className="p-2 bg-orange-100 rounded-full">
+              <RefreshCw className="h-6 w-6 text-orange-600" />
+            </div>
+            Request Revision
+          </DialogTitle>
+          <DialogDescription className="text-gray-600 mt-2">
+            Explain what needs to be revised in this order. This will be sent to the writer.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Order Summary */}
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <h3 className="font-semibold text-gray-900 mb-2">{order.title}</h3>
+            <div className="text-sm text-gray-600">
+              <p>Order ID: {order.id}</p>
+              <p>Pages: {order.pages} • Words: {order.words?.toLocaleString() || 'N/A'}</p>
+            </div>
+          </div>
+
+          {/* Important Notice */}
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+              <div className="text-sm text-red-800">
+                <p className="font-medium mb-2">Important:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Provide clear, specific explanation of what needs to be revised</li>
+                  <li>The writer will see this explanation and use it to improve their work</li>
+                  <li>Revision score will be reduced with each revision request</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Revision Explanation (Required) */}
+          <div>
+            <Label htmlFor="explanation" className="text-sm font-medium text-gray-700">
+              Revision Explanation * <span className="text-red-500">(Required)</span>
+            </Label>
+            <Textarea
+              id="explanation"
+              value={explanation}
+              onChange={(e) => setExplanation(e.target.value)}
+              placeholder="Explain in detail what needs to be revised. Be specific about sections, content, formatting, or any other issues that need to be addressed..."
+              className="mt-2 border-gray-300 focus:border-orange-500 focus:ring-orange-500"
+              rows={6}
+              required
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Required: Provide a clear explanation of what needs to be revised. This helps the writer understand exactly what changes are needed.
+            </p>
+          </div>
+
+          {/* Additional Notes (Optional) */}
+          <div>
+            <Label htmlFor="notes" className="text-sm font-medium text-gray-700">
+              Additional Notes (Optional)
+            </Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any additional context, suggestions, or notes for the writer..."
+              className="mt-2 border-gray-300 focus:border-orange-500 focus:ring-orange-500"
+              rows={3}
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Optional: Add any additional context or suggestions that might help the writer.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={onClose} 
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit}
+            disabled={!isFormValid || isSubmitting}
+            className="bg-orange-600 hover:bg-orange-700 text-white"
+          >
+            {isSubmitting ? 'Requesting...' : 'Request Revision'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Checkbox } from './ui/checkbox';
 import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   AlertTriangle, 
   CheckCircle, 
@@ -27,6 +28,18 @@ export function OrderConfirmationModal({
   order, 
   onConfirm 
 }: OrderConfirmationModalProps) {
+  const { user } = useAuth();
+  // Map user ID to writer ID
+  const getWriterIdForUser = (userId: string | undefined) => {
+    if (!userId) return 'writer-1';
+    if (userId.startsWith('writer-')) return userId;
+    const userToWriterMap: Record<string, string> = {
+      '1': 'writer-1',
+      '2': 'writer-2',
+      '3': 'writer-1', // john.doe@example.com maps to writer-1
+    };
+    return userToWriterMap[userId] || userId;
+  };
   const [confirmation, setConfirmation] = useState<WriterConfirmation>({
     id: `conf-${Date.now()}`,
     hasReadInstructions: false,
@@ -35,7 +48,7 @@ export function OrderConfirmationModal({
     hasNoConflicts: false,
     additionalNotes: '',
     confirmedAt: '',
-    writerId: 'writer-1' // This should come from auth context
+    writerId: getWriterIdForUser(user?.id)
   });
 
   const [questions, setQuestions] = useState<WriterQuestion[]>([

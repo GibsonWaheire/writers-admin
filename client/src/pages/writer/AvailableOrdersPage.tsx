@@ -33,6 +33,17 @@ export default function AvailableOrdersPage() {
   } = useOrders();
   
   const { user } = useAuth();
+  // Map user ID to writer ID for consistency
+  const getWriterIdForUser = (userId: string | undefined) => {
+    if (!userId) return 'writer-1';
+    if (userId.startsWith('writer-')) return userId;
+    const userToWriterMap: Record<string, string> = {
+      '1': 'writer-1',
+      '2': 'writer-2',
+      '3': 'writer-1', // john.doe@example.com maps to writer-1
+    };
+    return userToWriterMap[userId] || userId;
+  };
   const availableOrders = getAvailableOrders();
 
   // Debug function to troubleshoot order visibility

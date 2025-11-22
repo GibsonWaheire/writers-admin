@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { OrderConfirmationModal } from './OrderConfirmationModal';
+import { RequestRevisionModal } from './RequestRevisionModal';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   DollarSign, 
   FileText, 
@@ -37,9 +39,11 @@ export function OrderViewModal({
   onAction, 
   activeOrdersCount = 0 
 }: OrderViewModalProps) {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('details');
   const [notes, setNotes] = useState('');
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showRevisionModal, setShowRevisionModal] = useState(false);
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
@@ -181,9 +185,27 @@ export function OrderViewModal({
   };
 
   const handleOrderConfirm = (confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
+    // Map user ID to writer ID
+    const getWriterIdForUser = (userId: string | undefined) => {
+      if (!userId) return 'writer-1';
+      if (userId.startsWith('writer-')) return userId;
+      const userToWriterMap: Record<string, string> = {
+        '1': 'writer-1',
+        '2': 'writer-2',
+        '3': 'writer-1', // john.doe@example.com maps to writer-1
+      };
+      return userToWriterMap[userId] || userId;
+    };
+    const writerId = getWriterIdForUser(user?.id) || confirmation.writerId || 'writer-1';
+    
     // Call the confirmOrder function to match the main Pick Order button workflow
-    // This will set the order status to "Awaiting Payment" and move it to assigned orders
-    onAction('confirm_order', order.id, { confirmation, questions });
+    // This will set the order status to "In Progress" and move it to assigned orders
+    onAction('confirm_order', order.id, { 
+      confirmation, 
+      questions,
+      writerId: writerId,
+      writerName: user?.name || 'Writer'
+    });
     // Close the confirmation modal
     setShowConfirmationModal(false);
   };
@@ -214,6 +236,13 @@ export function OrderViewModal({
             Approve
           </Button>
           <Button 
+            onClick={() => setShowRevisionModal(true)}
+            className="bg-orange-600 hover:bg-orange-700"
+          >
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            Request Revision
+          </Button>
+          <Button 
             onClick={() => onAction('reject', order.id, { notes })}
             variant="destructive"
           >
@@ -225,15 +254,32 @@ export function OrderViewModal({
     }
 
     if (order.status === 'In Progress') {
+      // Check if order has less than 12 hours remaining
+      const deadline = new Date(order.deadline);
+      const now = new Date();
+      const hoursRemaining = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const canReassign = hoursRemaining >= 12;
+      
       return (
         <div className="flex gap-2">
-          <Button 
-            onClick={() => onAction('reassign', order.id, { notes })}
-            variant="outline"
-          >
-            <User className="h-4 w-4 mr-2" />
-            Reassign
-          </Button>
+          {canReassign ? (
+            <Button 
+              onClick={() => onAction('reassign', order.id, { notes })}
+              variant="outline"
+            >
+              <User className="h-4 w-4 mr-2" />
+              Reassign
+            </Button>
+          ) : (
+            <Button 
+              variant="outline"
+              disabled
+              title="Orders with less than 12 hours remaining cannot be reassigned"
+            >
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Cannot Reassign ({hoursRemaining.toFixed(1)}h remaining)
+            </Button>
+          )}
         </div>
       );
     }
@@ -385,6 +431,57 @@ export function OrderViewModal({
                 </CardContent>
               </Card>
             )}
+
+            {/* Revision Explanation - Show when order is in Revision status */}
+            {order.status === 'Revision' && order.revisionExplanation && (
+              <Card className="border-orange-200 bg-orange-50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-orange-900">
+                    <AlertTriangle className="h-5 w-5" />
+                    Revision Required
+                    {order.revisionCount && order.revisionCount > 0 && (
+                      <Badge variant="outline" className="ml-2 border-orange-300 text-orange-700">
+                        Revision #{order.revisionCount} • Score: {order.revisionScore || 10}/10
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="font-semibold text-orange-900 mb-2">What Needs to be Revised:</h4>
+                      <p className="text-gray-800 whitespace-pre-wrap">{order.revisionExplanation}</p>
+                    </div>
+                    {order.adminReviewNotes && (
+                      <div className="mt-3 pt-3 border-t border-orange-200">
+                        <h4 className="font-semibold text-orange-900 mb-2">Additional Notes:</h4>
+                        <p className="text-gray-700">{order.adminReviewNotes}</p>
+                      </div>
+                    )}
+                    {order.revisionRequests && order.revisionRequests.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-orange-200">
+                        <h4 className="font-semibold text-orange-900 mb-2">Revision History:</h4>
+                        <div className="space-y-2">
+                          {order.revisionRequests.map((req) => (
+                            <div key={req.id} className="bg-white p-3 rounded border border-orange-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm font-medium text-gray-700">
+                                  {new Date(req.requestedAt).toLocaleDateString()}
+                                </span>
+                                <Badge variant={req.status === 'resolved' ? 'default' : 'destructive'} className="text-xs">
+                                  {req.status}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-gray-600">{req.explanation || req.reason}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Requirements Tab */}
@@ -440,9 +537,9 @@ export function OrderViewModal({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {order.clientMessages.length > 0 ? (
+                {(order.clientMessages || []).length > 0 ? (
                   <div className="space-y-4">
-                    {order.clientMessages.map((message) => (
+                    {(order.clientMessages || []).map((message) => (
                       <div key={message.id} className="border-l-4 border-blue-500 pl-4">
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-medium capitalize">{message.sender}</span>
@@ -483,9 +580,9 @@ export function OrderViewModal({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {order.uploadedFiles.length > 0 ? (
+                {(order.uploadedFiles || []).length > 0 ? (
                   <div className="space-y-3">
-                    {order.uploadedFiles.map((file) => (
+                    {(order.uploadedFiles || []).map((file) => (
                       <div key={file.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                         <div className="flex items-center gap-3">
                           <FileText className="h-5 w-5 text-blue-600" />
@@ -522,6 +619,22 @@ export function OrderViewModal({
         order={order}
         onConfirm={handleOrderConfirm}
       />
+      
+      {userRole === 'admin' && (
+        <RequestRevisionModal
+          isOpen={showRevisionModal}
+          onClose={() => setShowRevisionModal(false)}
+          order={order}
+          onRequestRevision={async (orderId, explanation, additionalNotes) => {
+            await onAction('request_revision', orderId, { 
+              explanation, 
+              notes: additionalNotes,
+              adminId: user?.id || 'admin'
+            });
+            setShowRevisionModal(false);
+          }}
+        />
+      )}
     </Modal>
   );
 }
