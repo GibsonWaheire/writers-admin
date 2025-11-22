@@ -28,7 +28,7 @@ import type { Order } from "../types/order";
 export default function WriterDashboard() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { orders, getWriterActiveOrders, getWriterOrderStats, getAvailableOrders, availableOrdersCount, forceResetDatabase } = useOrders();
+  const { orders, getWriterActiveOrders, getWriterOrderStats, getAvailableOrders, availableOrdersCount } = useOrders();
   const { wallet, getMonthlyEarnings } = useWallet();
   const { getWriterStats: getReviewStats } = useReviews();
   const { getWriterFinancials } = useFinancial();
@@ -242,13 +242,6 @@ export default function WriterDashboard() {
             >
               <DollarSign className="mr-2 h-4 w-4" />
               Wallet
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={forceResetDatabase}
-              className="border-red-200 text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              Reset Database
             </Button>
           </div>
         </div>
