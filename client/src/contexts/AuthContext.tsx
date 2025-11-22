@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { db } from '../services/database';
+import { api } from '../services/api';
 
 interface User {
   id: string;
@@ -105,15 +105,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Use API login endpoint
+      const response = await api.login(email, password);
       
-      const users = await db.find('users') as Array<{ id: string; name: string; email: string; password: string; role: 'writer' | 'admin' }>;
-      const foundUser = users.find(u => u.email === email && u.password === password);
-      
-      if (foundUser) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { password: _, ...userWithoutPassword } = foundUser;
+      if (response.user) {
+        const userWithoutPassword = {
+          id: response.user.id,
+          name: response.user.name,
+          email: response.user.email,
+          role: response.user.role
+        };
         
         // Store authentication data based on rememberMe preference
         try {
@@ -136,57 +137,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         return { success: false, error: 'Invalid email or password' };
       }
-    } catch {
-      return { success: false, error: 'An error occurred during login' };
+    } catch (error: any) {
+      console.error('Login error:', error);
+      return { success: false, error: error?.message || 'An error occurred during login' };
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const signup = useCallback(async (name: string, email: string, _password: string) => {
+  const signup = useCallback(async (name: string, email: string, password: string) => {
     setIsLoading(true);
     
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Use API register endpoint - need to access private request method or create register method
+      // For now, use fetch directly
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, password, role: 'writer' }),
+      });
       
-      // Check if user already exists
-      const users = await db.find('users') as Array<{ id: string; name: string; email: string; password: string; role: 'writer' | 'admin' }>;
-      if (users.find(u => u.email === email)) {
-        return { success: false, error: 'User with this email already exists' };
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Registration failed' }));
+        throw new Error(error.error || 'Registration failed');
       }
       
-      // Create new user (default role is writer, but pending application)
-      const newUserWithPassword = {
-        id: Date.now().toString(),
-        name,
-        email,
-        password: _password,
-        role: 'writer' as const
-      };
+      const data = await response.json();
       
-      // Save to database
-      await db.create('users', newUserWithPassword);
-      
-      const newUser: User = {
-        id: newUserWithPassword.id,
-        name,
-        email,
-        role: 'writer'
-      };
-      
-      // Store authentication data in localStorage
-      try {
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newUser));
-        localStorage.setItem(AUTH_STORAGE_KEY, 'true');
-      } catch (error) {
-        console.warn('Failed to store authentication data:', error);
+      if (data.user) {
+        const newUser: User = {
+          id: data.user.id,
+          name: data.user.name,
+          email: data.user.email,
+          role: data.user.role
+        };
+        
+        // Store authentication data in localStorage
+        try {
+          localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newUser));
+          localStorage.setItem(AUTH_STORAGE_KEY, 'true');
+        } catch (error) {
+          console.warn('Failed to store authentication data:', error);
+        }
+        
+        setUser(newUser);
+        return { success: true, user: newUser, requiresApplication: true };
+      } else {
+        return { success: false, error: 'Failed to create account' };
       }
-      
-      setUser(newUser);
-      return { success: true, user: newUser, requiresApplication: true };
-    } catch {
-      return { success: false, error: 'An error occurred during signup' };
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      return { success: false, error: error?.message || 'An error occurred during signup' };
     } finally {
       setIsLoading(false);
     }

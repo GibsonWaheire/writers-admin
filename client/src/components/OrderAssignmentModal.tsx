@@ -68,6 +68,8 @@ export function OrderAssignmentModal({
   
   const realWriters = allWriters.filter(w => w.status === 'active').map(writer => {
     // Calculate real active orders from orders context
+    // Ensure specialties array exists (use specializations as fallback)
+    const specialties = writer.specialties || writer.specializations || [];
     const writerActiveOrders = orders.filter(order => 
       order.writerId === writer.id && 
       ['Assigned', 'In Progress'].includes(order.status)
@@ -75,7 +77,11 @@ export function OrderAssignmentModal({
     
     return {
       ...writer,
+      specialties: specialties, // Ensure specialties is always an array
       activeOrders: writerActiveOrders.length,
+      maxOrders: writer.maxOrders || writer.maxConcurrentOrders || 3,
+      completedOrders: writer.completedOrders || 0,
+      totalEarnings: writer.totalEarnings || 0,
       avgCompletionTime: orders
         .filter(order => order.writerId === writer.id && order.status === 'Completed')
         .reduce((sum, order) => sum + (order.completedAt ? 
@@ -84,36 +90,41 @@ export function OrderAssignmentModal({
   });
 
   const filteredWriters = realWriters.filter(writer => {
+    const writerSpecialties = writer.specialties || [];
     const matchesSearch = 
       writer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       writer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      writer.specialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
+      writerSpecialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesSpecialty = !filterSpecialty || filterSpecialty === 'all' || writer.specialties.includes(filterSpecialty);
+    const matchesSpecialty = !filterSpecialty || filterSpecialty === 'all' || writerSpecialties.includes(filterSpecialty);
     
     return matchesSearch && matchesSpecialty;
   });
 
   // Get unique specialties for filter
-  const specialties = Array.from(new Set(realWriters.flatMap(w => w.specialties))).sort();
+  const specialties = Array.from(new Set(realWriters.flatMap(w => (w.specialties || [])))).sort();
 
   // Get writer by ID
   const selectedWriter = selectedWriterId ? realWriters.find(w => w.id === selectedWriterId) : null;
 
   // Check if writer can take the order
   const canTakeOrder = (writer: Writer) => {
-    return writer.activeOrders < writer.maxOrders;
+    const maxOrders = writer.maxOrders || 0;
+    const activeOrders = writer.activeOrders || 0;
+    return activeOrders < maxOrders;
   };
 
   // Get writer status badge
   const getWriterStatusBadge = (writer: Writer) => {
-    if (writer.activeOrders >= writer.maxOrders) {
+    const maxOrders = writer.maxOrders || 0;
+    const activeOrders = writer.activeOrders || 0;
+    if (activeOrders >= maxOrders) {
       return <Badge variant="destructive" className="text-xs">At Capacity</Badge>;
     }
-    if (writer.activeOrders === 0) {
+    if (activeOrders === 0) {
       return <Badge variant="default" className="text-xs bg-green-100 text-green-800">Available</Badge>;
     }
-    return <Badge variant="secondary" className="text-xs">{writer.activeOrders}/{writer.maxOrders} Active</Badge>;
+    return <Badge variant="secondary" className="text-xs">{activeOrders}/{maxOrders} Active</Badge>;
   };
 
   // Get smart assignment suggestions
@@ -349,24 +360,27 @@ export function OrderAssignmentModal({
                               <span className="font-medium">Email:</span> {writer.email}
                             </div>
                             <div>
-                              <span className="font-medium">Active:</span> {writer.activeOrders}/{writer.maxOrders}
+                              <span className="font-medium">Active:</span> {writer.activeOrders || 0}/{writer.maxOrders || writer.maxConcurrentOrders || 0}
                             </div>
                             <div>
-                              <span className="font-medium">Completed:</span> {writer.completedOrders}
+                              <span className="font-medium">Completed:</span> {writer.completedOrders || 0}
                             </div>
                             <div>
-                              <span className="font-medium">Earnings:</span> KES {writer.totalEarnings.toLocaleString()}
+                              <span className="font-medium">Earnings:</span> KES {(writer.totalEarnings || 0).toLocaleString()}
                             </div>
                           </div>
                           
                           <div className="mt-2">
                             <span className="font-medium text-sm">Specialties:</span>
                             <div className="flex flex-wrap gap-1 mt-1">
-                              {writer.specialties.map(specialty => (
+                              {(writer.specialties || []).map(specialty => (
                                 <Badge key={specialty} variant="outline" className="text-xs">
                                   {specialty}
                                 </Badge>
                               ))}
+                              {(!writer.specialties || writer.specialties.length === 0) && (
+                                <span className="text-xs text-gray-400">No specialties listed</span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -441,24 +455,27 @@ export function OrderAssignmentModal({
                         <div className="text-xs text-gray-600">Rating</div>
                       </div>
                       <div className="text-center p-2 bg-white/80 rounded-lg border border-green-100">
-                        <div className="font-bold text-green-700 mb-1">{selectedWriter.completedOrders}</div>
+                        <div className="font-bold text-green-700 mb-1">{selectedWriter.completedOrders || 0}</div>
                         <div className="text-xs text-gray-600">Completed</div>
                       </div>
                       <div className="text-center p-2 bg-white/80 rounded-lg border border-green-100">
-                        <div className="font-bold text-green-700 mb-1">{selectedWriter.activeOrders}/{selectedWriter.maxOrders}</div>
+                        <div className="font-bold text-green-700 mb-1">{selectedWriter.activeOrders || 0}/{selectedWriter.maxOrders || 0}</div>
                         <div className="text-xs text-gray-600">Active</div>
                       </div>
                       <div className="text-center p-2 bg-white/80 rounded-lg border border-green-100">
-                        <div className="font-bold text-green-700 mb-1">KES {(selectedWriter.totalEarnings / 1000).toFixed(0)}K</div>
+                        <div className="font-bold text-green-700 mb-1">KES {((selectedWriter.totalEarnings || 0) / 1000).toFixed(0)}K</div>
                         <div className="text-xs text-gray-600">Earnings</div>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {selectedWriter.specialties.map(specialty => (
+                      {(selectedWriter.specialties || []).map(specialty => (
                         <Badge key={specialty} variant="outline" className="bg-green-100/80 text-green-800 border-green-300/50 text-xs">
                           {specialty}
                         </Badge>
                       ))}
+                      {(!selectedWriter.specialties || selectedWriter.specialties.length === 0) && (
+                        <span className="text-xs text-gray-400">No specialties listed</span>
+                      )}
                     </div>
                   </div>
                 </div>
