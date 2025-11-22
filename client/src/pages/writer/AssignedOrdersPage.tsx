@@ -46,10 +46,10 @@ export default function AssignedOrdersPage() {
   };
   const currentWriterId = getWriterIdForUser(user?.id);
 
-  // Get assigned orders for current writer (including submitted orders under review)
+  // Get assigned orders for current writer (including all assigned and in-progress orders)
   const assignedOrders = orders.filter(order => 
     order.writerId === currentWriterId && 
-    ['Awaiting Confirmation', 'Confirmed', 'In Progress', 'Submitted', 'Revision'].includes(order.status)
+    ['Awaiting Confirmation', 'Assigned', 'Confirmed', 'In Progress', 'Submitted', 'Revision'].includes(order.status)
   );
 
   // Filter orders based on search and status

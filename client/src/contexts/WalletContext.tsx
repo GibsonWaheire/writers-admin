@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { useOrders } from './OrderContext';
+import { usePOD } from './PODContext';
 
 export interface Transaction {
   id: string;
@@ -43,27 +45,18 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined);
 // Inner component that has access to OrderProvider and PODProvider
 // We use dynamic imports to avoid circular dependency at module level
 // Create a component that uses the hooks - this will be rendered inside OrderProvider and PODProvider
+// Since WalletProvider is inside OrderProvider and PODProvider in App.tsx, the hooks will be available
 const OrdersSyncComponent = ({ setOrdersRef, setPodOrdersRef }: {
   setOrdersRef: (orders: any[]) => void;
   setPodOrdersRef: (orders: any[]) => void;
 }) => {
-  // Dynamically require hooks to avoid circular dependency at module level
-  // Hooks must be called unconditionally
-  let orders: any[] = [];
-  let podOrders: any[] = [];
+  // Use hooks directly - they are available since this component is rendered
+  // inside OrderProvider and PODProvider
+  const ordersContext = useOrders();
+  const podContext = usePOD();
   
-  try {
-    const { useOrders } = require('./OrderContext');
-    const { usePOD } = require('./PODContext');
-    const ordersContext = useOrders();
-    const podContext = usePOD();
-    orders = ordersContext?.orders || [];
-    podOrders = podContext?.podOrders || [];
-  } catch (e) {
-    // If contexts aren't available, hooks will throw
-    // This should not happen if provider hierarchy is correct
-    console.error('Failed to access OrderContext or PODContext:', e);
-  }
+  const orders = ordersContext?.orders || [];
+  const podOrders = podContext?.podOrders || [];
   
   useEffect(() => {
     setOrdersRef(orders);

@@ -13,12 +13,14 @@ import {
   Eye,
   RefreshCw,
   Search,
-  Filter
+  Filter,
+  XCircle
 } from 'lucide-react';
 import { OrderViewModal } from '../../components/OrderViewModal';
 import { OrderAssignmentModal } from '../../components/OrderAssignmentModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useUsers } from '../../contexts/UsersContext';
+import { useAuth } from '../../contexts/AuthContext';
 import type { Order } from '../../types/order';
 
 export default function AssignmentCenterPage() {
@@ -37,10 +39,23 @@ export default function AssignmentCenterPage() {
     refreshOrders
   } = useOrders();
   const { writers } = useUsers();
+  const { user } = useAuth();
 
   // Get orders available for assignment
   const availableOrders = getAvailableOrders();
   const assignedOrders = orders.filter(o => o.status === 'Assigned');
+  const awaitingConfirmationOrders = orders.filter(o => o.status === 'Awaiting Confirmation' && o.pickedBy === 'writer');
+  // Recently picked orders (both awaiting confirmation and already confirmed/assigned)
+  const recentlyPickedOrders = orders.filter(o => 
+    o.pickedBy === 'writer' && 
+    o.writerId && 
+    ['Awaiting Confirmation', 'Assigned', 'In Progress'].includes(o.status)
+  ).sort((a, b) => {
+    // Sort by assignedAt or updatedAt, most recent first
+    const dateA = new Date(a.assignedAt || a.updatedAt || 0).getTime();
+    const dateB = new Date(b.assignedAt || b.updatedAt || 0).getTime();
+    return dateB - dateA;
+  });
 
   const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
@@ -364,17 +379,93 @@ export default function AssignmentCenterPage() {
         </Card>
       </div>
 
-      {/* Recently Assigned Orders */}
+      {/* Orders Awaiting Confirmation */}
+      {awaitingConfirmationOrders.length > 0 && (
+        <Card className="border-orange-300 bg-orange-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-800">
+              <AlertTriangle className="h-5 w-5" />
+              Orders Awaiting Confirmation ({awaitingConfirmationOrders.length})
+            </CardTitle>
+            <p className="text-sm text-orange-700">
+              Writers have picked these orders. Please confirm or decline the assignments.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {awaitingConfirmationOrders.slice(0, 10).map((order) => (
+                <div key={order.id} className="border border-orange-200 rounded-lg p-3 bg-white hover:bg-orange-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4 className="font-medium">{order.title}</h4>
+                        <Badge variant="outline" className="border-orange-400 text-orange-700">Awaiting Confirmation</Badge>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm text-gray-600">
+                        <div><span className="font-medium">Writer:</span> {order.assignedWriter || 'Unknown'}</div>
+                        <div><span className="font-medium">Picked:</span> {new Date(order.assignedAt || order.updatedAt).toLocaleDateString()}</div>
+                        <div><span className="font-medium">Deadline:</span> {new Date(order.deadline).toLocaleDateString()}</div>
+                        <div><span className="font-medium">Value:</span> KES {(order.pages * 350).toLocaleString()}</div>
+                        <div>
+                          <Badge variant="outline" className="text-xs">
+                            Picked by Writer
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 ml-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewOrder(order)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => handleOrderActionLocal('confirm_pick', order.id, { adminId: user?.id })}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Confirm
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleOrderActionLocal('make_available', order.id, { reason: 'Admin declined writer pick' })}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Decline
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recently Assigned Orders (by Admin) */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
-            Recently Assigned Orders ({assignedOrders.length})
+            Recently Assigned Orders ({assignedOrders.filter(o => o.assignedBy === 'admin' || !o.pickedBy).length})
           </CardTitle>
+          <p className="text-sm text-gray-600 mt-1">
+            Orders assigned directly by admin
+          </p>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {assignedOrders.slice(0, 10).map((order) => (
+            {assignedOrders
+              .filter(o => o.assignedBy === 'admin' || !o.pickedBy)
+              .slice(0, 10)
+              .map((order) => (
               <div key={order.id} className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
@@ -384,13 +475,13 @@ export default function AssignmentCenterPage() {
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm text-gray-600">
-                      <div><span className="font-medium">Writer:</span> {order.assignedWriter}</div>
+                      <div><span className="font-medium">Writer:</span> {order.assignedWriter || 'Unassigned'}</div>
                       <div><span className="font-medium">Assigned:</span> {new Date(order.assignedAt || order.updatedAt).toLocaleDateString()}</div>
                       <div><span className="font-medium">Deadline:</span> {new Date(order.deadline).toLocaleDateString()}</div>
                       <div><span className="font-medium">Value:</span> KES {(order.pages * 350).toLocaleString()}</div>
                       <div>
-                        <Badge variant={order.pickedBy === 'writer' ? 'outline' : 'secondary'} className="text-xs">
-                          {order.pickedBy === 'writer' ? 'Picked by Writer' : 'Assigned by Admin'}
+                        <Badge variant="secondary" className="text-xs">
+                          Assigned by Admin
                         </Badge>
                       </div>
                     </div>
@@ -408,10 +499,104 @@ export default function AssignmentCenterPage() {
               </div>
             ))}
             
-            {assignedOrders.length === 0 && (
+            {assignedOrders.filter(o => o.assignedBy === 'admin' || !o.pickedBy).length === 0 && (
               <div className="text-center py-8">
                 <UserCheck className="h-12 w-12 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-500">No recently assigned orders</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recently Picked Orders (by Writers) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Recently Picked Orders ({recentlyPickedOrders.length})
+          </CardTitle>
+          <p className="text-sm text-gray-600 mt-1">
+            Orders picked by writers (awaiting confirmation or already confirmed)
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {recentlyPickedOrders.slice(0, 10).map((order) => {
+              const writer = writers.find(w => w.id === order.writerId);
+              return (
+                <div key={order.id} className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4 className="font-medium">{order.title}</h4>
+                        <Badge variant={order.status === 'Awaiting Confirmation' ? 'outline' : 'secondary'}>
+                          {order.status === 'Awaiting Confirmation' ? 'Awaiting Confirmation' : order.status}
+                        </Badge>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm text-gray-600">
+                        <div>
+                          <span className="font-medium">Writer:</span>{' '}
+                          <span className="font-semibold text-blue-700">
+                            {order.assignedWriter || writer?.name || 'Unknown'}
+                          </span>
+                          {writer && (
+                            <span className="text-xs text-gray-500 ml-1">
+                              ({writer.email})
+                            </span>
+                          )}
+                        </div>
+                        <div><span className="font-medium">Picked:</span> {new Date(order.assignedAt || order.updatedAt).toLocaleDateString()}</div>
+                        <div><span className="font-medium">Deadline:</span> {new Date(order.deadline).toLocaleDateString()}</div>
+                        <div><span className="font-medium">Value:</span> KES {(order.pages * 350).toLocaleString()}</div>
+                        <div>
+                          <Badge variant="outline" className="text-xs border-blue-300 text-blue-700">
+                            Picked by Writer
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 ml-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewOrder(order)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                      {order.status === 'Awaiting Confirmation' && (
+                        <>
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleOrderActionLocal('confirm_pick', order.id, { adminId: user?.id })}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Confirm
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleOrderActionLocal('make_available', order.id, { reason: 'Admin declined writer pick' })}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Decline
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {recentlyPickedOrders.length === 0 && (
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-500">No recently picked orders</p>
               </div>
             )}
           </div>

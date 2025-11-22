@@ -225,6 +225,27 @@ export function OrderViewModal({
       );
     }
 
+    if (order.status === 'Awaiting Confirmation' && order.pickedBy === 'writer') {
+      return (
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => onAction('confirm_pick', order.id, { notes, adminId: user?.id })}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Confirm Assignment
+          </Button>
+          <Button 
+            onClick={() => onAction('make_available', order.id, { reason: 'Admin declined writer pick', notes })}
+            variant="destructive"
+          >
+            <XCircle className="h-4 w-4 mr-2" />
+            Decline
+          </Button>
+        </div>
+      );
+    }
+
     if (order.status === 'Submitted') {
       return (
         <div className="flex gap-2">
@@ -263,13 +284,13 @@ export function OrderViewModal({
       return (
         <div className="flex gap-2">
           {canReassign ? (
-            <Button 
-              onClick={() => onAction('reassign', order.id, { notes })}
-              variant="outline"
-            >
-              <User className="h-4 w-4 mr-2" />
-              Reassign
-            </Button>
+          <Button 
+            onClick={() => onAction('reassign', order.id, { notes })}
+            variant="outline"
+          >
+            <User className="h-4 w-4 mr-2" />
+            Reassign
+          </Button>
           ) : (
             <Button 
               variant="outline"

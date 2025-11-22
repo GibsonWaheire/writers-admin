@@ -147,15 +147,15 @@ export function OrderCard({
               Submit to Admin
             </Button>
             {canReassign ? (
-              <Button 
-                onClick={() => setShowReassignmentModal(true)}
-                size="sm"
-                variant="outline"
-                className="border-red-300 text-red-600 hover:bg-red-50"
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reassign Order
-              </Button>
+            <Button 
+              onClick={() => setShowReassignmentModal(true)}
+              size="sm"
+              variant="outline"
+              className="border-red-300 text-red-600 hover:bg-red-50"
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reassign Order
+            </Button>
             ) : (
               <Button 
                 size="sm"
