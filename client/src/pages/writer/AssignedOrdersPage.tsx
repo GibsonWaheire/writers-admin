@@ -87,6 +87,14 @@ export default function AssignedOrdersPage() {
     }
   };
 
+  const handleUploadFiles = async (orderId: string, files: any[]) => {
+    try {
+      await handleOrderAction('upload_files', orderId, { files });
+    } catch (error) {
+      console.error('Failed to upload files:', error);
+    }
+  };
+
   const handleSubmitWork = async (orderId: string, data: any) => {
     try {
       await handleOrderAction('submit_to_admin', orderId, data);
@@ -273,6 +281,8 @@ export default function AssignedOrdersPage() {
               onRequestReassignment={handleRequestReassignment}
               onConfirmAssignment={handleConfirmAssignment}
               onDeclineAssignment={handleDeclineAssignment}
+              onSubmitWork={handleSubmitWork}
+              onUploadFiles={handleUploadFiles}
             />
           ))
         ) : (

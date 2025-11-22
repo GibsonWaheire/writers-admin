@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { OrderConfirmationModal } from './OrderConfirmationModal';
 import { RequestRevisionModal } from './RequestRevisionModal';
 import { SubmitToAdminModal } from './SubmitToAdminModal';
+import { UploadOrderFilesModal } from './UploadOrderFilesModal';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   DollarSign, 
@@ -19,7 +20,8 @@ import {
   XCircle,
   User,
   BookOpen,
-  FileType
+  FileType,
+  Upload
 } from 'lucide-react';
 import type { Order, OrderStatus, WriterConfirmation, WriterQuestion } from '../types/order';
 
@@ -46,6 +48,7 @@ export function OrderViewModal({
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
@@ -127,8 +130,23 @@ export function OrderViewModal({
     }
 
     if (order.status === 'In Progress') {
-      return (
-        <div className="flex gap-2">
+      // Check if files have been uploaded
+      const hasUploadedFiles = order.uploadedFiles && order.uploadedFiles.length > 0;
+      
+      if (!hasUploadedFiles) {
+        // Step 1: Upload files first
+        return (
+          <Button 
+            onClick={() => setShowUploadModal(true)}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Order Files
+          </Button>
+        );
+      } else {
+        // Step 2: Submit work after files are uploaded
+        return (
           <Button 
             onClick={() => setShowSubmitModal(true)}
             className="bg-blue-600 hover:bg-blue-700"
@@ -136,15 +154,8 @@ export function OrderViewModal({
             <FileText className="h-4 w-4 mr-2" />
             Submit Work
           </Button>
-          <Button 
-            onClick={() => onAction('upload_to_client', order.id, { notes })}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Upload to Client
-          </Button>
-        </div>
-      );
+        );
+      }
     }
 
     if (order.status === 'Assigned') {
@@ -227,7 +238,7 @@ export function OrderViewModal({
       );
     }
 
-    if (order.status === 'Awaiting Confirmation' && order.pickedBy === 'writer') {
+    if ((order.status as string) === 'Awaiting Confirmation' && order.pickedBy === 'writer') {
       return (
         <div className="flex gap-2">
           <Button 
@@ -709,15 +720,30 @@ export function OrderViewModal({
       )}
       
       {userRole === 'writer' && (
-        <SubmitToAdminModal
-          order={order}
-          isOpen={showSubmitModal}
-          onClose={() => setShowSubmitModal(false)}
-          onSubmit={async (submission) => {
-            await onAction('submit_to_admin', order.id, submission);
-            setShowSubmitModal(false);
-          }}
-        />
+        <>
+          <UploadOrderFilesModal
+            order={order}
+            isOpen={showUploadModal}
+            onClose={() => setShowUploadModal(false)}
+            onUpload={async (files) => {
+              await onAction('upload_files', order.id, { files });
+              setShowUploadModal(false);
+            }}
+          />
+          <SubmitToAdminModal
+            order={order}
+            isOpen={showSubmitModal}
+            onClose={() => setShowSubmitModal(false)}
+            onSubmit={async (submission) => {
+              await onAction('submit_to_admin', order.id, {
+                files: order.uploadedFiles || [],
+                notes: submission.notes,
+                estimatedCompletionTime: submission.estimatedCompletionTime
+              });
+              setShowSubmitModal(false);
+            }}
+          />
+        </>
       )}
     </Modal>
   );

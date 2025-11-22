@@ -707,6 +707,35 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           });
           break;
           
+        case 'upload_files':
+          // Upload files to order without changing status
+          if (!additionalData?.files || !Array.isArray(additionalData.files) || additionalData.files.length === 0) {
+            throw new Error('No files provided to upload.');
+          }
+          
+          // Append new files to existing uploaded files
+          updates.uploadedFiles = [...(order.uploadedFiles || []), ...additionalData.files];
+          updates.filesUploadedAt = new Date().toISOString();
+          
+          // Log activity
+          const uploadedFilesCount = additionalData.files.length;
+          logOrderActivity(
+            orderId,
+            order.orderNumber,
+            'upload_files',
+            oldStatus,
+            oldStatus, // Status doesn't change
+            `Order ${order.orderNumber || orderId} - ${uploadedFilesCount} file(s) uploaded`,
+            { filesCount: uploadedFilesCount }
+          ).catch(err => console.error('Failed to log activity:', err));
+          
+          console.log('📎 OrderContext: Files uploaded to order:', {
+            orderId,
+            filesCount: uploadedFilesCount,
+            totalFiles: updates.uploadedFiles.length
+          });
+          break;
+          
         case 'complete':
           newStatus = 'Completed';
           break;

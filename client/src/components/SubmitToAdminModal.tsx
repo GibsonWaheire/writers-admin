@@ -27,8 +27,10 @@ export function SubmitToAdminModal({
 }: SubmitToAdminModalProps) {
   const [notes, setNotes] = useState('');
   const [estimatedCompletionTime, setEstimatedCompletionTime] = useState('');
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Use files already uploaded to the order
+  const uploadedFiles = order.uploadedFiles || [];
 
   const handleSubmit = async (e?: React.MouseEvent) => {
     // Prevent any default behavior or navigation
@@ -39,7 +41,7 @@ export function SubmitToAdminModal({
     
     // Validation: Must have at least one file uploaded
     if (uploadedFiles.length === 0) {
-      // Show a more prominent error message
+      alert('Please upload files first using the "Upload Order Files" button.');
       return;
     }
     
@@ -50,11 +52,9 @@ export function SubmitToAdminModal({
         notes: notes.trim(),
         estimatedCompletionTime: estimatedCompletionTime.trim() || undefined
       });
-      // Don't close modal immediately - let the parent handle it
       // Reset form state
       setNotes('');
       setEstimatedCompletionTime('');
-      setUploadedFiles([]);
       // Close modal after a brief delay to show success
       setTimeout(() => {
         onClose();
@@ -65,23 +65,6 @@ export function SubmitToAdminModal({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleFileUpload = (file: File) => {
-    const newFile: UploadedFile = {
-      id: `file-${Date.now()}`,
-      filename: file.name,
-      originalName: file.name,
-      size: file.size,
-      type: file.type,
-      url: URL.createObjectURL(file),
-      uploadedAt: new Date().toISOString()
-    };
-    setUploadedFiles(prev => [...prev, newFile]);
-  };
-
-  const removeFile = (fileId: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
   const isFormValid = uploadedFiles.length > 0;
@@ -217,11 +200,7 @@ export function SubmitToAdminModal({
                     type="file"
                     multiple
                     accept=".pdf,.doc,.docx,.txt,.rtf,.ppt,.pptx,.xls,.xlsx,.csv,.odt,.ods,.odp"
-                    onChange={(e) => {
-                      if (e.target.files) {
-                        Array.from(e.target.files).forEach(handleFileUpload);
-                      }
-                    }}
+                    disabled
                     className="hidden"
                   />
                   <p className="text-xs text-gray-500 mt-2">
@@ -255,14 +234,7 @@ export function SubmitToAdminModal({
                           </div>
                         </div>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeFile(file.id)}
-                        className="text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50 transition-colors duration-200"
-                      >
-                        Remove
-                      </Button>
+                      <span className="text-xs text-gray-500">Uploaded</span>
                     </div>
                   </div>
                 ))}

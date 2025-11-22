@@ -7,10 +7,14 @@ import {
   Eye,
   Play,
   RotateCcw,
-  User
+  User,
+  FileText,
+  Upload
 } from 'lucide-react';
 import { AssignmentConfirmationModal } from './AssignmentConfirmationModal';
 import { UnifiedAssignmentModal } from './UnifiedAssignmentModal';
+import { SubmitToAdminModal } from './SubmitToAdminModal';
+import { UploadOrderFilesModal } from './UploadOrderFilesModal';
 import type { Order } from '../types/order';
 import type { AssignmentHistory } from '../types/notification';
 
@@ -33,6 +37,12 @@ interface AssignedOrderCardProps {
     reason: string;
     additionalNotes?: string;
   }) => void;
+  onSubmitWork?: (orderId: string, submission: {
+    files: import('../types/order').UploadedFile[];
+    notes: string;
+    estimatedCompletionTime?: string;
+  }) => void;
+  onUploadFiles?: (orderId: string, files: import('../types/order').UploadedFile[]) => void;
 }
 
 export function AssignedOrderCard({
@@ -42,10 +52,14 @@ export function AssignedOrderCard({
   onConfirmAssignment,
   onDeclineAssignment,
   onStartWork,
-  onRequestReassignment
+  onRequestReassignment,
+  onSubmitWork,
+  onUploadFiles
 }: AssignedOrderCardProps) {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showUnifiedModal, setShowUnifiedModal] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [unifiedModalAction, setUnifiedModalAction] = useState<'start_work' | 'reassign'>('start_work');
 
   const needsConfirmation = order.status === 'Assigned' && assignment?.status === 'pending';
@@ -221,6 +235,31 @@ export function AssignedOrderCard({
                     Start Work
                   </Button>
                 )}
+                {order.status === 'In Progress' && (
+                  <>
+                    {(!order.uploadedFiles || order.uploadedFiles.length === 0) ? (
+                      // Step 1: Upload files first
+                      <Button
+                        size="sm"
+                        onClick={() => setShowUploadModal(true)}
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                      >
+                        <Upload className="h-4 w-4 mr-1" />
+                        Upload Files
+                      </Button>
+                    ) : onSubmitWork ? (
+                      // Step 2: Submit work after files are uploaded
+                      <Button
+                        size="sm"
+                        onClick={() => setShowSubmitModal(true)}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      >
+                        <FileText className="h-4 w-4 mr-1" />
+                        Submit Work
+                      </Button>
+                    ) : null}
+                  </>
+                )}
                 {canReassign && (
                   <Button
                     variant="outline"
@@ -265,6 +304,41 @@ export function AssignedOrderCard({
         actionType={unifiedModalAction}
         onConfirm={handleUnifiedAction}
       />
+
+      {/* Upload Files Modal */}
+      {onUploadFiles && (
+        <UploadOrderFilesModal
+          order={order}
+          isOpen={showUploadModal}
+          onClose={() => setShowUploadModal(false)}
+          onUpload={async (files) => {
+            if (onUploadFiles) {
+              await onUploadFiles(order.id, files);
+            }
+            setShowUploadModal(false);
+          }}
+        />
+      )}
+
+      {/* Submit to Admin Modal */}
+      {onSubmitWork && (
+        <SubmitToAdminModal
+          order={order}
+          isOpen={showSubmitModal}
+          onClose={() => setShowSubmitModal(false)}
+          onSubmit={async (submission) => {
+            if (onSubmitWork) {
+              // Use already uploaded files from order
+              await onSubmitWork(order.id, {
+                files: order.uploadedFiles || [],
+                notes: submission.notes,
+                estimatedCompletionTime: submission.estimatedCompletionTime
+              });
+            }
+            setShowSubmitModal(false);
+          }}
+        />
+      )}
     </>
   );
 }
