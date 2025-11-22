@@ -318,7 +318,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           console.log('🎯 OrderContext: Order picked by writer:', {
             orderId,
             oldStatus,
-            newStatus: 'Awaiting Confirmation',
+            newStatus: 'Assigned',
             writerId: updates.writerId,
             writerName: updates.assignedWriter,
             assignedAt: updates.assignedAt,
