@@ -1124,12 +1124,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     return orders.filter(order => order.status === status);
   }, [orders]);
 
-  // Get available orders (excluding assigned orders)
+  // Get available orders (excluding assigned orders and picked orders)
   const getAvailableOrders = useCallback(() => {
     return orders.filter(order => 
       order.status === 'Available' && 
       !order.writerId && 
-      !order.assignedWriter
+      !order.assignedWriter &&
+      order.pickedBy !== 'writer' // Exclude orders that were picked by writers
     );
   }, [orders]);
 
