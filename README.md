@@ -1,70 +1,104 @@
-# React + TypeScript + Vite
+# Writers Admin Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A full-stack application for managing writers and orders, with separate client (frontend) and server (backend) components.
 
-Currently, two official plugins are available:
+## Project Structure
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+writers-admin/
+├── client/          # React + TypeScript frontend
+│   ├── src/         # Source code
+│   ├── public/      # Static assets
+│   └── package.json # Frontend dependencies
+│
+├── server/          # Flask + SQLite backend
+│   ├── app.py       # Flask application
+│   ├── models.py    # Database models
+│   ├── routes/      # API route handlers
+│   ├── seed_db.py   # Database seeding script
+│   └── requirements.txt
+│
+└── db.json          # Initial data (used for seeding)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Quick Start
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Backend Setup
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+1. Navigate to server directory:
+```bash
+cd server
 ```
-# writers-admin
+
+2. Create virtual environment and install dependencies:
+```bash
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+3. Seed the database:
+```bash
+python seed_db.py
+```
+
+4. Start the Flask server:
+```bash
+python app.py
+```
+
+The backend will run on `http://localhost:5000`
+
+### Frontend Setup
+
+1. Navigate to client directory:
+```bash
+cd client
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Start the development server:
+```bash
+npm run dev
+```
+
+The frontend will run on `http://localhost:5173`
+
+## Technology Stack
+
+### Backend
+- **Flask** - Web framework
+- **SQLite** - Database
+- **Flask-SQLAlchemy** - ORM
+- **Flask-CORS** - Cross-origin resource sharing
+
+### Frontend
+- **React** - UI library
+- **TypeScript** - Type safety
+- **Vite** - Build tool
+- **Tailwind CSS** - Styling
+- **React Router** - Routing
+
+## API Documentation
+
+See `server/README.md` for detailed API endpoint documentation.
+
+## Development
+
+Both client and server support hot-reload during development. Make sure both servers are running for full functionality.
+
+## Production Deployment
+
+1. Build the frontend:
+```bash
+cd client
+npm run build
+```
+
+2. Configure the backend to serve static files or use a reverse proxy (nginx, etc.)
+
+3. Set environment variables appropriately for production.

@@ -43,7 +43,7 @@ import { NotificationProvider as AppNotificationProvider } from './contexts/Noti
 import { SettingsProvider } from './contexts/SettingsContext';
 import MessagesPage from './pages/MessagesPage';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient();  
 
 // Protected Route Component
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: 'writer' | 'admin' }) {

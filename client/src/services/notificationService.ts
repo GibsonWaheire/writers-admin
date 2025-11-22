@@ -1,4 +1,4 @@
-import { db } from './database';
+import { api as db } from './api';
 import type { Notification } from '../types/notification';
 
 export interface NotificationData {

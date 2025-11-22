@@ -1,22 +1,6 @@
-import type { Writer, WriterInvite, WriterActivity } from '../types/user';
-import type { Order } from '../types/order';
-import type { PODOrder } from '../types/pod';
-import type { Review } from '../types/review';
-import type { 
-  Invoice, 
-  Fine, 
-  Payment, 
-  ClientPayment, 
-  PlatformFunds, 
-  WithdrawalRequest, 
-  TransactionLog 
-} from '../types/financial';
-import type { 
-  Notification, 
-  NotificationPreferences, 
-  AssignmentHistory, 
-  AssignmentConfirmation 
-} from '../types/notification';
+// This file is kept for backward compatibility
+// All imports should use api.ts instead
+export { api as db, api } from './api';
 
 // Database structure interface
 interface Database {
