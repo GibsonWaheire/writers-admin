@@ -19,7 +19,6 @@ import { OrderAssignmentModal } from '../../components/OrderAssignmentModal';
 import { PickedOrdersCard } from '../../components/PickedOrdersCard';
 import { useOrders } from '../../contexts/OrderContext';
 import { useUsers } from '../../contexts/UsersContext';
-import { useAuth } from '../../contexts/AuthContext';
 import type { Order } from '../../types/order';
 
 export default function AssignmentCenterPage() {
