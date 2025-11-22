@@ -201,7 +201,7 @@ class OrderActivity(db.Model):
     old_status = db.Column(db.String(50))
     new_status = db.Column(db.String(50))
     description = db.Column(db.Text)  # Description of the action
-    metadata = db.Column(db.Text)  # JSON string for additional data
+    action_metadata = db.Column(db.Text)  # JSON string for additional data (renamed from metadata to avoid SQLAlchemy conflict)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def to_dict(self):
@@ -216,7 +216,7 @@ class OrderActivity(db.Model):
             'oldStatus': self.old_status,
             'newStatus': self.new_status,
             'description': self.description,
-            'metadata': json.loads(self.metadata) if self.metadata else {},
+            'metadata': json.loads(self.action_metadata) if self.action_metadata else {},
             'createdAt': self.created_at.isoformat() if self.created_at else None
         }
 

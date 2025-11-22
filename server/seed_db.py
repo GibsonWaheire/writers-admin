@@ -9,6 +9,7 @@ from datetime import datetime
 from app import app
 from db import db
 from models import *
+from utils import generate_order_number
 
 def parse_datetime(dt_str):
     """Parse ISO datetime string"""
@@ -95,8 +96,11 @@ def seed_database():
         # Seed Orders
         print("Seeding orders...")
         for order_data in data.get('orders', []):
+            # Generate 4-character order number
+            order_number = generate_order_number()
             order = Order(
                 id=order_data['id'],
+                order_number=order_number,
                 title=order_data['title'],
                 description=order_data.get('description'),
                 subject=order_data.get('subject'),

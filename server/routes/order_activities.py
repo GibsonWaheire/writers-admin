@@ -44,7 +44,7 @@ def create_activity():
         old_status=data.get('oldStatus'),
         new_status=data.get('newStatus'),
         description=data.get('description'),
-        metadata=json_lib.dumps(data.get('metadata', {}))
+        action_metadata=json_lib.dumps(data.get('metadata', {}))
     )
     
     db.session.add(activity)
