@@ -47,7 +47,7 @@ python seed_db.py
 python app.py
 ```
 
-The backend will run on `http://localhost:5000`
+The backend will run on `http://localhost:5001`
 
 ### Frontend Setup
 

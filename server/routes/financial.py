@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models import Invoice, Fine, Payment, ClientPayment, PlatformFunds, WithdrawalRequest, TransactionLog
-from app import db
+from db import db
 import json as json_lib
 from datetime import datetime
 

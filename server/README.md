@@ -33,7 +33,7 @@ python seed_db.py
 python app.py
 ```
 
-The server will run on `http://localhost:5000`
+The server will run on `http://localhost:5001`
 
 ## API Endpoints
 

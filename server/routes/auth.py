@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models import User
-from app import db
+from db import db
 import hashlib
 
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')

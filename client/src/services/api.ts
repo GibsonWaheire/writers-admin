@@ -13,7 +13,7 @@ import type {
 } from '../types/financial';
 import type { Notification } from '../types/notification';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 class ApiService {
   private static instance: ApiService;

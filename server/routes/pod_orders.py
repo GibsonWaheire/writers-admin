@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models import PODOrder
-from app import db
+from db import db
 import json as json_lib
 from datetime import datetime
 

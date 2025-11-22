@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models import Notification
-from app import db
+from db import db
 from datetime import datetime
 
 bp = Blueprint('notifications', __name__, url_prefix='/api/notifications')

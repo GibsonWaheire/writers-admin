@@ -11,7 +11,7 @@ npm install
 
 2. Create `.env` file (optional, defaults to `http://localhost:5000`):
 ```bash
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:5001/api
 ```
 
 3. Start development server:
