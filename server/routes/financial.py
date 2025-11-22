@@ -193,6 +193,7 @@ def create_transaction_log():
 
 # Withdrawal Requests
 @bp.route('/withdrawals', methods=['GET'])
+@bp.route('/withdrawalRequests', methods=['GET'])  # Alias for compatibility
 def get_withdrawals():
     writer_id = request.args.get('writerId')
     status = request.args.get('status')
@@ -207,6 +208,7 @@ def get_withdrawals():
     return jsonify([w.to_dict() for w in withdrawals]), 200
 
 @bp.route('/withdrawals', methods=['POST'])
+@bp.route('/withdrawalRequests', methods=['POST'])  # Alias for compatibility
 def create_withdrawal():
     data = request.get_json()
     import uuid

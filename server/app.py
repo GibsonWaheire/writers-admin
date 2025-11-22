@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
@@ -44,6 +44,16 @@ app.register_blueprint(misc.bp)
 @app.route('/api/health')
 def health():
     return {'status': 'ok', 'message': 'Writers Admin API is running'}
+
+# Handle OPTIONS requests for all API routes to fix CORS preflight
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = jsonify({})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add('Access-Control-Allow-Headers', "*")
+        response.headers.add('Access-Control-Allow-Methods', "*")
+        return response
 
 if __name__ == '__main__':
     with app.app_context():
