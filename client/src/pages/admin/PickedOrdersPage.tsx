@@ -160,9 +160,10 @@ export default function AdminPickedOrdersPage() {
               <option value="">All Writers</option>
               {writersWithPickedOrders.map(writerId => {
                 const writer = writers.find(w => w.id === writerId);
+                const pickedOrder = pickedOrders.find(o => o.writerId === writerId);
                 return (
                   <option key={writerId} value={writerId}>
-                    {writer?.name || order.assignedWriter || writerId}
+                    {writer?.name || pickedOrder?.assignedWriter || writerId}
                   </option>
                 );
               })}
