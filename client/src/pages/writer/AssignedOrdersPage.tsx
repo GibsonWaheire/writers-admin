@@ -45,16 +45,18 @@ export default function AssignedOrdersPage() {
   const currentWriterId = getWriterIdForUser(user?.id);
 
   // Get assigned orders for current writer (including all assigned and in-progress orders)
+  // This includes orders picked by the writer (which go directly to 'Assigned' status)
   const assignedOrders = orders.filter(order => 
     order.writerId === currentWriterId && 
-    ['Awaiting Confirmation', 'Assigned', 'Confirmed', 'In Progress', 'Submitted', 'Revision'].includes(order.status)
+    ['Assigned', 'Confirmed', 'In Progress', 'Submitted', 'Revision'].includes(order.status)
   );
 
   // Get recently picked orders by this writer (synced with admin view)
+  // These are orders the writer picked themselves (pickedBy === 'writer')
   const recentlyPickedOrders = orders.filter(order => 
     order.pickedBy === 'writer' && 
     order.writerId === currentWriterId && 
-    ['Awaiting Confirmation', 'Assigned', 'In Progress'].includes(order.status as string)
+    ['Assigned', 'In Progress', 'Submitted'].includes(order.status as string)
   ).sort((a, b) => {
     // Sort by assignedAt or updatedAt, most recent first
     const dateA = new Date(a.assignedAt || a.updatedAt || 0).getTime();

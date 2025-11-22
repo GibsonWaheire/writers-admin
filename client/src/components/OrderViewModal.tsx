@@ -238,22 +238,17 @@ export function OrderViewModal({
       );
     }
 
-    if ((order.status as string) === 'Awaiting Confirmation' && order.pickedBy === 'writer') {
+    // Orders picked by writers go directly to "Assigned" status
+    // Admin can approve them when work is submitted, or make them available if needed
+    if (order.pickedBy === 'writer' && order.status === 'Assigned') {
       return (
         <div className="flex gap-2">
           <Button 
-            onClick={() => onAction('confirm_pick', order.id, { notes, adminId: user?.id })}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Confirm Assignment
-          </Button>
-          <Button 
-            onClick={() => onAction('make_available', order.id, { reason: 'Admin declined writer pick', notes })}
-            variant="destructive"
+            onClick={() => onAction('make_available', order.id, { reason: 'Admin made order available', notes })}
+            variant="outline"
           >
             <XCircle className="h-4 w-4 mr-2" />
-            Decline
+            Make Available
           </Button>
         </div>
       );

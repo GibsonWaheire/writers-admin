@@ -270,16 +270,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         
         switch (action) {
         case 'pick':
-          // When writer picks order, it goes to 'Awaiting Confirmation' status
-          // Admin needs to confirm it before it becomes 'Assigned'
-          newStatus = 'Awaiting Confirmation';
+          // When writer picks order, it goes directly to 'Assigned' status
+          // It will show in writer's "Assigned Orders" and admin's "Recently Picked Orders"
+          newStatus = 'Assigned';
           updates.writerId = additionalData?.writerId || 'unknown';
           updates.assignedWriter = additionalData?.writerName || 'Unknown Writer';
           updates.assignedAt = new Date().toISOString();
           updates.pickedBy = 'writer';
           updates.assignedBy = 'writer'; // Track that writer picked it themselves
           updates.assignmentPriority = 'medium'; // Default priority for picked orders
-          updates.requiresConfirmation = true; // Mark that admin confirmation is needed
+          updates.requiresConfirmation = false; // No confirmation needed - goes directly to assigned
           
           // Log activity
           logOrderActivity(
@@ -287,14 +287,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             order.orderNumber,
             'pick',
             oldStatus,
-            'Awaiting Confirmation',
-            `Order ${order.orderNumber || orderId} picked by writer ${updates.assignedWriter} - awaiting admin confirmation`,
-            { writerId: updates.writerId, writerName: updates.assignedWriter, pickedBy: 'writer', requiresConfirmation: true }
+            'Assigned',
+            `Order ${order.orderNumber || orderId} picked by writer ${updates.assignedWriter}`,
+            { writerId: updates.writerId, writerName: updates.assignedWriter, pickedBy: 'writer' }
           ).catch(err => console.error('Failed to log activity:', err));
           
           // Create assignment history entry for picked orders
-          // This ensures it appears in "recently assigned" section
-          // Mark as requiring confirmation since it's awaiting admin approval
+          // This ensures it appears in "recently picked" section
           if (notificationContext?.createAssignment) {
             notificationContext.createAssignment(
               orderId,
@@ -302,7 +301,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
               'writer', // assignedBy
               {
                 priority: 'medium',
-                requireConfirmation: true, // Changed to true - needs admin confirmation
+                requireConfirmation: false, // No confirmation needed
                 writerName: updates.assignedWriter as string,
                 assignedByName: updates.assignedWriter as string
               }
@@ -327,42 +326,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           });
           break;
           
-        case 'confirm_pick':
-          // Admin confirms a picked order - change from 'Awaiting Confirmation' to 'Assigned'
-          if (order.status !== 'Awaiting Confirmation') {
-            console.warn('⚠️ OrderContext: confirm_pick action only works on orders with "Awaiting Confirmation" status');
-            break;
-          }
-          newStatus = 'Assigned';
-          updates.confirmedAt = new Date().toISOString();
-          updates.confirmedBy = additionalData?.adminId || user?.id || 'admin';
-          updates.requiresConfirmation = false;
-          
-          // Log activity
-          logOrderActivity(
-            orderId,
-            order.orderNumber,
-            'confirm_pick',
-            'Awaiting Confirmation',
-            'Assigned',
-            `Admin confirmed order ${order.orderNumber || orderId} picked by writer ${order.assignedWriter}`,
-            { writerId: order.writerId, writerName: order.assignedWriter, confirmedBy: updates.confirmedBy }
-          ).catch(err => console.error('Failed to log activity:', err));
-          
-          // Notify writer that their pick was confirmed
-          if (order.writerId) {
-            notificationType = 'order_assigned';
-            notificationData = { orderId, orderTitle: order.title };
-          }
-          
-          console.log('✅ OrderContext: Admin confirmed picked order:', {
-            orderId,
-            oldStatus: 'Awaiting Confirmation',
-            newStatus: 'Assigned',
-            writerId: order.writerId,
-            writerName: order.assignedWriter
-          });
-          break;
+        // Note: confirm_pick action removed - orders picked by writers now go directly to 'Assigned' status
           
         case 'assign':
           newStatus = 'Assigned';
@@ -903,13 +867,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           break;
           
         case 'pick':
-          orderWithUpdates.status = 'Assigned'; // Changed to 'Assigned' so it shows on admin dashboard
+          orderWithUpdates.status = 'Assigned'; // Goes directly to 'Assigned' status
           orderWithUpdates.writerId = additionalData?.writerId as string;
           orderWithUpdates.assignedWriter = additionalData?.writerName as string;
           orderWithUpdates.assignedAt = new Date().toISOString();
           orderWithUpdates.pickedBy = 'writer';
           orderWithUpdates.assignedBy = 'writer';
           orderWithUpdates.assignmentPriority = 'medium';
+          orderWithUpdates.requiresConfirmation = false; // No confirmation needed
           break;
           
         case 'make_available':

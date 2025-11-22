@@ -42,13 +42,12 @@ export default function AssignmentCenterPage() {
 
   // Get orders available for assignment
   const availableOrders = getAvailableOrders();
-  const assignedOrders = orders.filter(o => o.status === 'Assigned');
-  const awaitingConfirmationOrders = orders.filter(o => (o.status as string) === 'Awaiting Confirmation' && o.pickedBy === 'writer');
-  // Recently picked orders (both awaiting confirmation and already confirmed/assigned)
+  const assignedOrders = orders.filter(o => o.status === 'Assigned' && o.assignedBy === 'admin');
+  // Recently picked orders by writers (these go directly to 'Assigned' status)
   const recentlyPickedOrders = orders.filter(o => 
     o.pickedBy === 'writer' && 
     o.writerId && 
-    ['Awaiting Confirmation', 'Assigned', 'In Progress'].includes(o.status)
+    ['Assigned', 'In Progress', 'Submitted'].includes(o.status as string)
   ).sort((a, b) => {
     // Sort by assignedAt or updatedAt, most recent first
     const dateA = new Date(a.assignedAt || a.updatedAt || 0).getTime();
@@ -176,16 +175,16 @@ export default function AssignmentCenterPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {/* Awaiting Confirmation - Most Prominent */}
-        {awaitingConfirmationOrders.length > 0 && (
-          <Card className="bg-orange-100 border-orange-400 border-2 shadow-lg animate-pulse">
+        {/* Recently Picked Orders Count */}
+        {recentlyPickedOrders.length > 0 && (
+          <Card className="bg-blue-100 border-blue-400 border-2 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-bold text-orange-900">Awaiting Confirmation</CardTitle>
-              <AlertTriangle className="h-5 w-5 text-orange-700 animate-bounce" />
+              <CardTitle className="text-sm font-bold text-blue-900">Recently Picked</CardTitle>
+              <UserCheck className="h-5 w-5 text-blue-700" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-orange-900">{awaitingConfirmationOrders.length}</div>
-              <p className="text-xs font-semibold text-orange-800 mt-1">Action Required</p>
+              <div className="text-3xl font-bold text-blue-900">{recentlyPickedOrders.length}</div>
+              <p className="text-xs font-semibold text-blue-800 mt-1">By Writers</p>
             </CardContent>
           </Card>
         )}
@@ -392,109 +391,6 @@ export default function AssignmentCenterPage() {
         </Card>
       </div>
 
-      {/* Orders Awaiting Confirmation - PROMINENT SECTION */}
-      {awaitingConfirmationOrders.length > 0 && (
-        <Card className="border-orange-400 border-2 bg-gradient-to-r from-orange-50 to-amber-50 shadow-xl">
-          <CardHeader className="bg-orange-100 border-b border-orange-300">
-            <CardTitle className="flex items-center gap-3 text-orange-900 text-xl font-bold">
-              <AlertTriangle className="h-6 w-6 text-orange-700 animate-pulse" />
-              ⚠️ Orders Awaiting Your Confirmation ({awaitingConfirmationOrders.length})
-            </CardTitle>
-            <p className="text-sm font-semibold text-orange-800 mt-2">
-              Writers have picked these orders. Please review and confirm or decline the assignments.
-            </p>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              {awaitingConfirmationOrders.map((order) => {
-                const writer = writers.find(w => w.id === order.writerId);
-                return (
-                  <div key={order.id} className="border-2 border-orange-300 rounded-lg p-4 bg-white hover:bg-orange-50 transition-all shadow-md">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <h4 className="font-bold text-lg text-gray-900">{order.title}</h4>
-                          <Badge className="bg-orange-600 text-white border-0 px-3 py-1">Awaiting Confirmation</Badge>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                          <div className="bg-blue-50 p-2 rounded">
-                            <span className="font-bold text-blue-900">Writer:</span>
-                            <div className="text-blue-700 font-semibold mt-1">
-                              {order.assignedWriter || writer?.name || 'Unknown Writer'}
-                            </div>
-                            {writer?.email && (
-                              <div className="text-xs text-blue-600 mt-1">{writer.email}</div>
-                            )}
-                          </div>
-                          <div className="bg-gray-50 p-2 rounded">
-                            <span className="font-bold text-gray-700">Picked:</span>
-                            <div className="text-gray-900 mt-1">
-                              {new Date(order.assignedAt || order.updatedAt).toLocaleString()}
-                            </div>
-                          </div>
-                          <div className="bg-purple-50 p-2 rounded">
-                            <span className="font-bold text-purple-700">Deadline:</span>
-                            <div className="text-purple-900 mt-1">
-                              {new Date(order.deadline).toLocaleDateString()}
-                            </div>
-                          </div>
-                          <div className="bg-green-50 p-2 rounded">
-                            <span className="font-bold text-green-700">Value:</span>
-                            <div className="text-green-900 font-semibold mt-1">
-                              KES {(order.pages * 350).toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="mt-3 flex items-center gap-2">
-                          <Badge variant="outline" className="border-blue-300 text-blue-700 bg-blue-50">
-                            📝 Picked by Writer
-                          </Badge>
-                          {order.orderNumber && (
-                            <Badge variant="outline" className="text-xs">
-                              Order #{order.orderNumber}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-col gap-2 ml-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewOrder(order)}
-                          className="w-full"
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View Details
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700 text-white w-full font-semibold"
-                          onClick={() => handleOrderActionLocal('confirm_pick', order.id, { adminId: user?.id })}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          ✓ Confirm Pick
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-full font-semibold"
-                          onClick={() => handleOrderActionLocal('make_available', order.id, { reason: 'Admin declined writer pick' })}
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          ✗ Decline
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Recently Assigned Orders (by Admin) */}
       <Card>
@@ -564,7 +460,7 @@ export default function AssignmentCenterPage() {
             Recently Picked Orders ({recentlyPickedOrders.length})
           </CardTitle>
           <p className="text-sm text-gray-600 mt-1">
-            Orders picked by writers (awaiting confirmation or already confirmed)
+            Orders picked by writers - these go directly to "Assigned" status and can be approved when work is submitted
           </p>
         </CardHeader>
         <CardContent>
@@ -577,8 +473,8 @@ export default function AssignmentCenterPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h4 className="font-medium">{order.title}</h4>
-                        <Badge variant={(order.status as string) === 'Awaiting Confirmation' ? 'outline' : 'secondary'}>
-                          {(order.status as string) === 'Awaiting Confirmation' ? 'Awaiting Confirmation' : order.status}
+                        <Badge variant="secondary">
+                          {order.status}
                         </Badge>
                       </div>
                       
@@ -614,26 +510,6 @@ export default function AssignmentCenterPage() {
                         <Eye className="h-4 w-4 mr-1" />
                         View
                       </Button>
-                      {(order.status as string) === 'Awaiting Confirmation' && (
-                        <>
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => handleOrderActionLocal('confirm_pick', order.id, { adminId: user?.id })}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Confirm
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleOrderActionLocal('make_available', order.id, { reason: 'Admin declined writer pick' })}
-                          >
-                            <XCircle className="h-4 w-4 mr-1" />
-                            Decline
-                          </Button>
-                        </>
-                      )}
                     </div>
                   </div>
                 </div>
