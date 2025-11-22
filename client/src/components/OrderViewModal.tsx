@@ -54,6 +54,7 @@ export function OrderViewModal({
     const statusConfig = {
       'Draft': { variant: 'outline' as const, color: 'text-gray-600', bg: 'bg-gray-50' },
       'Available': { variant: 'outline' as const, color: 'text-blue-600', bg: 'bg-blue-50' },
+      'Awaiting Approval': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
       'Assigned': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
       'In Progress': { variant: 'default' as const, color: 'text-blue-600', bg: 'bg-blue-50' },
       'Submitted': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
@@ -112,7 +113,7 @@ export function OrderViewModal({
             className="bg-green-600 hover:bg-green-700"
           >
             <CheckCircle className="h-4 w-4 mr-2" />
-            Pick Order
+            Bid on Order
           </Button>
         );
       } else {
@@ -211,9 +212,8 @@ export function OrderViewModal({
     };
     const writerId = getWriterIdForUser(user?.id) || confirmation.writerId || 'writer-1';
     
-    // Use 'pick' action to properly mark order as picked by writer
-    // This will set the order status to "Assigned" and mark it as picked by writer
-    onAction('pick', order.id, { 
+    // Use 'bid' action to submit a bid for admin approval
+    onAction('bid', order.id, { 
       confirmation, 
       questions,
       writerId: writerId,
@@ -224,6 +224,27 @@ export function OrderViewModal({
   };
 
   const renderAdminActions = () => {
+    if (order.status === 'Awaiting Approval') {
+      return (
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => onAction('approve_bid', order.id, { adminId: user?.id, notes })}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Approve Bid
+          </Button>
+          <Button 
+            variant="destructive"
+            onClick={() => onAction('decline_bid', order.id, { notes })}
+          >
+            <XCircle className="h-4 w-4 mr-2" />
+            Decline Bid
+          </Button>
+        </div>
+      );
+    }
+
     if (order.status === 'Available') {
       return (
         <div className="flex gap-2">

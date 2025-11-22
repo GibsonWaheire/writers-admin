@@ -32,6 +32,8 @@ interface NotificationContextType {
     deadline?: string;
     notes?: string;
     requireConfirmation?: boolean;
+    writerName?: string;
+    assignedByName?: string;
   }) => Promise<AssignmentHistory>;
   
   confirmAssignment: (assignmentId: string, confirmation: Omit<AssignmentConfirmation, 'confirmedAt'>) => Promise<void>;

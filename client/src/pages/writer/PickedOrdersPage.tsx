@@ -7,13 +7,13 @@ import {
   FileText,
   Hand
 } from 'lucide-react';
-import { PickedOrdersCard } from '../../components/PickedOrdersCard';
+import { BidOrdersCard } from '../../components/BidOrdersCard';
 import { OrderViewModal } from '../../components/OrderViewModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Order } from '../../types/order';
 
-export default function PickedOrdersPage() {
+export default function BidOrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,11 +35,11 @@ export default function PickedOrdersPage() {
   };
   const currentWriterId = getWriterIdForUser(user?.id);
 
-  // Get picked orders by this writer
-  const pickedOrders = orders.filter(order => 
+  // Get bid orders by this writer
+  const bidOrders = orders.filter(order => 
     order.pickedBy === 'writer' && 
     order.writerId === currentWriterId && 
-    ['Assigned', 'In Progress', 'Submitted', 'Revision'].includes(order.status as string)
+    ['Awaiting Approval'].includes(order.status as string)
   ).sort((a, b) => {
     // Sort by assignedAt or updatedAt, most recent first
     const dateA = new Date(a.assignedAt || a.updatedAt || 0).getTime();
@@ -61,7 +61,7 @@ export default function PickedOrdersPage() {
     });
   };
 
-  const filteredOrders = filterOrders(pickedOrders);
+  const filteredOrders = filterOrders(bidOrders);
 
   const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
@@ -75,20 +75,20 @@ export default function PickedOrdersPage() {
   };
 
   // Get status counts
-  const statusCounts = pickedOrders.reduce((acc, order) => {
+  const statusCounts = bidOrders.reduce((acc, order) => {
     acc[order.status] = (acc[order.status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const statuses = ['Assigned', 'In Progress', 'Submitted', 'Revision'];
+  const statuses = ['Awaiting Approval'];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Picked Orders</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Bid Orders</h1>
           <p className="text-gray-600 mt-1">
-            Orders you have picked and are currently working on
+            Orders you have bid on that are awaiting admin approval
           </p>
         </div>
       </div>
@@ -102,8 +102,8 @@ export default function PickedOrdersPage() {
                 <Hand className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Picked</p>
-                <p className="text-2xl font-bold text-gray-900">{pickedOrders.length}</p>
+                <p className="text-sm font-medium text-gray-600">Total Bids</p>
+                <p className="text-2xl font-bold text-gray-900">{bidOrders.length}</p>
               </div>
             </div>
           </CardContent>
@@ -182,10 +182,10 @@ export default function PickedOrdersPage() {
           ) : (
             <div className="text-center py-12">
               <Hand className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg font-medium">No picked orders found</p>
+              <p className="text-gray-500 text-lg font-medium">No bids found</p>
               <p className="text-gray-400 text-sm mt-2">
-                {pickedOrders.length === 0 
-                  ? "You haven't picked any orders yet. Visit Available Orders to pick one."
+                {bidOrders.length === 0 
+                  ? "You haven't bid on any orders yet. Visit Available Orders to bid on one."
                   : "No orders match your search criteria."}
               </p>
             </div>

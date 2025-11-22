@@ -269,26 +269,26 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         const updates: Record<string, unknown> = { updatedAt };
         
         switch (action) {
-        case 'pick':
-          // When writer picks order, it goes directly to 'Assigned' status
-          // It will show in writer's "Assigned Orders" and admin's "Recently Picked Orders"
-          newStatus = 'Assigned';
+        case 'bid':
+          // Writer places a bid; admin must approve before assignment.
+          newStatus = 'Awaiting Approval';
           updates.writerId = additionalData?.writerId || 'unknown';
           updates.assignedWriter = additionalData?.writerName || 'Unknown Writer';
           updates.assignedAt = new Date().toISOString();
           updates.pickedBy = 'writer';
           updates.assignedBy = 'writer'; // Track that writer picked it themselves
-          updates.assignmentPriority = 'medium'; // Default priority for picked orders
-          updates.requiresConfirmation = false; // No confirmation needed - goes directly to assigned
+          updates.assignmentPriority = additionalData?.priority || 'medium'; // Default priority for bids
+          updates.assignmentNotes = additionalData?.notes;
+          updates.requiresConfirmation = true; // Waiting for admin approval
           
           // Log activity
           logOrderActivity(
             orderId,
             order.orderNumber,
-            'pick',
+            'bid',
             oldStatus,
-            'Assigned',
-            `Order ${order.orderNumber || orderId} picked by writer ${updates.assignedWriter}`,
+            'Awaiting Approval',
+            `Order ${order.orderNumber || orderId} bid by writer ${updates.assignedWriter}`,
             { writerId: updates.writerId, writerName: updates.assignedWriter, pickedBy: 'writer' }
           ).catch(err => console.error('Failed to log activity:', err));
           
@@ -301,7 +301,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
               'writer', // assignedBy
               {
                 priority: 'medium',
-                requireConfirmation: false, // No confirmation needed
+                requireConfirmation: true,
                 writerName: updates.assignedWriter as string,
                 assignedByName: updates.assignedWriter as string
               }
@@ -309,23 +309,73 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           }
           
           // Notify admin that writer picked the order
-          notificationHelpers.notifyAdminOrderPicked(
+          notificationHelpers.notifyAdminOrderBid(
             orderId,
             order.title,
             updates.assignedWriter as string
           ).catch(err => console.error('Failed to notify admin:', err));
           
-          console.log('🎯 OrderContext: Order picked by writer:', {
+          console.log('🎯 OrderContext: Order bid by writer:', {
             orderId,
             oldStatus,
-            newStatus: 'Assigned',
+            newStatus: 'Awaiting Approval',
             writerId: updates.writerId,
             writerName: updates.assignedWriter,
             assignedAt: updates.assignedAt,
-            note: 'Order is now awaiting admin confirmation before being assigned'
+            note: 'Order is now awaiting admin approval before being assigned'
           });
           break;
+        
+        case 'approve_bid':
+          if (order.status !== 'Awaiting Approval') {
+            console.warn('⚠️ OrderContext: approve_bid only valid for orders awaiting approval');
+            break;
+          }
+          newStatus = 'Assigned';
+          updates.requiresConfirmation = false;
+          updates.confirmedAt = new Date().toISOString();
+          updates.confirmedBy = additionalData?.adminId || user?.id || 'admin';
           
+          logOrderActivity(
+            orderId,
+            order.orderNumber,
+            'approve_bid',
+            'Awaiting Approval',
+            'Assigned',
+            `Admin approved bid for order ${order.orderNumber || orderId}`,
+            { writerId: order.writerId, writerName: order.assignedWriter, approvedBy: updates.confirmedBy }
+          ).catch(err => console.error('Failed to log activity:', err));
+          
+          if (order.writerId) {
+            notificationType = 'order_assigned';
+            notificationData = { orderId, orderTitle: order.title };
+          }
+          break;
+        
+        case 'decline_bid':
+          if (order.status !== 'Awaiting Approval') {
+            console.warn('⚠️ OrderContext: decline_bid only valid for orders awaiting approval');
+            break;
+          }
+          newStatus = 'Available';
+          updates.writerId = undefined;
+          updates.assignedWriter = undefined;
+          updates.pickedBy = undefined;
+          updates.assignedBy = undefined;
+          updates.assignmentNotes = additionalData?.notes;
+          updates.requiresConfirmation = false;
+          
+          logOrderActivity(
+            orderId,
+            order.orderNumber,
+            'decline_bid',
+            'Awaiting Approval',
+            'Available',
+            `Admin declined bid for order ${order.orderNumber || orderId}`,
+            { reason: additionalData?.notes }
+          ).catch(err => console.error('Failed to log activity:', err));
+          break;
+        
         // Note: confirm_pick action removed - orders picked by writers now go directly to 'Assigned' status
           
         case 'assign':
@@ -866,15 +916,33 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           }
           break;
           
-        case 'pick':
-          orderWithUpdates.status = 'Assigned'; // Goes directly to 'Assigned' status
+        case 'bid':
+          orderWithUpdates.status = 'Awaiting Approval';
           orderWithUpdates.writerId = additionalData?.writerId as string;
           orderWithUpdates.assignedWriter = additionalData?.writerName as string;
           orderWithUpdates.assignedAt = new Date().toISOString();
           orderWithUpdates.pickedBy = 'writer';
           orderWithUpdates.assignedBy = 'writer';
-          orderWithUpdates.assignmentPriority = 'medium';
-          orderWithUpdates.requiresConfirmation = false; // No confirmation needed
+          orderWithUpdates.assignmentPriority = additionalData?.priority || 'medium';
+          orderWithUpdates.assignmentNotes = additionalData?.notes;
+          orderWithUpdates.requiresConfirmation = true;
+          break;
+        
+        case 'approve_bid':
+          orderWithUpdates.status = 'Assigned';
+          orderWithUpdates.requiresConfirmation = false;
+          orderWithUpdates.confirmedAt = new Date().toISOString();
+          orderWithUpdates.confirmedBy = additionalData?.adminId as string || 'admin';
+          break;
+        
+        case 'decline_bid':
+          orderWithUpdates.status = 'Available';
+          orderWithUpdates.writerId = undefined;
+          orderWithUpdates.assignedWriter = undefined;
+          orderWithUpdates.pickedBy = undefined;
+          orderWithUpdates.assignedBy = undefined;
+          orderWithUpdates.assignmentNotes = additionalData?.notes;
+          orderWithUpdates.requiresConfirmation = false;
           break;
           
         case 'make_available':

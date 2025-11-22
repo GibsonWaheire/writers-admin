@@ -47,7 +47,7 @@ const writerMenuItems: MenuItem[] = [
     subItems: [
       { icon: ClipboardList, label: 'Available Orders', path: '/orders/available', emoji: '📋' },
       { icon: UserCheck, label: 'Assigned Orders', path: '/orders/assigned', emoji: '👤' },
-      { icon: Hand, label: 'Picked Orders', path: '/orders/picked', emoji: '✋' },
+      { icon: Hand, label: 'Bid Orders', path: '/orders/picked', emoji: '✋' },
       { icon: AlertTriangle, label: 'Revisions', path: '/orders/revisions', emoji: '🔄' },
       { icon: CheckCircle, label: 'Completed', path: '/orders/completed', emoji: '✅' },
       { icon: XCircle, label: 'Rejected', path: '/orders/rejected', emoji: '❌' }
@@ -81,7 +81,7 @@ const adminMenuItems: MenuItem[] = [
       { icon: ClipboardList, label: 'All Orders', path: '/admin/orders/all', emoji: '📋' },
       { icon: AlertTriangle, label: 'Pending Review', path: '/admin/orders/review', emoji: '⚠️' },
       { icon: UserCheck, label: 'Assignment Center', path: '/admin/orders/assign', emoji: '👤' },
-      { icon: Hand, label: 'Picked Orders', path: '/admin/orders/picked', emoji: '✋' },
+      { icon: Hand, label: 'Bid Orders', path: '/admin/orders/picked', emoji: '✋' },
       { icon: Users, label: 'Writer Monitor', path: '/admin/orders/writers', emoji: '👥' },
       { icon: BarChart3, label: 'Order Analytics', path: '/admin/orders/analytics', emoji: '📊' }
     ]
@@ -125,7 +125,7 @@ export function Sidebar() {
   const writerOrders = orders.filter(order => order.writerId === currentWriterId);
   
   const activeOrders = writerOrders.filter(order => 
-    ['Awaiting Confirmation', 'Confirmed', 'In Progress', 'Submitted to Admin', 'Under Admin Review', 'Admin Approved', 'Client Review', 'Client Approved', 'Editor Revision', 'Awaiting Payment', 'Pay Later'].includes(order.status)
+    ['Awaiting Approval', 'Confirmed', 'In Progress', 'Submitted to Admin', 'Under Admin Review', 'Admin Approved', 'Client Review', 'Client Approved', 'Editor Revision', 'Awaiting Payment', 'Pay Later'].includes(order.status)
   ).length;
 
   const toggleCollapse = () => {

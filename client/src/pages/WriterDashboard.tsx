@@ -354,7 +354,7 @@ export default function WriterDashboard() {
                 className="w-full mt-4 text-green-600 hover:text-green-700 hover:bg-green-100"
                 onClick={() => navigate('/orders')}
               >
-                Pick Up Orders
+                Bid on Orders
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             )}

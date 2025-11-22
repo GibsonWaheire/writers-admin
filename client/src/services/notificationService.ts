@@ -223,7 +223,7 @@ export const notificationTemplates = {
     type: 'system_update' as const,
     priority: 'medium' as const,
     actionUrl: `/orders?tab=available`,
-    actionLabel: 'Pick Order'
+    actionLabel: 'Bid on Order'
   })
 };
 
@@ -255,20 +255,20 @@ export const notificationHelpers = {
     }
   },
 
-  // Notify admin when writer picks an order
-  async notifyAdminOrderPicked(orderId: string, orderTitle: string, writerName: string): Promise<void> {
+  // Notify admin when writer bids on an order
+  async notifyAdminOrderBid(orderId: string, orderTitle: string, writerName: string): Promise<void> {
     const admins = await db.find('users');
     const adminIds = admins.filter(user => user.role === 'admin').map(user => user.id);
     
     if (adminIds.length > 0) {
       await notificationService.sendNotificationToUsers(adminIds, {
-        title: 'Order Picked by Writer',
-        message: `${writerName} has picked up order: ${orderTitle}`,
-        type: 'order_assigned',
+        title: 'New Bid Pending Approval',
+        message: `${writerName} has bid on order: ${orderTitle}`,
+        type: 'system_update',
         priority: 'medium',
-        actionUrl: `/admin/orders?tab=assigned&highlight=${orderId}`,
-        actionLabel: 'View Order',
-        metadata: { orderId, writerName, pickedBy: 'writer' }
+        actionUrl: `/admin/orders/picked?highlight=${orderId}`,
+        actionLabel: 'Review Bid',
+        metadata: { orderId, writerName, status: 'Awaiting Approval' }
       });
     }
   },

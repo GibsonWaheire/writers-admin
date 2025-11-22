@@ -84,7 +84,7 @@ export default function AvailableOrdersPage() {
 
   const handleConfirmOrder = async (orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
     try {
-      await handleOrderAction('pick', orderId, { 
+      await handleOrderAction('bid', orderId, { 
         confirmation, 
         questions,
         writerId: currentWriterId,
@@ -120,7 +120,7 @@ export default function AvailableOrdersPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Available Orders</h1>
-          <p className="text-gray-600 mt-1">Browse and pick orders that match your expertise</p>
+          <p className="text-gray-600 mt-1">Browse and bid on orders that match your expertise</p>
         </div>
         <div className="flex items-center gap-3">
           <Badge variant="outline" className="text-lg px-4 py-2">

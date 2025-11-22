@@ -151,6 +151,7 @@ export type CitationFormat =
 export type OrderStatus = 
   | 'Draft' // Order saved as draft by admin
   | 'Available' // Available for writers to pick
+  | 'Awaiting Approval' // Writer has bid, waiting for admin approval
   | 'Assigned' // Writer has picked the order
   | 'In Progress' // Writer is working on it
   | 'Submitted' // Writer has submitted work for review

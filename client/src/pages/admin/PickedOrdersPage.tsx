@@ -9,10 +9,11 @@ import {
   Hand,
   Eye
 } from 'lucide-react';
-import { PickedOrdersCard } from '../../components/PickedOrdersCard';
+import { BidOrdersCard } from '../../components/BidOrdersCard';
 import { OrderViewModal } from '../../components/OrderViewModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useUsers } from '../../contexts/UsersContext';
+import { useAuth } from '../../contexts/AuthContext';
 import type { Order } from '../../types/order';
 
 export default function AdminPickedOrdersPage() {
@@ -24,12 +25,13 @@ export default function AdminPickedOrdersPage() {
 
   const { orders, handleOrderAction } = useOrders();
   const { writers } = useUsers();
+  const { user } = useAuth();
 
-  // Get all orders picked by writers
+  // Get all orders bid by writers awaiting approval
   const pickedOrders = orders.filter(order => 
     order.pickedBy === 'writer' && 
     order.writerId && 
-    ['Assigned', 'In Progress', 'Submitted', 'Revision'].includes(order.status as string)
+    ['Awaiting Approval'].includes(order.status as string)
   ).sort((a, b) => {
     // Sort by assignedAt or updatedAt, most recent first
     const dateA = new Date(a.assignedAt || a.updatedAt || 0).getTime();
@@ -72,7 +74,7 @@ export default function AdminPickedOrdersPage() {
     return acc;
   }, {} as Record<string, number>);
 
-  const statuses = ['Assigned', 'In Progress', 'Submitted', 'Revision'];
+  const statuses = ['Awaiting Approval'];
 
   // Get unique writers who have picked orders
   const writersWithPickedOrders = Array.from(
@@ -83,9 +85,9 @@ export default function AdminPickedOrdersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Picked Orders</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Bid Orders</h1>
           <p className="text-gray-600 mt-1">
-            Orders that writers have picked and are currently working on
+            Orders that writers have bid on and are awaiting your approval
           </p>
         </div>
       </div>
@@ -99,7 +101,7 @@ export default function AdminPickedOrdersPage() {
                 <Hand className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Picked</p>
+                <p className="text-sm font-medium text-gray-600">Total Bids</p>
                 <p className="text-2xl font-bold text-gray-900">{pickedOrders.length}</p>
               </div>
             </div>
@@ -177,33 +179,50 @@ export default function AdminPickedOrdersPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Hand className="h-5 w-5" />
-            Picked Orders by Writers ({filteredOrders.length})
+            Bid Orders Awaiting Approval ({filteredOrders.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredOrders.length > 0 ? (
+            {filteredOrders.length > 0 ? (
             <div className="space-y-3">
               {filteredOrders.map((order) => {
                 const writer = writers.find(w => w.id === order.writerId);
                 return (
-                  <PickedOrdersCard
-                    key={order.id}
-                    order={order}
-                    writerName={writer?.name}
-                    writerEmail={writer?.email}
-                    onView={handleViewOrder}
-                    userRole="admin"
-                  />
+                  <div key={order.id} className="space-y-2 border border-blue-100 rounded-lg p-3">
+                    <BidOrdersCard
+                      order={order}
+                      writerName={writer?.name}
+                      writerEmail={writer?.email}
+                      onView={handleViewOrder}
+                      userRole="admin"
+                    />
+                    <div className="flex flex-wrap gap-2 justify-end">
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => handleOrderActionLocal('approve_bid', order.id, { adminId: user?.id })}
+                      >
+                        Approve Bid
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleOrderActionLocal('decline_bid', order.id, { notes: 'Bid declined' })}
+                      >
+                        Decline
+                      </Button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
           ) : (
             <div className="text-center py-12">
               <Hand className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg font-medium">No picked orders found</p>
+              <p className="text-gray-500 text-lg font-medium">No bid orders found</p>
               <p className="text-gray-400 text-sm mt-2">
                 {pickedOrders.length === 0 
-                  ? "No writers have picked any orders yet."
+                  ? "No writers have bid on any orders yet."
                   : "No orders match your search criteria."}
               </p>
             </div>

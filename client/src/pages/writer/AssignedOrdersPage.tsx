@@ -12,7 +12,7 @@ import {
   FileText
 } from 'lucide-react';
 import { AssignedOrderCard } from '../../components/AssignedOrderCard';
-import { PickedOrdersCard } from '../../components/PickedOrdersCard';
+import { BidOrdersCard } from '../../components/BidOrdersCard';
 import { OrderViewModal } from '../../components/OrderViewModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -49,7 +49,7 @@ export default function AssignedOrdersPage() {
   // This includes orders picked by the writer (which go directly to 'Assigned' status)
   const assignedOrders = orders.filter(order => 
     order.writerId === currentWriterId && 
-    ['Assigned', 'Confirmed', 'In Progress', 'Submitted', 'Revision'].includes(order.status)
+    ['Awaiting Approval', 'Assigned', 'Confirmed', 'In Progress', 'Submitted', 'Revision'].includes(order.status)
   );
 
   // Get recently picked orders by this writer (synced with admin view)
@@ -57,7 +57,7 @@ export default function AssignedOrdersPage() {
   const recentlyPickedOrders = orders.filter(order => 
     order.pickedBy === 'writer' && 
     order.writerId === currentWriterId && 
-    ['Assigned', 'In Progress', 'Submitted'].includes(order.status as string)
+    ['Awaiting Approval'].includes(order.status as string)
   ).sort((a, b) => {
     // Sort by assignedAt or updatedAt, most recent first
     const dateA = new Date(a.assignedAt || a.updatedAt || 0).getTime();
@@ -153,7 +153,7 @@ export default function AssignedOrdersPage() {
 
   // Get order counts by status
   const statusCounts = {
-    'Awaiting Confirmation': assignedOrders.filter(o => (o.status as string) === 'Awaiting Confirmation').length,
+    'Awaiting Approval': assignedOrders.filter(o => (o.status as string) === 'Awaiting Approval').length,
     'Confirmed': assignedOrders.filter(o => (o.status as string) === 'Confirmed').length,
     'In Progress': assignedOrders.filter(o => o.status === 'In Progress').length
   };
@@ -171,8 +171,8 @@ export default function AssignedOrdersPage() {
         </Badge>
       </div>
 
-      {/* Awaiting Confirmation Alert - Most Prominent */}
-      {statusCounts['Awaiting Confirmation'] > 0 && (
+      {/* Awaiting Approval Alert */}
+      {statusCounts['Awaiting Approval'] > 0 && (
         <Card className="border-orange-400 border-2 bg-gradient-to-r from-orange-50 to-amber-50 shadow-xl animate-pulse">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
@@ -181,11 +181,11 @@ export default function AssignedOrdersPage() {
               </div>
               <div className="flex-1">
                 <h3 className="text-xl font-bold text-orange-900 mb-1">
-                  ⚠️ {statusCounts['Awaiting Confirmation']} Order{statusCounts['Awaiting Confirmation'] !== 1 ? 's' : ''} Awaiting Admin Confirmation
+                  ⚠️ {statusCounts['Awaiting Approval']} Order{statusCounts['Awaiting Approval'] !== 1 ? 's' : ''} Awaiting Admin Approval
                 </h3>
                 <p className="text-orange-800 font-medium">
-                  You have picked {statusCounts['Awaiting Confirmation']} order{statusCounts['Awaiting Confirmation'] !== 1 ? 's' : ''} that {statusCounts['Awaiting Confirmation'] === 1 ? 'is' : 'are'} waiting for admin approval. 
-                  Once confirmed, {statusCounts['Awaiting Confirmation'] === 1 ? 'it will' : 'they will'} appear as "Assigned" and you can start working.
+                  You have bid on {statusCounts['Awaiting Approval']} order{statusCounts['Awaiting Approval'] !== 1 ? 's' : ''} that {statusCounts['Awaiting Approval'] === 1 ? 'is' : 'are'} waiting for admin approval. 
+                  Once approved, {statusCounts['Awaiting Approval'] === 1 ? 'it will' : 'they will'} appear as "Assigned" and you can start working.
                 </p>
               </div>
             </div>
@@ -216,8 +216,8 @@ export default function AssignedOrdersPage() {
                 <AlertTriangle className="h-6 w-6 text-orange-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Awaiting Confirmation</p>
-                <p className="text-2xl font-bold text-orange-600">{statusCounts['Awaiting Confirmation']}</p>
+                <p className="text-sm font-medium text-gray-600">Awaiting Approval</p>
+                <p className="text-2xl font-bold text-orange-600">{statusCounts['Awaiting Approval']}</p>
               </div>
             </div>
           </CardContent>
@@ -256,22 +256,22 @@ export default function AssignedOrdersPage() {
         </Card>
       </div>
 
-      {/* Recently Picked Orders Section - Synced with Admin View */}
+      {/* Recent Bid Orders */}
       {recentlyPickedOrders.length > 0 && (
         <Card className="border-blue-300 bg-blue-50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-blue-900">
               <FileText className="h-5 w-5" />
-              Recently Picked Orders ({recentlyPickedOrders.length})
+              Recent Bid Orders ({recentlyPickedOrders.length})
             </CardTitle>
             <p className="text-sm text-blue-700 mt-1">
-              Orders you have picked (awaiting confirmation or already confirmed)
+              Orders you have bid on and are waiting for admin approval
             </p>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {recentlyPickedOrders.slice(0, 10).map((order) => (
-                <PickedOrdersCard
+                <BidOrdersCard
                   key={order.id}
                   order={order}
                   onView={handleViewOrder}
@@ -309,7 +309,7 @@ export default function AssignedOrdersPage() {
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Statuses</option>
-              <option value="Awaiting Confirmation">Awaiting Confirmation</option>
+              <option value="Awaiting Approval">Awaiting Approval</option>
               <option value="Confirmed">Confirmed</option>
               <option value="In Progress">In Progress</option>
             </select>

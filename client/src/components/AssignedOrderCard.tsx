@@ -155,9 +155,9 @@ export function AssignedOrderCard({
           {/* Status and Deadline Info */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {(order.status as string) === 'Awaiting Confirmation' ? (
+              {(order.status as string) === 'Awaiting Approval' ? (
                 <Badge className="bg-orange-500 text-white border-0 animate-pulse px-3 py-1">
-                  ⏳ Awaiting Admin Confirmation
+                  ⏳ Awaiting Admin Approval
                 </Badge>
               ) : (
                 <Badge 
@@ -177,8 +177,8 @@ export function AssignedOrderCard({
             </div>
           </div>
           
-          {/* Awaiting Confirmation Notice */}
-          {(order.status as string) === 'Awaiting Confirmation' && (
+          {/* Awaiting Approval Notice */}
+          {(order.status as string) === 'Awaiting Approval' && (
             <div className="bg-orange-50 border-l-4 border-orange-500 p-3 rounded-r-lg">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
@@ -187,7 +187,7 @@ export function AssignedOrderCard({
                     Waiting for Admin Approval
                   </p>
                   <p className="text-xs text-orange-700 mt-1">
-                    This order is pending admin confirmation. Once approved, you'll be able to start working on it.
+                    This order is pending admin approval. Once approved, you'll be able to start working on it.
                   </p>
                 </div>
               </div>
