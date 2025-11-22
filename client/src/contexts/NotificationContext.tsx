@@ -171,15 +171,35 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       deadline?: string;
       notes?: string;
       requireConfirmation?: boolean;
+      writerName?: string; // Optional writer name
+      assignedByName?: string; // Optional assigned by name
     }
   ): Promise<AssignmentHistory> => {
+    // Try to get writer name and assigned by name
+    let writerName = options.writerName || 'Writer';
+    let assignedByName = options.assignedByName || (assignedBy === 'writer' ? 'Writer' : 'Admin');
+    
+    try {
+      const writers = await db.find('writers');
+      const writer = writers.find((w: any) => w.id === writerId);
+      if (writer) writerName = writer.name || writerName;
+      
+      if (assignedBy !== 'writer') {
+        const users = await db.find('users');
+        const user = users.find((u: any) => u.id === assignedBy);
+        if (user) assignedByName = user.name || assignedByName;
+      }
+    } catch (e) {
+      // Use defaults if lookup fails
+    }
+    
     const assignment: AssignmentHistory = {
       id: `assign-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       orderId,
       writerId,
-      writerName: 'Writer Name', // This should be fetched from writers context
+      writerName,
       assignedBy,
-      assignedByName: 'Admin Name', // This should be fetched from users context
+      assignedByName,
       assignedAt: new Date().toISOString(),
       priority: options.priority || 'medium',
       deadline: options.deadline,

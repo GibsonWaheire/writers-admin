@@ -5,6 +5,7 @@ import { api } from '../services/api';
 import { notificationHelpers } from '../services/notificationService';
 import { useAuth } from './AuthContext';
 import { useWallet } from './WalletContext';
+import { useNotifications } from './NotificationContext';
 
 interface OrderContextType {
   orders: Order[];
@@ -77,6 +78,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     addEarning = walletContext?.addEarning || null;
   } catch (e) {
     // WalletProvider not available yet, will use null
+  }
+  
+  // Try to get notification context for assignment history
+  let notificationContext: ReturnType<typeof useNotifications> | null = null;
+  try {
+    notificationContext = useNotifications();
+  } catch (e) {
+    // NotificationContext not available yet
   }
   
   const [orders, setOrders] = useState<Order[]>([]);
@@ -261,19 +270,58 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         
         switch (action) {
         case 'pick':
-          newStatus = 'In Progress'; // Changed to 'In Progress' so it shows in assigned orders immediately
+          // When writer picks order, it should be 'Assigned' status (same as admin assignment)
+          // This ensures it shows on both admin and writer dashboards
+          newStatus = 'Assigned';
           updates.writerId = additionalData?.writerId || 'unknown';
           updates.assignedWriter = additionalData?.writerName || 'Unknown Writer';
           updates.assignedAt = new Date().toISOString();
           updates.pickedBy = 'writer';
+          updates.assignedBy = 'writer'; // Track that writer picked it themselves
+          updates.assignmentPriority = 'medium'; // Default priority for picked orders
+          
+          // Log activity
+          logOrderActivity(
+            orderId,
+            order.orderNumber,
+            'pick',
+            oldStatus,
+            'Assigned',
+            `Order ${order.orderNumber || orderId} picked by writer ${updates.assignedWriter}`,
+            { writerId: updates.writerId, writerName: updates.assignedWriter, pickedBy: 'writer' }
+          ).catch(err => console.error('Failed to log activity:', err));
+          
+          // Create assignment history entry for picked orders
+          // This ensures it appears in "recently assigned" section
+          if (notificationContext?.createAssignment) {
+            notificationContext.createAssignment(
+              orderId,
+              updates.writerId as string,
+              'writer', // assignedBy
+              {
+                priority: 'medium',
+                requireConfirmation: false,
+                writerName: updates.assignedWriter as string,
+                assignedByName: updates.assignedWriter as string
+              }
+            ).catch(err => console.error('Failed to create assignment history:', err));
+          }
+          
+          // Notify admin that writer picked the order
+          notificationHelpers.notifyAdminOrderPicked(
+            orderId,
+            order.title,
+            updates.assignedWriter as string
+          ).catch(err => console.error('Failed to notify admin:', err));
           
           console.log('🎯 OrderContext: Order picked by writer:', {
             orderId,
             oldStatus,
-            newStatus: 'In Progress',
+            newStatus: 'Assigned',
             writerId: updates.writerId,
             writerName: updates.assignedWriter,
-            assignedAt: updates.assignedAt
+            assignedAt: updates.assignedAt,
+            note: 'Order is now Assigned and visible on both admin and writer dashboards'
           });
           break;
           
@@ -787,11 +835,13 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           break;
           
         case 'pick':
-          orderWithUpdates.status = 'Assigned';
+          orderWithUpdates.status = 'Assigned'; // Changed to 'Assigned' so it shows on admin dashboard
           orderWithUpdates.writerId = additionalData?.writerId as string;
           orderWithUpdates.assignedWriter = additionalData?.writerName as string;
           orderWithUpdates.assignedAt = new Date().toISOString();
           orderWithUpdates.pickedBy = 'writer';
+          orderWithUpdates.assignedBy = 'writer';
+          orderWithUpdates.assignmentPriority = 'medium';
           break;
           
         case 'make_available':

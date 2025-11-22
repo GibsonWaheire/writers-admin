@@ -383,11 +383,16 @@ export default function AssignmentCenterPage() {
                       <Badge variant="secondary">Assigned</Badge>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm text-gray-600">
                       <div><span className="font-medium">Writer:</span> {order.assignedWriter}</div>
                       <div><span className="font-medium">Assigned:</span> {new Date(order.assignedAt || order.updatedAt).toLocaleDateString()}</div>
                       <div><span className="font-medium">Deadline:</span> {new Date(order.deadline).toLocaleDateString()}</div>
                       <div><span className="font-medium">Value:</span> KES {(order.pages * 350).toLocaleString()}</div>
+                      <div>
+                        <Badge variant={order.pickedBy === 'writer' ? 'outline' : 'secondary'} className="text-xs">
+                          {order.pickedBy === 'writer' ? 'Picked by Writer' : 'Assigned by Admin'}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                   

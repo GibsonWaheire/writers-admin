@@ -52,6 +52,22 @@ def seed_database():
         # Seed Writers
         print("Seeding writers...")
         for writer_data in data.get('writers', []):
+            # Also create a user account for the writer if email doesn't exist
+            existing_user = User.query.filter_by(email=writer_data['email']).first()
+            if not existing_user:
+                import hashlib
+                # Use default password 'password123' for writers
+                password_hash = hashlib.sha256('password123'.encode()).hexdigest()
+                writer_user = User(
+                    id=f"user-{writer_data['id']}",
+                    email=writer_data['email'],
+                    name=writer_data['name'],
+                    password=password_hash,
+                    role='writer'
+                )
+                db.session.add(writer_user)
+                print(f"  Created user account for writer: {writer_data['email']}")
+            
             writer = Writer(
                 id=writer_data['id'],
                 email=writer_data['email'],

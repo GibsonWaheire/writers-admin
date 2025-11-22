@@ -255,6 +255,24 @@ export const notificationHelpers = {
     }
   },
 
+  // Notify admin when writer picks an order
+  async notifyAdminOrderPicked(orderId: string, orderTitle: string, writerName: string): Promise<void> {
+    const admins = await db.find('users');
+    const adminIds = admins.filter(user => user.role === 'admin').map(user => user.id);
+    
+    if (adminIds.length > 0) {
+      await notificationService.sendNotificationToUsers(adminIds, {
+        title: 'Order Picked by Writer',
+        message: `${writerName} has picked up order: ${orderTitle}`,
+        type: 'order_assigned',
+        priority: 'medium',
+        actionUrl: `/admin/orders?tab=assigned&highlight=${orderId}`,
+        actionLabel: 'View Order',
+        metadata: { orderId, writerName, pickedBy: 'writer' }
+      });
+    }
+  },
+
   // Notify writer when order is approved
   async notifyWriterOrderApproved(writerId: string, orderTitle: string, amount: number): Promise<void> {
     await notificationService.sendNotification({

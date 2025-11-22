@@ -290,6 +290,43 @@ class ApiService {
     });
   }
 
+  // Specialized methods for order activities
+  async getOrderActivities(orderId?: string, writerId?: string, actionType?: string): Promise<any[]> {
+    const params: Record<string, string> = {};
+    if (orderId) params.orderId = orderId;
+    if (writerId) params.writerId = writerId;
+    if (actionType) params.actionType = actionType;
+    return this.request<any[]>(`/order_activities${params ? '?' + new URLSearchParams(params).toString() : ''}`);
+  }
+
+  async createOrderActivity(activity: {
+    id?: string;
+    orderId: string;
+    orderNumber?: string;
+    actionType: string;
+    actionBy: string;
+    actionByName?: string;
+    actionByRole?: string;
+    oldStatus?: string;
+    newStatus?: string;
+    description?: string;
+    metadata?: Record<string, unknown>;
+    createdAt?: string;
+  }): Promise<any> {
+    // Generate ID if not provided
+    if (!activity.id) {
+      activity.id = `ACT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
+    // Set createdAt if not provided
+    if (!activity.createdAt) {
+      activity.createdAt = new Date().toISOString();
+    }
+    return this.request<any>('/order_activities', {
+      method: 'POST',
+      body: JSON.stringify(activity),
+    });
+  }
+
   // Specialized methods for messages
   async getMessages(userId?: string, relatedOrderId?: string): Promise<any[]> {
     const params: Record<string, string> = {};
