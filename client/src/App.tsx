@@ -11,6 +11,7 @@ import PendingReviewPage from "./pages/admin/PendingReviewPage";
 import AssignmentCenterPage from "./pages/admin/AssignmentCenterPage";
 import WriterMonitorPage from "./pages/admin/WriterMonitorPage";
 import OrderAnalyticsPage from "./pages/admin/OrderAnalyticsPage";
+import AdminPickedOrdersPage from "./pages/admin/PickedOrdersPage";
 import AdminWritersPage from "./pages/AdminWritersPage";
 import AdminReviewsPage from "./pages/AdminReviewsPage";
 import AdminFinancialPage from "./pages/AdminFinancialPage";
@@ -22,6 +23,7 @@ import AssignedOrdersPage from "./pages/writer/AssignedOrdersPage";
 import RevisionsPage from "./pages/writer/RevisionsPage";
 import CompletedOrdersPage from "./pages/writer/CompletedOrdersPage";
 import RejectedOrdersPage from "./pages/writer/RejectedOrdersPage";
+import PickedOrdersPage from "./pages/writer/PickedOrdersPage";
 import PODOrdersPage from "./pages/PODOrdersPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import WalletPage from "./pages/WalletPage";
@@ -143,6 +145,13 @@ function AppRouter() {
           </Layout>
         </ProtectedRoute>
       } />
+      <Route path="/orders/picked" element={
+        <ProtectedRoute>
+          <Layout>
+            <PickedOrdersPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
       <Route path="/pod-orders" element={
         <ProtectedRoute>
           <Layout>
@@ -211,6 +220,13 @@ function AppRouter() {
         <ProtectedRoute requiredRole="admin">
           <Layout>
             <AssignmentCenterPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/orders/picked" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <AdminPickedOrdersPage />
           </Layout>
         </ProtectedRoute>
       } />

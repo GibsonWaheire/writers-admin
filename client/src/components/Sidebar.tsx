@@ -18,7 +18,8 @@ import {
   CheckCircle,
   XCircle,
   Users,
-  BarChart3
+  BarChart3,
+  Hand
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -46,6 +47,7 @@ const writerMenuItems: MenuItem[] = [
     subItems: [
       { icon: ClipboardList, label: 'Available Orders', path: '/orders/available', emoji: '📋' },
       { icon: UserCheck, label: 'Assigned Orders', path: '/orders/assigned', emoji: '👤' },
+      { icon: Hand, label: 'Picked Orders', path: '/orders/picked', emoji: '✋' },
       { icon: AlertTriangle, label: 'Revisions', path: '/orders/revisions', emoji: '🔄' },
       { icon: CheckCircle, label: 'Completed', path: '/orders/completed', emoji: '✅' },
       { icon: XCircle, label: 'Rejected', path: '/orders/rejected', emoji: '❌' }
