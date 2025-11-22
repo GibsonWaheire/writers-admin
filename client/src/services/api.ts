@@ -304,7 +304,8 @@ class ApiService {
 
   // Financial helper methods
   async findFinancial<T>(subCollection: string, params?: Record<string, string>): Promise<T[]> {
-    return this.request<T[]>(`/financial/${subCollection}${params ? '?' + new URLSearchParams(params).toString() : ''}`);
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request<T[]>(`/financial/${subCollection}${queryString}`);
   }
 
   async createFinancial<T extends { id: string }>(

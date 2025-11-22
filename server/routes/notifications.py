@@ -52,3 +52,8 @@ def mark_read(notification_id):
     
     return jsonify(notification.to_dict()), 200
 
+@bp.route('/assignmentHistory', methods=['GET'])
+def get_assignment_history():
+    # Return empty array for now - can be implemented later
+    return jsonify([]), 200
+

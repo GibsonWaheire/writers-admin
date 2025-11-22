@@ -107,6 +107,90 @@ def create_payment():
     db.session.commit()
     return jsonify(payment.to_dict()), 201
 
+# Client Payments
+@bp.route('/clientPayments', methods=['GET'])
+def get_client_payments():
+    query = ClientPayment.query
+    payments = query.all()
+    return jsonify([p.to_dict() for p in payments]), 200
+
+@bp.route('/clientPayments', methods=['POST'])
+def create_client_payment():
+    data = request.get_json()
+    import uuid
+    
+    payment = ClientPayment(
+        id=data.get('id', str(uuid.uuid4())),
+        order_id=data.get('orderId'),
+        order_title=data.get('orderTitle'),
+        client_id=data.get('clientId'),
+        client_name=data.get('clientName'),
+        amount=data.get('amount'),
+        currency=data.get('currency', 'KES'),
+        status=data.get('status', 'pending'),
+        method=data.get('method'),
+        reference=data.get('reference')
+    )
+    
+    db.session.add(payment)
+    db.session.commit()
+    return jsonify(payment.to_dict()), 201
+
+# Platform Funds
+@bp.route('/platformFunds', methods=['GET'])
+def get_platform_funds():
+    query = PlatformFunds.query
+    funds = query.all()
+    return jsonify([f.to_dict() for f in funds]), 200
+
+@bp.route('/platformFunds', methods=['POST'])
+def create_platform_fund():
+    data = request.get_json()
+    import uuid
+    
+    fund = PlatformFunds(
+        id=data.get('id', str(uuid.uuid4())),
+        amount=data.get('amount'),
+        currency=data.get('currency', 'KES'),
+        source=data.get('source'),
+        added_by=data.get('addedBy'),
+        reference=data.get('reference'),
+        notes=data.get('notes'),
+        status=data.get('status', 'pending')
+    )
+    
+    db.session.add(fund)
+    db.session.commit()
+    return jsonify(fund.to_dict()), 201
+
+# Transaction Logs
+@bp.route('/transactionLogs', methods=['GET'])
+def get_transaction_logs():
+    query = TransactionLog.query
+    logs = query.all()
+    return jsonify([log.to_dict() for log in logs]), 200
+
+@bp.route('/transactionLogs', methods=['POST'])
+def create_transaction_log():
+    data = request.get_json()
+    import uuid
+    
+    log = TransactionLog(
+        id=data.get('id', str(uuid.uuid4())),
+        type=data.get('type'),
+        amount=data.get('amount'),
+        currency=data.get('currency', 'KES'),
+        description=data.get('description'),
+        performed_by=data.get('performedBy'),
+        related_entity_id=data.get('relatedEntityId'),
+        balance_before=data.get('balanceBefore'),
+        balance_after=data.get('balanceAfter')
+    )
+    
+    db.session.add(log)
+    db.session.commit()
+    return jsonify(log.to_dict()), 201
+
 # Withdrawal Requests
 @bp.route('/withdrawals', methods=['GET'])
 def get_withdrawals():

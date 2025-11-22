@@ -14,16 +14,23 @@ def login():
     if not email or not password:
         return jsonify({'error': 'Email and password required'}), 400
     
-    # Hash password for comparison (simple hash for now)
-    password_hash = hashlib.sha256(password.encode()).hexdigest()
-    
     user = User.query.filter_by(email=email).first()
     if not user:
         return jsonify({'error': 'Invalid credentials'}), 401
     
-    # Compare hashed passwords
-    if user.password != password_hash and user.password != password:  # Support both hashed and plain
-        return jsonify({'error': 'Invalid credentials'}), 401
+    # Hash password for comparison (simple hash for now)
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    # Compare passwords - support both hashed and plain text passwords
+    # Check if stored password is hashed (64 chars for SHA256) or plain text
+    if len(user.password) == 64:
+        # Stored password is hashed, compare hashes
+        if user.password != password_hash:
+            return jsonify({'error': 'Invalid credentials'}), 401
+    else:
+        # Stored password is plain text, compare directly
+        if user.password != password:
+            return jsonify({'error': 'Invalid credentials'}), 401
     
     return jsonify({
         'user': user.to_dict(),
