@@ -9,7 +9,8 @@ import {
   RotateCcw,
   User,
   FileText,
-  Upload
+  Upload,
+  AlertTriangle
 } from 'lucide-react';
 import { AssignmentConfirmationModal } from './AssignmentConfirmationModal';
 import { UnifiedAssignmentModal } from './UnifiedAssignmentModal';
@@ -154,12 +155,18 @@ export function AssignedOrderCard({
           {/* Status and Deadline Info */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Badge 
-                variant={order.status === 'Assigned' ? 'default' : 'secondary'}
-                className={order.status === 'Assigned' ? 'bg-blue-100 text-blue-800' : ''}
-              >
-                {order.status}
-              </Badge>
+              {(order.status as string) === 'Awaiting Confirmation' ? (
+                <Badge className="bg-orange-500 text-white border-0 animate-pulse px-3 py-1">
+                  ⏳ Awaiting Admin Confirmation
+                </Badge>
+              ) : (
+                <Badge 
+                  variant={order.status === 'Assigned' ? 'default' : 'secondary'}
+                  className={order.status === 'Assigned' ? 'bg-blue-100 text-blue-800' : ''}
+                >
+                  {order.status}
+                </Badge>
+              )}
               <div className={`text-sm ${deadlineStatus.color} ${deadlineStatus.bg} px-2 py-1 rounded-full`}>
                 {deadlineStatus.text}
               </div>
@@ -169,6 +176,23 @@ export function AssignedOrderCard({
               Due: {new Date(order.deadline).toLocaleDateString()}
             </div>
           </div>
+          
+          {/* Awaiting Confirmation Notice */}
+          {(order.status as string) === 'Awaiting Confirmation' && (
+            <div className="bg-orange-50 border-l-4 border-orange-500 p-3 rounded-r-lg">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-orange-900">
+                    Waiting for Admin Approval
+                  </p>
+                  <p className="text-xs text-orange-700 mt-1">
+                    This order is pending admin confirmation. Once approved, you'll be able to start working on it.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Assignment Details */}
           {assignment && (

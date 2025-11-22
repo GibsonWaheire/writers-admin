@@ -133,15 +133,45 @@ class Order(db.Model):
     writer_id = db.Column(db.String(50))
     assigned_writer = db.Column(db.String(200))
     assigned_at = db.Column(db.DateTime)
+    assigned_by = db.Column(db.String(50))  # 'admin' or 'writer'
+    picked_by = db.Column(db.String(50))  # 'admin' or 'writer'
+    requires_confirmation = db.Column(db.Boolean, default=False)
+    confirmed_at = db.Column(db.DateTime)
+    confirmed_by = db.Column(db.String(50))
+    assignment_notes = db.Column(db.Text)
+    assignment_priority = db.Column(db.String(20))  # 'low', 'medium', 'high', 'urgent'
+    assignment_deadline = db.Column(db.DateTime)
     started_at = db.Column(db.DateTime)
     submitted_at = db.Column(db.DateTime)
+    submitted_to_admin_at = db.Column(db.DateTime)
+    submission_notes = db.Column(db.Text)
+    files_uploaded_at = db.Column(db.DateTime)
     completed_at = db.Column(db.DateTime)
     attachments = db.Column(db.Text)  # JSON array string
     revision_requests = db.Column(db.Text)  # JSON array string
+    revision_explanation = db.Column(db.Text)  # Admin's explanation for revision
+    revision_score = db.Column(db.Integer, default=10)  # Starts at 10, reduces with each revision
+    revision_count = db.Column(db.Integer, default=0)
+    revision_submitted_at = db.Column(db.DateTime)
+    revision_response_notes = db.Column(db.Text)  # Writer's notes on revision submission
     reviews = db.Column(db.Text)  # JSON array string
     client_messages = db.Column(db.Text)  # JSON array string
     admin_messages = db.Column(db.Text)  # JSON array string
+    admin_review_notes = db.Column(db.Text)
+    admin_reviewed_at = db.Column(db.DateTime)
+    admin_reviewed_by = db.Column(db.String(50))
     last_admin_edit = db.Column(db.Text)  # JSON string
+    # Reassignment tracking
+    reassignment_reason = db.Column(db.Text)
+    reassigned_at = db.Column(db.DateTime)
+    reassigned_by = db.Column(db.String(50))
+    original_writer_id = db.Column(db.String(50))
+    made_available_at = db.Column(db.DateTime)
+    made_available_by = db.Column(db.String(50))
+    # Fine tracking
+    fine_amount = db.Column(db.Float, default=0)
+    fine_reason = db.Column(db.Text)
+    fine_history = db.Column(db.Text)  # JSON array string
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -171,11 +201,38 @@ class Order(db.Model):
             'writerId': self.writer_id,
             'assignedWriter': self.assigned_writer,
             'assignedAt': self.assigned_at.isoformat() if self.assigned_at else None,
+            'assignedBy': self.assigned_by,
+            'pickedBy': self.picked_by,
+            'requiresConfirmation': self.requires_confirmation if self.requires_confirmation is not None else False,
+            'confirmedAt': self.confirmed_at.isoformat() if self.confirmed_at else None,
+            'confirmedBy': self.confirmed_by,
+            'assignmentNotes': self.assignment_notes,
+            'assignmentPriority': self.assignment_priority,
+            'assignmentDeadline': self.assignment_deadline.isoformat() if self.assignment_deadline else None,
             'startedAt': self.started_at.isoformat() if self.started_at else None,
             'submittedAt': self.submitted_at.isoformat() if self.submitted_at else None,
-            'submittedToAdminAt': self.submitted_at.isoformat() if self.submitted_at else None,
+            'submittedToAdminAt': self.submitted_to_admin_at.isoformat() if self.submitted_to_admin_at else None,
+            'submissionNotes': self.submission_notes,
+            'filesUploadedAt': self.files_uploaded_at.isoformat() if self.files_uploaded_at else None,
             'completedAt': self.completed_at.isoformat() if self.completed_at else None,
             'approvedAt': self.completed_at.isoformat() if self.completed_at and self.status == 'Completed' else None,
+            'revisionExplanation': self.revision_explanation,
+            'revisionScore': self.revision_score,
+            'revisionCount': self.revision_count,
+            'revisionSubmittedAt': self.revision_submitted_at.isoformat() if self.revision_submitted_at else None,
+            'revisionResponseNotes': self.revision_response_notes,
+            'adminReviewNotes': self.admin_review_notes,
+            'adminReviewedAt': self.admin_reviewed_at.isoformat() if self.admin_reviewed_at else None,
+            'adminReviewedBy': self.admin_reviewed_by,
+            'reassignmentReason': self.reassignment_reason,
+            'reassignedAt': self.reassigned_at.isoformat() if self.reassigned_at else None,
+            'reassignedBy': self.reassigned_by,
+            'originalWriterId': self.original_writer_id,
+            'madeAvailableAt': self.made_available_at.isoformat() if self.made_available_at else None,
+            'madeAvailableBy': self.made_available_by,
+            'fineAmount': self.fine_amount if self.fine_amount else 0,
+            'fineReason': self.fine_reason,
+            'fineHistory': json.loads(self.fine_history) if self.fine_history else [],
             'attachments': json.loads(self.attachments) if self.attachments else [],
             'uploadedFiles': json.loads(self.attachments) if self.attachments else [],
             'revisionRequests': json.loads(self.revision_requests) if self.revision_requests else [],

@@ -5,13 +5,11 @@ import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { 
   Search, 
-  Clock,
   AlertTriangle,
   CheckCircle,
   User,
-  FileText,
-  Calendar,
-  DollarSign
+  DollarSign,
+  FileText
 } from 'lucide-react';
 import { AssignedOrderCard } from '../../components/AssignedOrderCard';
 import { OrderViewModal } from '../../components/OrderViewModal';
@@ -51,6 +49,18 @@ export default function AssignedOrdersPage() {
     order.writerId === currentWriterId && 
     ['Awaiting Confirmation', 'Assigned', 'Confirmed', 'In Progress', 'Submitted', 'Revision'].includes(order.status)
   );
+
+  // Get recently picked orders by this writer (synced with admin view)
+  const recentlyPickedOrders = orders.filter(order => 
+    order.pickedBy === 'writer' && 
+    order.writerId === currentWriterId && 
+    ['Awaiting Confirmation', 'Assigned', 'In Progress'].includes(order.status as string)
+  ).sort((a, b) => {
+    // Sort by assignedAt or updatedAt, most recent first
+    const dateA = new Date(a.assignedAt || a.updatedAt || 0).getTime();
+    const dateB = new Date(b.assignedAt || b.updatedAt || 0).getTime();
+    return dateB - dateA;
+  });
 
   // Filter orders based on search and status
   const filterOrders = (orders: Order[]) => {
@@ -140,24 +150,10 @@ export default function AssignedOrdersPage() {
 
   // Get order counts by status
   const statusCounts = {
-    'Awaiting Confirmation': assignedOrders.filter(o => o.status === 'Awaiting Confirmation').length,
-    'Confirmed': assignedOrders.filter(o => o.status === 'Confirmed').length,
+    'Awaiting Confirmation': assignedOrders.filter(o => (o.status as string) === 'Awaiting Confirmation').length,
+    'Confirmed': assignedOrders.filter(o => (o.status as string) === 'Confirmed').length,
     'In Progress': assignedOrders.filter(o => o.status === 'In Progress').length
   };
-
-  // Get deadline status
-  const getDeadlineStatus = (order: Order) => {
-    const deadline = new Date(order.deadline);
-    const now = new Date();
-    const hoursLeft = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
-    if (hoursLeft <= 0) return 'overdue';
-    if (hoursLeft <= 6) return 'urgent';
-    if (hoursLeft <= 24) return 'warning';
-    return 'normal';
-  };
-
-  const urgentOrders = assignedOrders.filter(order => ['overdue', 'urgent'].includes(getDeadlineStatus(order)));
 
   return (
     <div className="space-y-6">
@@ -171,6 +167,28 @@ export default function AssignedOrdersPage() {
           {filteredOrders.length} Active Orders
         </Badge>
       </div>
+
+      {/* Awaiting Confirmation Alert - Most Prominent */}
+      {statusCounts['Awaiting Confirmation'] > 0 && (
+        <Card className="border-orange-400 border-2 bg-gradient-to-r from-orange-50 to-amber-50 shadow-xl animate-pulse">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center animate-bounce">
+                <AlertTriangle className="h-8 w-8 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-orange-900 mb-1">
+                  ⚠️ {statusCounts['Awaiting Confirmation']} Order{statusCounts['Awaiting Confirmation'] !== 1 ? 's' : ''} Awaiting Admin Confirmation
+                </h3>
+                <p className="text-orange-800 font-medium">
+                  You have picked {statusCounts['Awaiting Confirmation']} order{statusCounts['Awaiting Confirmation'] !== 1 ? 's' : ''} that {statusCounts['Awaiting Confirmation'] === 1 ? 'is' : 'are'} waiting for admin approval. 
+                  Once confirmed, {statusCounts['Awaiting Confirmation'] === 1 ? 'it will' : 'they will'} appear as "Assigned" and you can start working.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -195,8 +213,8 @@ export default function AssignedOrdersPage() {
                 <AlertTriangle className="h-6 w-6 text-orange-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Urgent</p>
-                <p className="text-2xl font-bold text-gray-900">{urgentOrders.length}</p>
+                <p className="text-sm font-medium text-gray-600">Awaiting Confirmation</p>
+                <p className="text-2xl font-bold text-orange-600">{statusCounts['Awaiting Confirmation']}</p>
               </div>
             </div>
           </CardContent>
@@ -234,6 +252,92 @@ export default function AssignedOrdersPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Recently Picked Orders Section - Synced with Admin View */}
+      {recentlyPickedOrders.length > 0 && (
+        <Card className="border-blue-300 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-900">
+              <FileText className="h-5 w-5" />
+              Recently Picked Orders ({recentlyPickedOrders.length})
+            </CardTitle>
+            <p className="text-sm text-blue-700 mt-1">
+              Orders you have picked (awaiting confirmation or already confirmed)
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentlyPickedOrders.slice(0, 10).map((order) => (
+                <div key={order.id} className="border border-blue-200 rounded-lg p-4 bg-white hover:bg-blue-50 transition-colors shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4 className="font-semibold text-gray-900">{order.title}</h4>
+                        <Badge 
+                          variant={(order.status as string) === 'Awaiting Confirmation' ? 'outline' : 'secondary'}
+                          className={(order.status as string) === 'Awaiting Confirmation' 
+                            ? 'border-orange-400 text-orange-700 bg-orange-50' 
+                            : 'bg-blue-100 text-blue-800'
+                          }
+                        >
+                          {(order.status as string) === 'Awaiting Confirmation' ? '⏳ Awaiting Confirmation' : order.status}
+                        </Badge>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                        <div className="bg-gray-50 p-2 rounded">
+                          <span className="font-medium text-gray-700">Picked:</span>
+                          <div className="text-gray-900 mt-1">
+                            {new Date(order.assignedAt || order.updatedAt).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="bg-purple-50 p-2 rounded">
+                          <span className="font-medium text-purple-700">Deadline:</span>
+                          <div className="text-purple-900 mt-1">
+                            {new Date(order.deadline).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="bg-green-50 p-2 rounded">
+                          <span className="font-medium text-green-700">Value:</span>
+                          <div className="text-green-900 font-semibold mt-1">
+                            KES {(order.pages * 350).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="bg-blue-50 p-2 rounded">
+                          <span className="font-medium text-blue-700">Order #:</span>
+                          <div className="text-blue-900 font-mono mt-1">
+                            {order.orderNumber || order.id.substring(0, 8)}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {(order.status as string) === 'Awaiting Confirmation' && (
+                        <div className="mt-3 bg-orange-50 border-l-4 border-orange-500 p-2 rounded-r">
+                          <p className="text-xs text-orange-800">
+                            ⏳ Waiting for admin to confirm your pick. Once confirmed, you can start working on this order.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex flex-col gap-2 ml-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewOrder(order)}
+                        className="w-full"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        View Details
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Search and Filters */}
       <Card>
