@@ -283,6 +283,8 @@ export function OrderCard({
       }
       
       if (order.status === 'Submitted') {
+        const isRevisionSubmission = (order.revisionFiles && order.revisionFiles.length > 0) || !!order.revisionResponseNotes;
+
         return (
           <div className="flex gap-2">
             <Button 
@@ -291,7 +293,7 @@ export function OrderCard({
               className="bg-green-600 hover:bg-green-700"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
-              Approve
+              {isRevisionSubmission ? 'Approve Revision' : 'Approve'}
             </Button>
             <Button 
               onClick={() => onAction?.('request_revision', order.id)}

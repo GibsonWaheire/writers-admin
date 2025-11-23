@@ -430,7 +430,6 @@ export default function AllOrdersPage() {
           order={selectedOrder}
           userRole="admin"
           onAction={handleOrderActionLocal}
-          activeOrdersCount={0}
         />
       )}
 

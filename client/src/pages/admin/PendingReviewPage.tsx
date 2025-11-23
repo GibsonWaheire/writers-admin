@@ -25,15 +25,18 @@ export default function PendingReviewPage() {
   const { 
     orders, 
     handleOrderAction, 
-    getOrdersByStatus,
     refreshOrders
   } = useOrders();
   const { user } = useAuth();
 
   // Get orders that need admin review
-  const submittedOrders = getOrdersByStatus('Submitted');
-  const revisionOrders = getOrdersByStatus('Resubmitted');
-  const allPendingReview = [...submittedOrders, ...revisionOrders];
+  const submittedOrders = orders.filter(order => 
+    order.status === 'Submitted' && !(order.revisionFiles && order.revisionFiles.length > 0)
+  );
+  const revisionOrders = orders.filter(order => 
+    order.status === 'Submitted' && (order.revisionFiles && order.revisionFiles.length > 0)
+  );
+  const allPendingReview = [...revisionOrders, ...submittedOrders];
 
   const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
@@ -182,7 +185,7 @@ export default function PendingReviewPage() {
             <div className="space-y-4">
               {sortedOrders.map((order) => {
                 const priority = getPriorityLevel(order);
-                const isResubmission = order.status === 'Resubmitted';
+                const isResubmission = (order.revisionFiles || []).length > 0;
                 
                 return (
                   <div key={order.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
@@ -255,7 +258,7 @@ export default function PendingReviewPage() {
                           onClick={() => handleOrderActionLocal('approve', order.id)}
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
-                          Approve
+                          {isResubmission ? 'Approve Revision' : 'Approve'}
                         </Button>
                         
                         <Button
@@ -304,7 +307,6 @@ export default function PendingReviewPage() {
           order={selectedOrder}
           userRole="admin"
           onAction={handleOrderActionLocal}
-          activeOrdersCount={0}
         />
       )}
     </div>

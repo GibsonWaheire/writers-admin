@@ -413,7 +413,6 @@ export default function WriterMonitorPage() {
           order={selectedOrder}
           userRole="admin"
           onAction={handleOrderActionLocal}
-          activeOrdersCount={0}
         />
       )}
     </div>

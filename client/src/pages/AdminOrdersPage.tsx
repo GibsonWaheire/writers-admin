@@ -793,7 +793,6 @@ export default function AdminOrdersPage() {
               handleOrderActionLocal(action, orderId, additionalData);
             }
           }}
-          activeOrdersCount={0}
         />
       )}
 

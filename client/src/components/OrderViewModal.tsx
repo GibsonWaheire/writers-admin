@@ -36,7 +36,6 @@ interface OrderViewModalProps {
   order: Order;
   userRole: 'writer' | 'admin';
   onAction: (action: string, orderId: string, additionalData?: Record<string, unknown>) => void;
-  activeOrdersCount?: number;
 }
 
 export function OrderViewModal({ 
@@ -44,8 +43,7 @@ export function OrderViewModal({
   onClose, 
   order, 
   userRole, 
-  onAction, 
-  activeOrdersCount = 0 
+  onAction 
 }: OrderViewModalProps) {
   const { user } = useAuth();
   const { orders } = useOrders();
@@ -63,6 +61,8 @@ export function OrderViewModal({
   
   // Use latestOrder throughout the component
   const currentOrder = latestOrder;
+  const hasOriginalFiles = (currentOrder.originalFiles && currentOrder.originalFiles.length > 0);
+  const hasRevisionFiles = (currentOrder.revisionFiles && currentOrder.revisionFiles.length > 0);
   
   // Debug: Log when upload modal state changes
   useEffect(() => {
@@ -77,6 +77,7 @@ export function OrderViewModal({
       'Assigned': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
       'In Progress': { variant: 'default' as const, color: 'text-blue-600', bg: 'bg-blue-50' },
       'Submitted': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
+      'Resubmitted': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
       'Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
       'Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
       'Revision': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
@@ -309,6 +310,8 @@ export function OrderViewModal({
     }
 
     if (order.status === 'Submitted') {
+      const isRevisionSubmission = (order.revisionFiles && order.revisionFiles.length > 0) || !!order.revisionResponseNotes;
+
       return (
         <div className="flex gap-2">
           <Button 
@@ -316,7 +319,7 @@ export function OrderViewModal({
             className="bg-green-600 hover:bg-green-700"
           >
             <CheckCircle className="h-4 w-4 mr-2" />
-            Approve
+            {isRevisionSubmission ? 'Approve Revision' : 'Approve'}
           </Button>
           <Button 
             onClick={() => setShowRevisionModal(true)}
@@ -743,43 +746,137 @@ export function OrderViewModal({
 
           {/* Files Tab */}
           <TabsContent value="files" className="space-y-4 bg-orange-50/30 p-4 rounded-lg">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Download className="h-5 w-5 text-orange-600" />
-                  Uploaded Files
-                  {currentOrder.uploadedFiles && currentOrder.uploadedFiles.length > 0 && (
-                    <Badge variant="secondary" className="ml-2">
-                      {currentOrder.uploadedFiles.length} file{currentOrder.uploadedFiles.length !== 1 ? 's' : ''}
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {(() => {
-                  // Remove duplicates by filename and keep the most recent one
-                  const files = currentOrder.uploadedFiles || [];
-                  const uniqueFiles = files.reduce((acc: typeof files, file) => {
-                    const existingIndex = acc.findIndex(
-                      f => (f.originalName || f.filename) === (file.originalName || file.filename)
-                    );
-                    if (existingIndex === -1) {
-                      acc.push(file);
-                    } else {
-                      // Keep the most recent file if duplicate
-                      const existing = acc[existingIndex];
-                      const existingDate = new Date(existing.uploadedAt).getTime();
-                      const newDate = new Date(file.uploadedAt).getTime();
-                      if (newDate > existingDate) {
-                        acc[existingIndex] = file;
-                      }
-                    }
-                    return acc;
-                  }, []);
-
-                  return uniqueFiles.length > 0 ? (
+            <div className="space-y-4">
+              {hasOriginalFiles && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-blue-900">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                      Original Submission Files
+                      <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-700 border border-blue-200">
+                        {currentOrder.originalFiles!.length} file{currentOrder.originalFiles!.length !== 1 ? 's' : ''}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <div className="space-y-3">
-                      {uniqueFiles.map((file) => (
+                      {currentOrder.originalFiles!.map((file) => (
+                        <div key={file.id} className="flex items-center justify-between p-3 border border-blue-100 rounded-lg bg-blue-50/70">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="p-2 bg-blue-100 rounded-lg">
+                              <FileText className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 truncate">{file.originalName || file.filename}</p>
+                              <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                                <span>{formatFileSize(file.size)}</span>
+                                <span>•</span>
+                                <span className="truncate">{file.type || 'Unknown type'}</span>
+                                <span>•</span>
+                                <span>{new Date(file.uploadedAt).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="ml-4 flex-shrink-0"
+                            onClick={() => {
+                              if (file.url) {
+                                const link = document.createElement('a');
+                                link.href = file.url;
+                                link.download = file.originalName || file.filename;
+                                link.target = '_blank';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              } else {
+                                alert('File URL not available. The file may need to be re-uploaded.');
+                              }
+                            }}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Download
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {hasRevisionFiles && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-orange-900">
+                      <RefreshCw className="h-5 w-5 text-orange-600" />
+                      Revision Files
+                      <Badge variant="secondary" className="ml-2 bg-orange-100 text-orange-700 border border-orange-200">
+                        {currentOrder.revisionFiles!.length} file{currentOrder.revisionFiles!.length !== 1 ? 's' : ''}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {currentOrder.revisionFiles!.map((file) => (
+                        <div key={file.id} className="flex items-center justify-between p-3 border border-orange-100 rounded-lg bg-orange-50/70">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="p-2 bg-orange-100 rounded-lg">
+                              <RefreshCw className="h-5 w-5 text-orange-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 truncate">{file.originalName || file.filename}</p>
+                              <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                                <span>{formatFileSize(file.size)}</span>
+                                <span>•</span>
+                                <span className="truncate">{file.type || 'Unknown type'}</span>
+                                <span>•</span>
+                                <span>{new Date(file.uploadedAt).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="ml-4 flex-shrink-0"
+                            onClick={() => {
+                              if (file.url) {
+                                const link = document.createElement('a');
+                                link.href = file.url;
+                                link.download = file.originalName || file.filename;
+                                link.target = '_blank';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              } else {
+                                alert('File URL not available. The file may need to be re-uploaded.');
+                              }
+                            }}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Download
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {!hasOriginalFiles && !hasRevisionFiles && currentOrder.uploadedFiles && currentOrder.uploadedFiles.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Download className="h-5 w-5 text-orange-600" />
+                      Uploaded Files
+                      <Badge variant="secondary" className="ml-2">
+                        {currentOrder.uploadedFiles.length} file{currentOrder.uploadedFiles.length !== 1 ? 's' : ''}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {currentOrder.uploadedFiles.map((file) => (
                         <div key={file.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className="p-2 bg-orange-100 rounded-lg">
@@ -820,22 +917,26 @@ export function OrderViewModal({
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                        <FileText className="h-8 w-8 text-gray-400" />
-                      </div>
-                      <p className="text-gray-500 font-medium mb-2">No files uploaded yet</p>
-                      <p className="text-sm text-gray-400">
-                        {currentOrder.status === 'Revision' 
-                          ? 'Upload revision files using the "Upload Revision Files" button below.'
-                          : 'Upload files using the "Upload Order Files" button below.'}
-                      </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {!hasOriginalFiles && !hasRevisionFiles && (!currentOrder.uploadedFiles || currentOrder.uploadedFiles.length === 0) && (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                      <Paperclip className="h-8 w-8 text-gray-400" />
                     </div>
-                  );
-                })()}
-              </CardContent>
-            </Card>
+                    <p className="text-gray-500 font-medium mb-2">No files uploaded yet</p>
+                    <p className="text-sm text-gray-400">
+                      {currentOrder.status === 'Revision' 
+                        ? 'Upload revision files using the "Upload Revision Files" button below.'
+                        : 'Upload files using the "Upload Order Files" button below.'}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </div>

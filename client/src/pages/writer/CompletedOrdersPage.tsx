@@ -7,11 +7,11 @@ import {
   Search, 
   CheckCircle,
   Star,
-  Calendar,
   DollarSign,
   TrendingUp,
   Award,
-  FileText
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 import { OrderCard } from '../../components/OrderCard';
 import { OrderViewModal } from '../../components/OrderViewModal';
@@ -29,17 +29,21 @@ export default function CompletedOrdersPage() {
 
   const { 
     orders,
-    handleOrderAction,
-    getWriterTotalEarnings
+    handleOrderAction
   } = useOrders();
   
   const { user } = useAuth();
   const currentWriterId = getWriterIdForUser(user?.id);
 
-  // Get completed orders for current writer
+  // Orders grouped by status buckets for writer
+  const pendingReviewOrders = orders.filter(order =>
+    order.writerId === currentWriterId &&
+    order.status === 'Submitted'
+  );
+
   const completedOrders = orders.filter(order => 
     order.writerId === currentWriterId && 
-    ['Completed', 'Paid'].includes(order.status)
+    ['Completed', 'Paid', 'Approved'].includes(order.status)
   );
 
   // Filter orders based on search and filters
@@ -118,15 +122,105 @@ export default function CompletedOrdersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Completed Orders</h1>
-          <p className="text-gray-600 mt-1">View your completed work and track your achievements</p>
+          <p className="text-gray-600 mt-1">
+            View everything you've wrapped up plus submissions pending admin review
+          </p>
         </div>
-        <Badge variant="outline" className="text-lg px-4 py-2">
-          {filteredOrders.length} Completed
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-lg px-4 py-2">
+            {filteredOrders.length} Completed
+          </Badge>
+          <Badge variant="secondary" className="text-lg px-4 py-2 bg-purple-100 text-purple-700 border border-purple-200">
+            {pendingReviewOrders.length} Pending Review
+          </Badge>
+        </div>
       </div>
+
+      {/* Pending Admin Review Section */}
+      {pendingReviewOrders.length > 0 && (
+        <Card className="border-purple-200 bg-purple-50/70">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-purple-900">
+              <RefreshCw className="h-5 w-5" />
+              Pending Admin Review
+              <Badge className="ml-2 bg-white text-purple-700 border border-purple-200">
+                {pendingReviewOrders.length} submission{pendingReviewOrders.length !== 1 ? 's' : ''}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {pendingReviewOrders.map(order => {
+              const isRevisionSubmission = (order.revisionFiles || []).length > 0 || !!order.revisionResponseNotes;
+              return (
+                <div 
+                  key={order.id}
+                  className="bg-white/80 border border-purple-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className="text-lg font-semibold text-gray-900">{order.title}</h3>
+                        <Badge className="bg-purple-100 text-purple-700">
+                          {isRevisionSubmission ? 'Revision Submitted' : 'Submitted to Admin'}
+                        </Badge>
+                        {isRevisionSubmission && (
+                          <Badge variant="outline" className="border-orange-200 text-orange-700 bg-orange-50">
+                            Revision Files • {(order.revisionFiles || []).length}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">{order.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Clock className="h-4 w-4" />
+                      Submitted {new Date(order.submittedToAdminAt || order.updatedAt).toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 text-sm text-gray-600">
+                    <div>
+                      <span className="font-medium">Discipline:</span> {order.discipline}
+                    </div>
+                    <div>
+                      <span className="font-medium">Pages:</span> {order.pages}
+                    </div>
+                    <div>
+                      <span className="font-medium">Format:</span> {order.format}
+                    </div>
+                    <div>
+                      <span className="font-medium">Value:</span> KES {(order.pages * 350).toLocaleString()}
+                    </div>
+                  </div>
+
+                  {order.revisionResponseNotes && (
+                    <div className="mt-4 p-3 bg-purple-50 border border-purple-100 rounded-lg text-sm text-purple-700">
+                      <p className="font-medium mb-1">Revision Summary:</p>
+                      <p className="whitespace-pre-wrap">{order.revisionResponseNotes}</p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-purple-100">
+                    <div className="text-xs text-gray-500 flex items-center gap-2">
+                      <RefreshCw className="h-3 w-3" />
+                      Awaiting admin approval
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewOrder(order)}
+                    >
+                      View Details
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -278,9 +372,9 @@ export default function CompletedOrdersPage() {
             <OrderCard
               key={order.id}
               order={order}
-              onViewDetails={handleViewOrder}
+              userRole="writer"
+              onView={handleViewOrder}
               showActions={false}
-              completedView={true}
             />
           ))
         ) : (

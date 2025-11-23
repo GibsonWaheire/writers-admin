@@ -498,7 +498,6 @@ export default function AssignmentCenterPage() {
           order={selectedOrder}
           userRole="admin"
           onAction={handleOrderActionLocal}
-          activeOrdersCount={0}
         />
       )}
 
