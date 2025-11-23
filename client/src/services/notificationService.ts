@@ -273,6 +273,24 @@ export const notificationHelpers = {
     }
   },
 
+  // Notify admin when revision is resubmitted
+  async notifyAdminRevisionResubmitted(orderId: string, orderTitle: string, writerName: string, revisionNotes?: string): Promise<void> {
+    const admins = await db.find('users');
+    const adminIds = admins.filter(user => user.role === 'admin').map(user => user.id);
+    
+    if (adminIds.length > 0) {
+      await notificationService.sendNotificationToUsers(adminIds, {
+        title: 'Revision Resubmitted - Pending Review',
+        message: `${writerName} has resubmitted revision for: ${orderTitle}. ${revisionNotes ? `Summary: ${revisionNotes.substring(0, 100)}...` : ''}`,
+        type: 'system_update',
+        priority: 'high',
+        actionUrl: `/admin/orders?status=Submitted&highlight=${orderId}`,
+        actionLabel: 'Review Revision',
+        metadata: { orderId, writerName, status: 'Submitted', isRevisionResubmission: true, revisionNotes }
+      });
+    }
+  },
+
   // Notify writer when order is approved
   async notifyWriterOrderApproved(writerId: string, orderTitle: string, amount: number): Promise<void> {
     await notificationService.sendNotification({

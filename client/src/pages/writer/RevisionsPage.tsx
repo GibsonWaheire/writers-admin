@@ -12,7 +12,6 @@ import {
   DollarSign
 } from 'lucide-react';
 import { OrderViewModal } from '../../components/OrderViewModal';
-import { SubmitRevisionModal } from '../../components/SubmitRevisionModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Order } from '../../types/order';
@@ -22,7 +21,6 @@ export default function RevisionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
   const [priorityFilter, setPriorityFilter] = useState<string>("");
 
   const { 
@@ -72,24 +70,6 @@ export default function RevisionsPage() {
 
   const filteredOrders = filterOrders(revisionOrders);
 
-  const handleSubmitRevision = async (submission: {
-    files: import('../../types/order').UploadedFile[];
-    notes: string;
-    revisionNotes?: string;
-  }) => {
-    if (!selectedOrder) return;
-    try {
-      await handleOrderAction('resubmit', selectedOrder.id, {
-        files: submission.files,
-        notes: submission.notes,
-        revisionNotes: submission.revisionNotes
-      });
-      setIsRevisionModalOpen(false);
-      setSelectedOrder(null);
-    } catch (error) {
-      console.error('Failed to submit revision:', error);
-    }
-  };
 
   const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
@@ -98,15 +78,12 @@ export default function RevisionsPage() {
 
   const handleOrderActionLocal = async (action: string, orderId: string, data?: any) => {
     try {
-      if (action === 'submit_revision') {
-        setIsModalOpen(false);
-        setIsRevisionModalOpen(true);
-        return;
-      }
-      
       await handleOrderAction(action, orderId, data);
-      setIsModalOpen(false);
-      setSelectedOrder(null);
+      // Keep modal open for file uploads, close for other actions
+      if (action !== 'upload_files') {
+        setIsModalOpen(false);
+        setSelectedOrder(null);
+      }
     } catch (error) {
       console.error('Failed to perform order action:', error);
     }
@@ -300,19 +277,6 @@ export default function RevisionsPage() {
                     <FileText className="h-4 w-4 mr-2" />
                     View Details
                   </Button>
-                  {order.status === 'Revision' && (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setSelectedOrder(order);
-                        setIsRevisionModalOpen(true);
-                      }}
-                      className="bg-orange-600 hover:bg-orange-700"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Submit Revision
-                    </Button>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -361,18 +325,6 @@ export default function RevisionsPage() {
         />
       )}
 
-      {/* Submit Revision Modal */}
-      {selectedOrder && (
-        <SubmitRevisionModal
-          isOpen={isRevisionModalOpen}
-          onClose={() => {
-            setIsRevisionModalOpen(false);
-            setSelectedOrder(null);
-          }}
-          order={selectedOrder}
-          onSubmit={handleSubmitRevision}
-        />
-      )}
     </div>
   );
 }

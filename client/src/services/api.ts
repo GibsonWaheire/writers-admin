@@ -296,7 +296,7 @@ class ApiService {
     if (orderId) params.orderId = orderId;
     if (writerId) params.writerId = writerId;
     if (actionType) params.actionType = actionType;
-    return this.request<any[]>(`/order_activities${params ? '?' + new URLSearchParams(params).toString() : ''}`);
+    return this.request<any[]>(`/order-activities${params ? '?' + new URLSearchParams(params).toString() : ''}`);
   }
 
   async createOrderActivity(activity: {
@@ -321,7 +321,7 @@ class ApiService {
     if (!activity.createdAt) {
       activity.createdAt = new Date().toISOString();
     }
-    return this.request<any>('/order_activities', {
+    return this.request<any>('/order-activities', {
       method: 'POST',
       body: JSON.stringify(activity),
     });

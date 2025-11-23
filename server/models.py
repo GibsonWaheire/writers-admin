@@ -147,7 +147,9 @@ class Order(db.Model):
     submission_notes = db.Column(db.Text)
     files_uploaded_at = db.Column(db.DateTime)
     completed_at = db.Column(db.DateTime)
-    attachments = db.Column(db.Text)  # JSON array string
+    attachments = db.Column(db.Text)  # JSON array string (for requirements/instructions)
+    original_files = db.Column(db.Text)  # JSON array string - Original submission files
+    revision_files = db.Column(db.Text)  # JSON array string - Revision submission files
     revision_requests = db.Column(db.Text)  # JSON array string
     revision_explanation = db.Column(db.Text)  # Admin's explanation for revision
     revision_score = db.Column(db.Integer, default=10)  # Starts at 10, reduces with each revision
@@ -234,7 +236,9 @@ class Order(db.Model):
             'fineReason': self.fine_reason,
             'fineHistory': json.loads(self.fine_history) if self.fine_history else [],
             'attachments': json.loads(self.attachments) if self.attachments else [],
-            'uploadedFiles': json.loads(self.attachments) if self.attachments else [],
+            'originalFiles': json.loads(self.original_files) if self.original_files else [],
+            'revisionFiles': json.loads(self.revision_files) if self.revision_files else [],
+            'uploadedFiles': json.loads(self.original_files) if self.original_files else [],  # For backward compatibility, show original files
             'revisionRequests': json.loads(self.revision_requests) if self.revision_requests else [],
             'reviews': json.loads(self.reviews) if self.reviews else [],
             'clientMessages': json.loads(self.client_messages) if self.client_messages else [],

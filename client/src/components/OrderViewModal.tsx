@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -11,6 +11,7 @@ import { SubmitToAdminModal } from './SubmitToAdminModal';
 import { SubmitRevisionModal } from './SubmitRevisionModal';
 import { UploadOrderFilesModal } from './UploadOrderFilesModal';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrders } from '../contexts/OrderContext';
 import { 
   DollarSign, 
   FileText, 
@@ -22,7 +23,9 @@ import {
   User,
   BookOpen,
   FileType,
-  Upload
+  Upload,
+  RefreshCw,
+  Paperclip
 } from 'lucide-react';
 import type { Order, OrderStatus, WriterConfirmation, WriterQuestion } from '../types/order';
 import { getWriterIdForUser } from '../utils/writer';
@@ -45,6 +48,7 @@ export function OrderViewModal({
   activeOrdersCount = 0 
 }: OrderViewModalProps) {
   const { user } = useAuth();
+  const { orders } = useOrders();
   const [activeTab, setActiveTab] = useState('details');
   const [notes, setNotes] = useState('');
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -52,6 +56,18 @@ export function OrderViewModal({
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showRevisionSubmitModal, setShowRevisionSubmitModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  
+  // Get the latest order from context to ensure we have the most up-to-date data
+  // This ensures the modal updates after file uploads or other changes
+  const latestOrder = orders.find(o => o.id === order.id) || order;
+  
+  // Use latestOrder throughout the component
+  const currentOrder = latestOrder;
+  
+  // Debug: Log when upload modal state changes
+  useEffect(() => {
+    console.log('📎 OrderViewModal: showUploadModal changed to:', showUploadModal);
+  }, [showUploadModal]);
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
@@ -64,7 +80,6 @@ export function OrderViewModal({
       'Approved': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
       'Rejected': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
       'Revision': { variant: 'secondary' as const, color: 'text-orange-600', bg: 'bg-orange-50' },
-      'Resubmitted': { variant: 'secondary' as const, color: 'text-purple-600', bg: 'bg-purple-50' },
       'Completed': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50' },
       'Late': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
       'Auto-Reassigned': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50' },
@@ -108,98 +123,105 @@ export function OrderViewModal({
   };
 
   const renderWriterActions = () => {
-    if (order.status === 'Available') {
-      if (activeOrdersCount < 3) {
-        return (
-          <Button 
-            onClick={() => setShowConfirmationModal(true)}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Bid on Order
-          </Button>
-        );
-      } else {
-        return (
-          <Button 
-            onClick={() => onAction('request_approval', order.id, { notes })}
-            variant="outline"
-            className="border-yellow-500 text-yellow-600 hover:bg-yellow-50"
-          >
-            <AlertTriangle className="h-4 w-4 mr-2" />
-            Request Approval
-          </Button>
-        );
-      }
-    }
-
-    if (order.status === 'In Progress') {
-      // Check if files have been uploaded
-      const hasUploadedFiles = order.uploadedFiles && order.uploadedFiles.length > 0;
+    // Debug: Log current order status
+    console.log('📎 renderWriterActions: order.status =', order.status, 'currentOrder.status =', currentOrder.status);
+    
+    // Check Revision status FIRST since it's most specific
+    if (currentOrder.status === 'Revision') {
+      // For revision orders, always require NEW files to be uploaded
+      // Check if files were uploaded AFTER the revision was requested
+      const revisionRequestedAt = currentOrder.adminReviewedAt;
       
-      if (!hasUploadedFiles) {
-        // Step 1: Upload files first
+      // If no revision requested timestamp, always require upload
+      if (!revisionRequestedAt) {
         return (
           <Button 
-            onClick={() => setShowUploadModal(true)}
-            className="bg-green-600 hover:bg-green-700"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('📎 OrderViewModal: Opening upload modal (no revision timestamp)');
+              console.log('📎 OrderViewModal: showUploadModal state:', showUploadModal);
+              setShowUploadModal(true);
+              console.log('📎 OrderViewModal: setShowUploadModal(true) called');
+            }}
+            className="bg-green-600 hover:bg-green-700 text-white"
           >
             <Upload className="h-4 w-4 mr-2" />
-            Upload Order Files
-          </Button>
-        );
-      } else {
-        // Step 2: Submit work after files are uploaded
-        return (
-          <Button 
-            onClick={() => setShowSubmitModal(true)}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <FileText className="h-4 w-4 mr-2" />
-            Submit Work
+            Upload Revision Files
           </Button>
         );
       }
-    }
-
-    if (order.status === 'Assigned') {
-      return (
-        <Button 
-            onClick={() => onAction('confirm', order.id, { notes })}
-            className="bg-yellow-600 hover:bg-yellow-700"
-          >
-            <AlertTriangle className="h-4 w-4 mr-2" />
-            Confirm Order
-          </Button>
-      );
-    }
-
-    if (order.status === 'Revision') {
-      // Check if revision files have been uploaded (files uploaded after revision was requested)
-      const revisionRequestedAt = order.adminReviewedAt || order.updatedAt;
-      const hasRevisionFiles = order.uploadedFiles && order.uploadedFiles.length > 0 && 
-        order.uploadedFiles.some(f => new Date(f.uploadedAt) > new Date(revisionRequestedAt || 0));
+      
+      // Check if any files were uploaded after revision was requested
+      const hasRevisionFiles = currentOrder.uploadedFiles && currentOrder.uploadedFiles.length > 0 && 
+        currentOrder.uploadedFiles.some(f => {
+          const fileUploadTime = new Date(f.uploadedAt).getTime();
+          const revisionRequestTime = new Date(revisionRequestedAt).getTime();
+          // File must be uploaded at least 1 second after revision was requested
+          return fileUploadTime > revisionRequestTime + 1000;
+        });
+      
+      console.log('📎 OrderViewModal: Revision file check', {
+        hasRevisionFiles,
+        uploadedFilesCount: currentOrder.uploadedFiles?.length || 0,
+        revisionRequestedAt,
+        files: currentOrder.uploadedFiles?.map(f => ({
+          name: f.originalName || f.filename,
+          uploadedAt: f.uploadedAt
+        }))
+      });
       
       if (!hasRevisionFiles) {
-        // Step 1: Upload revision files first
+        // Step 1: Upload NEW revision files first
         return (
           <Button 
-            onClick={() => setShowUploadModal(true)}
-            className="bg-green-600 hover:bg-green-700"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('📎 OrderViewModal: Opening upload modal for revision files');
+              setShowUploadModal(true);
+            }}
+            className="bg-green-600 hover:bg-green-700 text-white"
           >
             <Upload className="h-4 w-4 mr-2" />
             Upload Revision Files
           </Button>
         );
       } else {
-        // Step 2: Submit revision after files are uploaded
+        // Step 2: Submit revision after new files are uploaded
+        // Only enable if files are actually uploaded
+        const canSubmit = currentOrder.uploadedFiles && currentOrder.uploadedFiles.length > 0;
+        
         return (
           <Button 
-            onClick={() => setShowRevisionSubmitModal(true)}
-            className="bg-blue-600 hover:bg-blue-700"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!canSubmit) {
+                alert('Please upload revision files first before submitting.');
+                setShowUploadModal(true);
+                return;
+              }
+              console.log('📎 OrderViewModal: Opening submit revision modal', {
+                fileCount: currentOrder.uploadedFiles?.length || 0
+              });
+              setShowRevisionSubmitModal(true);
+            }}
+            disabled={!canSubmit}
+            className={`text-white ${
+              canSubmit 
+                ? 'bg-blue-600 hover:bg-blue-700' 
+                : 'bg-gray-400 cursor-not-allowed'
+            }`}
           >
             <FileText className="h-4 w-4 mr-2" />
             Submit Revision
+            {canSubmit && currentOrder.uploadedFiles && (
+              <span className="ml-2 text-xs">({currentOrder.uploadedFiles.length} file{currentOrder.uploadedFiles.length !== 1 ? 's' : ''})</span>
+            )}
           </Button>
         );
       }
@@ -404,11 +426,35 @@ export function OrderViewModal({
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="requirements">Requirements</TabsTrigger>
-            <TabsTrigger value="messages">Messages</TabsTrigger>
-            <TabsTrigger value="files">Files</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 bg-gray-100">
+            <TabsTrigger 
+              value="details"
+              className="data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:font-semibold"
+            >
+              <BookOpen className="h-4 w-4 mr-2" />
+              Details
+            </TabsTrigger>
+            <TabsTrigger 
+              value="requirements"
+              className="data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=active]:font-semibold"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Requirements
+            </TabsTrigger>
+            <TabsTrigger 
+              value="messages"
+              className="data-[state=active]:bg-indigo-500 data-[state=active]:text-white data-[state=active]:font-semibold"
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Messages
+            </TabsTrigger>
+            <TabsTrigger 
+              value="files"
+              className="data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:font-semibold"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Files
+            </TabsTrigger>
           </TabsList>
 
           {/* Details Tab */}
@@ -700,31 +746,60 @@ export function OrderViewModal({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Download className="h-5 w-5" />
+                  <Download className="h-5 w-5 text-orange-600" />
                   Uploaded Files
+                  {currentOrder.uploadedFiles && currentOrder.uploadedFiles.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {currentOrder.uploadedFiles.length} file{currentOrder.uploadedFiles.length !== 1 ? 's' : ''}
+                    </Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {(order.uploadedFiles || []).length > 0 ? (
-                  <div className="space-y-3">
-                    {(order.uploadedFiles || []).map((file) => (
-                      <div key={file.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-blue-600" />
-                          <div>
-                            <p className="font-medium">{file.originalName}</p>
-                            <p className="text-sm text-gray-500">
-                              {formatFileSize(file.size)} • {file.type}
-                            </p>
+                {(() => {
+                  // Remove duplicates by filename and keep the most recent one
+                  const files = currentOrder.uploadedFiles || [];
+                  const uniqueFiles = files.reduce((acc: typeof files, file) => {
+                    const existingIndex = acc.findIndex(
+                      f => (f.originalName || f.filename) === (file.originalName || file.filename)
+                    );
+                    if (existingIndex === -1) {
+                      acc.push(file);
+                    } else {
+                      // Keep the most recent file if duplicate
+                      const existing = acc[existingIndex];
+                      const existingDate = new Date(existing.uploadedAt).getTime();
+                      const newDate = new Date(file.uploadedAt).getTime();
+                      if (newDate > existingDate) {
+                        acc[existingIndex] = file;
+                      }
+                    }
+                    return acc;
+                  }, []);
+
+                  return uniqueFiles.length > 0 ? (
+                    <div className="space-y-3">
+                      {uniqueFiles.map((file) => (
+                        <div key={file.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="p-2 bg-orange-100 rounded-lg">
+                              <FileText className="h-5 w-5 text-orange-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 truncate">{file.originalName || file.filename}</p>
+                              <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                                <span>{formatFileSize(file.size)}</span>
+                                <span>•</span>
+                                <span className="truncate">{file.type || 'Unknown type'}</span>
+                                <span>•</span>
+                                <span>{new Date(file.uploadedAt).toLocaleDateString()}</span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">
-                            {new Date(file.uploadedAt).toLocaleDateString()}
-                          </span>
                           <Button 
                             size="sm" 
                             variant="outline"
+                            className="ml-4 flex-shrink-0"
                             onClick={() => {
                               if (file.url) {
                                 const link = document.createElement('a');
@@ -734,6 +809,8 @@ export function OrderViewModal({
                                 document.body.appendChild(link);
                                 link.click();
                                 document.body.removeChild(link);
+                              } else {
+                                alert('File URL not available. The file may need to be re-uploaded.');
                               }
                             }}
                           >
@@ -741,12 +818,22 @@ export function OrderViewModal({
                             Download
                           </Button>
                         </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                        <FileText className="h-8 w-8 text-gray-400" />
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-center py-8">No files uploaded yet</p>
-                )}
+                      <p className="text-gray-500 font-medium mb-2">No files uploaded yet</p>
+                      <p className="text-sm text-gray-400">
+                        {currentOrder.status === 'Revision' 
+                          ? 'Upload revision files using the "Upload Revision Files" button below.'
+                          : 'Upload files using the "Upload Order Files" button below.'}
+                      </p>
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
@@ -778,36 +865,70 @@ export function OrderViewModal({
       {userRole === 'writer' && (
         <>
           <UploadOrderFilesModal
-            order={order}
+            order={currentOrder}
             isOpen={showUploadModal}
             onClose={() => setShowUploadModal(false)}
             onUpload={async (files) => {
-              await onAction('upload_files', order.id, { files });
-              setShowUploadModal(false);
+              try {
+                console.log('📤 OrderViewModal: Uploading files for order:', currentOrder.id, {
+                  fileCount: files.length,
+                  files: files.map(f => f.originalName || f.filename)
+                });
+                
+                await onAction('upload_files', currentOrder.id, { files });
+                
+                console.log('✅ OrderViewModal: Files uploaded successfully, closing modal');
+                
+                // Close modal after successful upload
+                setShowUploadModal(false);
+                
+                // The order will update in context, and the button will change to "Submit Revision"
+              } catch (error) {
+                console.error('❌ OrderViewModal: Error uploading files:', error);
+                // Don't close modal on error so user can retry
+                throw error;
+              }
             }}
           />
-          {order.status === 'Revision' ? (
+          {currentOrder.status === 'Revision' ? (
             <SubmitRevisionModal
-              order={order}
+              order={currentOrder}
               isOpen={showRevisionSubmitModal}
               onClose={() => setShowRevisionSubmitModal(false)}
               onSubmit={async (submission) => {
-                await onAction('resubmit', order.id, {
-                  files: order.uploadedFiles || [],
-                  notes: submission.notes,
-                  revisionNotes: submission.revisionNotes
-                });
-                setShowRevisionSubmitModal(false);
+                try {
+                  console.log('📤 OrderViewModal: Submitting revision for review', {
+                    orderId: currentOrder.id,
+                    fileCount: currentOrder.uploadedFiles?.length || 0,
+                    hasRevisionNotes: !!submission.revisionNotes
+                  });
+                  
+                  await onAction('resubmit', currentOrder.id, {
+                    files: currentOrder.uploadedFiles || [],
+                    notes: submission.notes,
+                    revisionNotes: submission.revisionNotes
+                  });
+                  
+                  console.log('✅ OrderViewModal: Revision submitted successfully');
+                  setShowRevisionSubmitModal(false);
+                  // Close the main modal after successful submission
+                  setTimeout(() => {
+                    onClose();
+                  }, 500);
+                } catch (error) {
+                  console.error('❌ OrderViewModal: Error submitting revision:', error);
+                  // Don't close modal on error so user can retry
+                }
               }}
             />
           ) : (
             <SubmitToAdminModal
-              order={order}
+              order={currentOrder}
               isOpen={showSubmitModal}
               onClose={() => setShowSubmitModal(false)}
               onSubmit={async (submission) => {
-                await onAction('submit_to_admin', order.id, {
-                  files: order.uploadedFiles || [],
+                await onAction('submit_to_admin', currentOrder.id, {
+                  files: currentOrder.uploadedFiles || [],
                   notes: submission.notes,
                   estimatedCompletionTime: submission.estimatedCompletionTime
                 });

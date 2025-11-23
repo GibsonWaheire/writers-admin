@@ -20,7 +20,9 @@ export interface Order {
   updatedAt: string;
   requiresAdminApproval?: boolean;
   clientMessages: ClientMessage[];
-  uploadedFiles: UploadedFile[];
+  uploadedFiles: UploadedFile[]; // For backward compatibility - shows originalFiles
+  originalFiles?: UploadedFile[]; // Original submission files (never overwritten)
+  revisionFiles?: UploadedFile[]; // Revision submission files (separate from original)
   additionalInstructions?: string;
   isOverdue: boolean;
   // New fields for order flow

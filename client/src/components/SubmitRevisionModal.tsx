@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
@@ -70,6 +70,14 @@ export function SubmitRevisionModal({
   };
 
   const isFormValid = uploadedFiles.length > 0 && revisionNotes.trim().length > 0;
+  
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setNotes('');
+      setRevisionNotes('');
+    }
+  }, [isOpen]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -279,18 +287,32 @@ export function SubmitRevisionModal({
             </Button>
             <Button 
               onClick={handleSubmit}
-              disabled={!isFormValid || !revisionNotes.trim() || isSubmitting}
-              className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-200"
+              disabled={!isFormValid || !revisionNotes.trim() || isSubmitting || uploadedFiles.length === 0}
+              className={`px-8 py-2 shadow-lg transition-all duration-200 ${
+                isFormValid && revisionNotes.trim() && uploadedFiles.length > 0
+                  ? 'bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white hover:shadow-xl'
+                  : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+              }`}
             >
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                   Submitting...
                 </>
+              ) : uploadedFiles.length === 0 ? (
+                <>
+                  <AlertTriangle className="h-5 w-5 mr-2" />
+                  Upload Files Required
+                </>
+              ) : !revisionNotes.trim() ? (
+                <>
+                  <AlertTriangle className="h-5 w-5 mr-2" />
+                  Revision Summary Required
+                </>
               ) : (
                 <>
                   <RefreshCw className="h-5 w-5 mr-2" />
-                  Submit Revision
+                  Submit Revision ({uploadedFiles.length} file{uploadedFiles.length !== 1 ? 's' : ''})
                 </>
               )}
             </Button>

@@ -94,6 +94,8 @@ def create_order():
         fine_reason=data.get('fineReason'),
         fine_history=json_lib.dumps(data.get('fineHistory', [])),
         attachments=json_lib.dumps(data.get('attachments', [])),
+        original_files=json_lib.dumps(data.get('originalFiles', [])),
+        revision_files=json_lib.dumps(data.get('revisionFiles', [])),
         revision_requests=json_lib.dumps(data.get('revisionRequests', [])),
         reviews=json_lib.dumps(data.get('reviews', [])),
         client_messages=json_lib.dumps(data.get('clientMessages', [])),
@@ -184,9 +186,14 @@ def update_order(order_id):
         order.deadline = parse_datetime(data['deadline'])
     if 'attachments' in data:
         order.attachments = json_lib.dumps(data['attachments']) if data['attachments'] else None
+    if 'originalFiles' in data:
+        order.original_files = json_lib.dumps(data['originalFiles']) if data['originalFiles'] else None
+    if 'revisionFiles' in data:
+        order.revision_files = json_lib.dumps(data['revisionFiles']) if data['revisionFiles'] else None
     if 'uploadedFiles' in data:
-        # Store uploadedFiles in attachments field
-        order.attachments = json_lib.dumps(data['uploadedFiles']) if data['uploadedFiles'] else None
+        # For backward compatibility: if uploadedFiles is provided and originalFiles is not set, use it as originalFiles
+        if 'originalFiles' not in data:
+            order.original_files = json_lib.dumps(data['uploadedFiles']) if data['uploadedFiles'] else None
     if 'revisionRequests' in data:
         order.revision_requests = json_lib.dumps(data['revisionRequests']) if data['revisionRequests'] else None
     if 'revisionExplanation' in data:

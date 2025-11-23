@@ -236,6 +236,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             metadata: { orderId: order.id, explanation: data?.explanation }
           });
           break;
+        case 'revision_resubmitted':
+          // This case is handled separately in handleOrderAction to notify admin
+          // No need to send writer notification for revision resubmission
+          break;
         case 'reassigned':
           await notificationService.sendNotification({
             userId: writerId,
@@ -637,6 +641,17 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             updates.adminReviewNotes = additionalData.notes;
           }
           
+          // Preserve originalFiles when revision is requested
+          if (!updates.originalFiles && order.originalFiles) {
+            updates.originalFiles = order.originalFiles;
+          } else if (!updates.originalFiles && order.uploadedFiles && order.status === 'Submitted') {
+            // If this is the first revision request, preserve current uploadedFiles as originalFiles
+            updates.originalFiles = order.uploadedFiles;
+          }
+          
+          // Clear revisionFiles when a new revision is requested (writer needs to upload new files)
+          updates.revisionFiles = [];
+          
           // Track revision count and reduce revision score (start at 10/10, reduce by 1 each time)
           const currentRevisionCount = (order.revisionCount || 0) + 1;
           updates.revisionCount = currentRevisionCount;
@@ -700,13 +715,28 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             throw new Error('Cannot resubmit revision without a revision summary. Please explain what changes were made.');
           }
           
-          newStatus = 'Submitted'; // Resubmitted goes back to Submitted status for admin review
+          newStatus = 'Submitted'; // Move to Submitted status (Pending Review) after revision resubmission
           updates.submittedToAdminAt = new Date().toISOString();
           updates.revisionSubmittedAt = new Date().toISOString();
-          updates.uploadedFiles = [...(order.uploadedFiles || []), ...additionalData.files];
+          
+          // Store revision files separately - DO NOT overwrite originalFiles
+          // Preserve originalFiles and store new revision files in revisionFiles
+          if (!updates.originalFiles && order.originalFiles) {
+            updates.originalFiles = order.originalFiles; // Preserve original files
+          } else if (!updates.originalFiles && order.uploadedFiles && order.status !== 'Revision') {
+            // If originalFiles not set but uploadedFiles exists (from original submission), use it
+            updates.originalFiles = order.uploadedFiles;
+          }
+          
+          // Store revision files separately
+          updates.revisionFiles = additionalData.files;
+          
+          // For backward compatibility, uploadedFiles shows the latest (revision files)
+          updates.uploadedFiles = additionalData.files;
+          
           updates.revisionResponseNotes = additionalData.revisionNotes;
           if (additionalData?.notes) {
-            updates.adminReviewNotes = additionalData.notes;
+            updates.submissionNotes = additionalData.notes;
           }
           
           // Log activity
@@ -717,16 +747,27 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             'resubmit',
             oldStatus,
             'Submitted',
-            `Order ${order.orderNumber || orderId} resubmitted after revision with ${resubmitFilesCount} file(s)`,
+            `Order ${order.orderNumber || orderId} resubmitted after revision with ${resubmitFilesCount} file(s) - Pending Admin Review`,
             { filesCount: resubmitFilesCount, revisionNotes: additionalData.revisionNotes }
           ).catch(err => console.error('Failed to log activity:', err));
+          
+          // Send notification to admin about revision resubmission
+          notificationType = 'revision_resubmitted';
+          notificationData = { 
+            orderNumber: order.orderNumber,
+            revisionNotes: additionalData.revisionNotes,
+            writerName: order.assignedWriter || 'Writer',
+            orderTitle: order.title
+          };
           
           console.log('📤 OrderContext: Order resubmitted after revision:', {
             orderId,
             oldStatus,
             newStatus: 'Submitted',
             writerId: order.writerId,
-            revisionNotes: updates.revisionResponseNotes
+            revisionNotes: updates.revisionResponseNotes,
+            filesCount: resubmitFilesCount,
+            status: 'Pending Admin Review'
           });
           break;
           
@@ -736,8 +777,27 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             throw new Error('No files provided to upload.');
           }
           
-          // Append new files to existing uploaded files
-          updates.uploadedFiles = [...(order.uploadedFiles || []), ...additionalData.files];
+          // If order is in Revision status, store files as revision files (temporary until submission)
+          if (order.status === 'Revision') {
+            // Preserve originalFiles
+            if (!updates.originalFiles && order.originalFiles) {
+              updates.originalFiles = order.originalFiles;
+            } else if (!updates.originalFiles && order.uploadedFiles) {
+              // If originalFiles not set, use uploadedFiles as originalFiles
+              updates.originalFiles = order.uploadedFiles;
+            }
+            // Store new files as revision files (will be finalized on resubmit)
+            updates.revisionFiles = additionalData.files;
+            updates.uploadedFiles = additionalData.files; // For UI display
+          } else {
+            // For non-revision orders, store in uploadedFiles (will become originalFiles on first submission)
+            updates.uploadedFiles = [...(order.uploadedFiles || []), ...additionalData.files];
+            // If originalFiles not set, also set it
+            if (!updates.originalFiles && !order.originalFiles) {
+              updates.originalFiles = updates.uploadedFiles;
+            }
+          }
+          
           updates.filesUploadedAt = new Date().toISOString();
           
           // Log activity
@@ -894,15 +954,28 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
     // Send notification after state update (if needed)
     if (notificationType && updatedOrderForNotification) {
-      const writerId = notificationType === 'assigned' 
-        ? normalizeWriterId(additionalData?.writerId as string) || updatedOrderForNotification.writerId
-        : updatedOrderForNotification.writerId;
-      
-      if (writerId && writerId !== 'unknown') {
-        // Send notification asynchronously after state update
-        sendOrderNotification(writerId, notificationType, updatedOrderForNotification, notificationData).catch(err => {
-          console.error('Failed to send notification:', err);
+      // Special handling for revision_resubmitted - notify admin instead of writer
+      if (notificationType === 'revision_resubmitted') {
+        const { notificationHelpers } = await import('../services/notificationService');
+        notificationHelpers.notifyAdminRevisionResubmitted(
+          updatedOrderForNotification.id,
+          updatedOrderForNotification.title,
+          updatedOrderForNotification.assignedWriter || 'Writer',
+          notificationData?.revisionNotes as string
+        ).catch(err => {
+          console.error('Failed to send admin notification for revision resubmission:', err);
         });
+      } else {
+        const writerId = notificationType === 'assigned' 
+          ? normalizeWriterId(additionalData?.writerId as string) || updatedOrderForNotification.writerId
+          : updatedOrderForNotification.writerId;
+        
+        if (writerId && writerId !== 'unknown') {
+          // Send notification asynchronously after state update
+          sendOrderNotification(writerId, notificationType, updatedOrderForNotification, notificationData).catch(err => {
+            console.error('Failed to send notification:', err);
+          });
+        }
       }
     }
 
@@ -994,9 +1067,17 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           orderWithUpdates.status = 'Submitted';
           orderWithUpdates.submittedAt = new Date().toISOString();
           orderWithUpdates.submittedToAdminAt = new Date().toISOString();
+          
+          // Store files in originalFiles if this is the first submission (not a revision)
           if (additionalData?.files) {
-            orderWithUpdates.uploadedFiles = [...(orderWithUpdates.uploadedFiles || []), ...additionalData.files];
+            if (!orderWithUpdates.originalFiles || orderWithUpdates.originalFiles.length === 0) {
+              // First submission - store as originalFiles
+              orderWithUpdates.originalFiles = additionalData.files;
+            }
+            // Also update uploadedFiles for backward compatibility
+            orderWithUpdates.uploadedFiles = additionalData.files;
           }
+          
           if (additionalData?.notes) {
             orderWithUpdates.submissionNotes = additionalData.notes;
           }
@@ -1104,16 +1185,29 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             throw new Error('Cannot resubmit revision without uploaded files. Please upload at least one file.');
           }
           
-          orderWithUpdates.status = 'Resubmitted';
-          orderWithUpdates.resubmittedAt = new Date().toISOString();
-          if (additionalData?.files) {
-            orderWithUpdates.uploadedFiles = [...(orderWithUpdates.uploadedFiles || []), ...additionalData.files];
+          orderWithUpdates.status = 'Submitted'; // Move to Submitted status (Pending Review)
+          orderWithUpdates.submittedToAdminAt = new Date().toISOString();
+          orderWithUpdates.revisionSubmittedAt = new Date().toISOString();
+          
+          // Preserve originalFiles - never overwrite
+          if (!orderWithUpdates.originalFiles && order.originalFiles) {
+            orderWithUpdates.originalFiles = order.originalFiles;
+          } else if (!orderWithUpdates.originalFiles && order.uploadedFiles && order.status !== 'Revision') {
+            // If originalFiles not set but uploadedFiles exists, use it as originalFiles
+            orderWithUpdates.originalFiles = order.uploadedFiles;
           }
+          
+          // Store revision files separately
+          orderWithUpdates.revisionFiles = additionalData.files;
+          
+          // For backward compatibility, uploadedFiles shows revision files
+          orderWithUpdates.uploadedFiles = additionalData.files;
+          
           if (additionalData?.revisionNotes) {
-            orderWithUpdates.resubmissionNotes = additionalData.revisionNotes;
+            orderWithUpdates.revisionResponseNotes = additionalData.revisionNotes as string;
           }
           if (additionalData?.notes) {
-            orderWithUpdates.submissionNotes = additionalData.notes;
+            orderWithUpdates.submissionNotes = additionalData.notes as string;
           }
           break;
           
@@ -1223,7 +1317,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   const getWriterActiveOrders = useCallback((writerId: string) => {
     return orders.filter(order => 
       order.writerId === writerId && 
-      ['Assigned', 'In Progress', 'Submitted', 'Approved', 'Revision', 'Resubmitted'].includes(order.status)
+      ['Assigned', 'In Progress', 'Submitted', 'Approved'].includes(order.status)
+      // Note: 'Revision' orders are shown on RevisionsPage, not active orders
+      // After revision submission, status becomes 'Submitted' and appears here
     );
   }, [orders]);
 
