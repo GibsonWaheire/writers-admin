@@ -146,9 +146,40 @@ export function UploadNewOrderModal({ isOpen, onClose, onSubmit }: UploadNewOrde
     });
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    setUploadedFiles(prev => [...prev, ...files]);
+    
+    setUploadedFiles(prev => {
+      const newFiles: File[] = [];
+      const duplicates: string[] = [];
+      
+      files.forEach(file => {
+        // Check for duplicates by filename + size
+        const exists = prev.some(
+          (f) => f.name === file.name && f.size === file.size
+        );
+        
+        if (exists) {
+          duplicates.push(`${file.name} (${formatFileSize(file.size)})`);
+        } else {
+          newFiles.push(file);
+        }
+      });
+      
+      if (duplicates.length > 0) {
+        alert(`The following file(s) are already in the upload list:\n${duplicates.join('\n')}`);
+      }
+      
+      return [...prev, ...newFiles];
+    });
   };
 
   const removeFile = (index: number) => {

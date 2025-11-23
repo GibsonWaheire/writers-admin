@@ -8,6 +8,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminOrdersPage from "./pages/AdminOrdersPage";
 import AllOrdersPage from "./pages/admin/AllOrdersPage";
 import PendingReviewPage from "./pages/admin/PendingReviewPage";
+import AdminRevisionsPage from "./pages/admin/AdminRevisionsPage";
 import AssignmentCenterPage from "./pages/admin/AssignmentCenterPage";
 import WriterMonitorPage from "./pages/admin/WriterMonitorPage";
 import OrderAnalyticsPage from "./pages/admin/OrderAnalyticsPage";
@@ -213,6 +214,13 @@ function AppRouter() {
         <ProtectedRoute requiredRole="admin">
           <Layout>
             <PendingReviewPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/orders/revisions" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <AdminRevisionsPage />
           </Layout>
         </ProtectedRoute>
       } />

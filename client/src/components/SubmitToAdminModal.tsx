@@ -220,8 +220,8 @@ export function SubmitToAdminModal({
                     <span className="font-medium">Files ready</span>
                   </div>
                 </div>
-                {uploadedFiles.map((file) => (
-                  <div key={file.id} className="bg-gradient-to-r from-white/90 to-blue-50/50 border border-blue-200/50 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200">
+                {uploadedFiles.map((file, index) => (
+                  <div key={`submit-admin-${order.id}-${file.id || file.filename || index}-${index}-${file.uploadedAt || Date.now()}`} className="bg-gradient-to-r from-white/90 to-blue-50/50 border border-blue-200/50 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg">

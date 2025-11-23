@@ -8,8 +8,8 @@ import {
   RefreshCw,
   AlertTriangle,
   Clock,
-  FileText,
-  DollarSign
+  DollarSign,
+  FileText
 } from 'lucide-react';
 import { OrderViewModal } from '../../components/OrderViewModal';
 import { useOrders } from '../../contexts/OrderContext';

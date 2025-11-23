@@ -187,8 +187,8 @@ export function SubmitRevisionModal({
             <Label className="text-sm font-medium">Revision Files *</Label>
             {uploadedFiles.length > 0 ? (
               <div className="space-y-2">
-                {uploadedFiles.map((file) => (
-                  <div key={file.id} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
+                {uploadedFiles.map((file, index) => (
+                  <div key={`submit-revision-${order.id}-${file.id || file.filename || index}-${index}-${file.uploadedAt || Date.now()}`} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
                     <div className="flex items-center gap-3">
                       <FileText className="h-5 w-5 text-blue-600" />
                       <div>

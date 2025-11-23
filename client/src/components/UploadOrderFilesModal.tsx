@@ -42,17 +42,15 @@ export function UploadOrderFilesModal({
     }
   }, [isOpen]);
 
-  const handleFileUpload = (file: File) => {
-    // Check for duplicates by filename
-    const isDuplicate = uploadedFiles.some(
-      f => (f.originalName || f.filename) === file.name
-    );
-    
-    if (isDuplicate) {
-      alert(`File "${file.name}" is already in the upload list.`);
-      return;
-    }
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
 
+  const handleFileUpload = (file: File) => {
     // Validate file size (max 50MB)
     const maxSize = 50 * 1024 * 1024; // 50MB
     if (file.size > maxSize) {
@@ -60,16 +58,29 @@ export function UploadOrderFilesModal({
       return;
     }
 
-    const newFile: UploadedFile = {
-      id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      filename: file.name,
-      originalName: file.name,
-      size: file.size,
-      type: file.type || 'application/octet-stream',
-      url: URL.createObjectURL(file),
-      uploadedAt: new Date().toISOString()
-    };
-    setUploadedFiles(prev => [...prev, newFile]);
+    setUploadedFiles(prev => {
+      // Check for duplicates by filename + size
+      const exists = prev.some(
+        (f) => (f.originalName || f.filename) === file.name && f.size === file.size
+      );
+
+      if (exists) {
+        alert(`File "${file.name}" (${formatFileSize(file.size)}) is already in the upload list.`);
+        return prev; // don't add duplicate
+      }
+
+      const newFile: UploadedFile = {
+        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        filename: file.name,
+        originalName: file.name,
+        size: file.size,
+        type: file.type || 'application/octet-stream',
+        url: URL.createObjectURL(file),
+        uploadedAt: new Date().toISOString()
+      };
+
+      return [...prev, newFile];
+    });
   };
 
   const handleFiles = (files: FileList | null) => {
@@ -132,14 +143,6 @@ export function UploadOrderFilesModal({
     } finally {
       setIsUploading(false);
     }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
   console.log('📎 UploadOrderFilesModal: Rendering with isOpen =', isOpen);
@@ -270,8 +273,8 @@ export function UploadOrderFilesModal({
                     <span className="font-medium">Files ready</span>
                   </div>
                 </div>
-                {uploadedFiles.map((file) => (
-                  <div key={file.id} className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between">
+                {uploadedFiles.map((file, index) => (
+                  <div key={`upload-order-${order.id}-${file.id || file.filename || index}-${index}-${file.uploadedAt || Date.now()}`} className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-lg ${order.status === 'Revision' ? 'bg-orange-100' : 'bg-blue-100'}`}>
                         <FileText className={`h-4 w-4 ${order.status === 'Revision' ? 'text-orange-600' : 'text-blue-600'}`} />

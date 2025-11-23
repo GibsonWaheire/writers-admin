@@ -19,7 +19,8 @@ import {
   XCircle,
   Users,
   BarChart3,
-  Hand
+  Hand,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -81,6 +82,7 @@ const adminMenuItems: MenuItem[] = [
     subItems: [
       { icon: ClipboardList, label: 'All Orders', path: '/admin/orders/all', emoji: '📋' },
       { icon: AlertTriangle, label: 'Pending Review', path: '/admin/orders/review', emoji: '⚠️' },
+      { icon: RefreshCw, label: 'Revision Reviews', path: '/admin/orders/revisions', emoji: '🔄' },
       { icon: UserCheck, label: 'Assignment Center', path: '/admin/orders/assign', emoji: '👤' },
       { icon: Hand, label: 'Bid Orders', path: '/admin/orders/picked', emoji: '✋' },
       { icon: Users, label: 'Writer Monitor', path: '/admin/orders/writers', emoji: '👥' },

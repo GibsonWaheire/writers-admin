@@ -447,8 +447,8 @@ export function OrderManagementModal({
                     {msg.attachments && msg.attachments.length > 0 && (
                       <div className="space-y-1">
                         <label className="text-sm font-medium">Attachments:</label>
-                        {msg.attachments.map((file) => (
-                          <div key={file.id} className="flex items-center gap-2 text-sm text-blue-600">
+                        {msg.attachments.map((file, fileIndex) => (
+                          <div key={`msg-${msg.id}-attachment-${file.id || file.filename || fileIndex}-${fileIndex}`} className="flex items-center gap-2 text-sm text-blue-600">
                             <FileText className="w-4 h-4" />
                             <a href={file.url} target="_blank" rel="noopener noreferrer">
                               {file.originalName}
