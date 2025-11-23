@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -45,6 +45,9 @@ export function OrderManagementModal({
   const [isNotification, setIsNotification] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  
+  // Guards to prevent duplicate submissions
+  const isSubmittingRef = useRef(false);
   
   // Form fields for editing
   const [formData, setFormData] = useState<Partial<Order>>({});
@@ -111,6 +114,15 @@ export function OrderManagementModal({
   const handleAddMessage = async () => {
     if (!order || !newMessage.trim()) return;
     
+    // Guard: Prevent duplicate submissions (React StrictMode protection)
+    if (isSubmittingRef.current) {
+      console.log('⚠️ OrderManagementModal: Already submitting message, skipping duplicate call');
+      return;
+    }
+
+    // Mark as submitting
+    isSubmittingRef.current = true;
+    
     try {
       // Convert selected files to UploadedFile format
       const convertedFiles: UploadedFile[] = selectedFiles.map((file, index) => ({
@@ -131,12 +143,38 @@ export function OrderManagementModal({
       setIsNotification(false);
     } catch (error) {
       console.error('Failed to add message:', error);
+    } finally {
+      // Reset submitting flag after a delay
+      setTimeout(() => {
+        isSubmittingRef.current = false;
+      }, 500);
     }
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    setSelectedFiles(prev => [...prev, ...files]);
+    
+    // Guard: Prevent duplicate file additions
+    setSelectedFiles(prev => {
+      const newFiles: File[] = [];
+      files.forEach(file => {
+        // Check for duplicates by name + size
+        const exists = prev.some(
+          (f) => f.name === file.name && f.size === file.size
+        );
+        if (!exists) {
+          newFiles.push(file);
+        }
+      });
+      return [...prev, ...newFiles];
+    });
+    
+    // Reset input to prevent double-firing
+    setTimeout(() => {
+      if (event.target) {
+        event.target.value = '';
+      }
+    }, 0);
   };
 
   const removeSelectedFile = (index: number) => {
