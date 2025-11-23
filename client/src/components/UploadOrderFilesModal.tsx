@@ -22,6 +22,11 @@ export function UploadOrderFilesModal({
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Guards to prevent duplicate uploads
+  const isProcessingRef = useRef(false);
+  const processedFilesRef = useRef<Set<string>>(new Set());
+  const lastDropTimeRef = useRef<number>(0);
 
   // Debug: Log when isOpen changes
   useEffect(() => {
@@ -35,6 +40,10 @@ export function UploadOrderFilesModal({
       setUploadedFiles([]);
       setIsUploading(false);
       setIsDragging(false);
+      // Reset guards
+      isProcessingRef.current = false;
+      processedFilesRef.current.clear();
+      lastDropTimeRef.current = 0;
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -51,6 +60,12 @@ export function UploadOrderFilesModal({
   };
 
   const handleFileUpload = (file: File) => {
+    // Guard: Prevent processing if already processing (React StrictMode protection)
+    if (isProcessingRef.current) {
+      console.log('⚠️ UploadOrderFilesModal: Already processing files, skipping duplicate call');
+      return;
+    }
+
     // Validate file size (max 50MB)
     const maxSize = 50 * 1024 * 1024; // 50MB
     if (file.size > maxSize) {
@@ -58,14 +73,29 @@ export function UploadOrderFilesModal({
       return;
     }
 
+    // Create unique file identifier (name + size + lastModified)
+    const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+    
+    // Guard: Check if this exact file was already processed
+    if (processedFilesRef.current.has(fileKey)) {
+      console.log('⚠️ UploadOrderFilesModal: File already processed:', file.name);
+      return; // Skip duplicate
+    }
+
+    // Mark as processing
+    isProcessingRef.current = true;
+    processedFilesRef.current.add(fileKey);
+
     setUploadedFiles(prev => {
-      // Check for duplicates by filename + size
+      // Double-check for duplicates in state (async state update protection)
       const exists = prev.some(
         (f) => (f.originalName || f.filename) === file.name && f.size === file.size
       );
 
       if (exists) {
-        alert(`File "${file.name}" (${formatFileSize(file.size)}) is already in the upload list.`);
+        // Remove from processed set if duplicate found
+        processedFilesRef.current.delete(fileKey);
+        isProcessingRef.current = false;
         return prev; // don't add duplicate
       }
 
@@ -79,14 +109,28 @@ export function UploadOrderFilesModal({
         uploadedAt: new Date().toISOString()
       };
 
+      // Reset processing flag after state update
+      setTimeout(() => {
+        isProcessingRef.current = false;
+      }, 100);
+
       return [...prev, newFile];
     });
   };
 
   const handleFiles = (files: FileList | null) => {
-    if (files && files.length > 0) {
-      Array.from(files).forEach(handleFileUpload);
+    if (!files || files.length === 0) return;
+    
+    // Guard: Prevent if already processing
+    if (isProcessingRef.current) {
+      console.log('⚠️ UploadOrderFilesModal: Already processing files batch');
+      return;
     }
+
+    // Process files one by one
+    Array.from(files).forEach(file => {
+      handleFileUpload(file);
+    });
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -98,13 +142,28 @@ export function UploadOrderFilesModal({
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
+    // Only set dragging to false if we're actually leaving the drop zone
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setIsDragging(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
+    
+    // Guard: Prevent duplicate drop events (debounce within 200ms)
+    const now = Date.now();
+    if (now - lastDropTimeRef.current < 200) {
+      console.log('⚠️ UploadOrderFilesModal: Drop event ignored (too soon after last drop)');
+      return;
+    }
+    lastDropTimeRef.current = now;
+    
     handleFiles(e.dataTransfer.files);
   };
 
@@ -246,14 +305,27 @@ export function UploadOrderFilesModal({
                   multiple
                   accept=".pdf,.doc,.docx,.txt,.rtf,.ppt,.pptx,.xls,.xlsx,.csv,.odt,.ods,.odp,.zip,.rar,.7z,image/*"
                   onChange={(e) => {
+                    // Guard: Prevent if already processing
+                    if (isProcessingRef.current) {
+                      console.log('⚠️ UploadOrderFilesModal: onChange ignored (already processing)');
+                      if (e.target) {
+                        e.target.value = '';
+                      }
+                      return;
+                    }
+
                     const files = e.target.files;
                     if (files && files.length > 0) {
                       handleFiles(files);
                     }
-                    // Reset input to allow selecting the same file again
-                    if (e.target) {
-                      e.target.value = '';
-                    }
+                    
+                    // Reset input AFTER processing to prevent double-firing
+                    // Use setTimeout to ensure onChange completes first
+                    setTimeout(() => {
+                      if (e.target) {
+                        e.target.value = '';
+                      }
+                    }, 0);
                   }}
                   className="hidden"
                 />

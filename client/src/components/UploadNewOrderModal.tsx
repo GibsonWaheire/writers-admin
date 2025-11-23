@@ -96,6 +96,10 @@ export function UploadNewOrderModal({ isOpen, onClose, onSubmit }: UploadNewOrde
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Guards to prevent duplicate uploads
+  const isProcessingRef = useRef(false);
+  const processedFilesRef = useRef<Set<string>>(new Set());
 
   // Auto-calculate word count from pages (1 page = 275 words)
   const calculateWordsFromPages = (pages: number) => {
@@ -155,14 +159,36 @@ export function UploadNewOrderModal({ isOpen, onClose, onSubmit }: UploadNewOrde
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Guard: Prevent if already processing (React StrictMode protection)
+    if (isProcessingRef.current) {
+      console.log('⚠️ UploadNewOrderModal: Already processing files, skipping duplicate call');
+      if (event.target) {
+        event.target.value = '';
+      }
+      return;
+    }
+
     const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    // Mark as processing
+    isProcessingRef.current = true;
     
     setUploadedFiles(prev => {
       const newFiles: File[] = [];
       const duplicates: string[] = [];
       
       files.forEach(file => {
-        // Check for duplicates by filename + size
+        // Create unique file identifier
+        const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+        
+        // Check if already processed in this batch
+        if (processedFilesRef.current.has(fileKey)) {
+          duplicates.push(`${file.name} (${formatFileSize(file.size)})`);
+          return;
+        }
+        
+        // Check for duplicates in state
         const exists = prev.some(
           (f) => f.name === file.name && f.size === file.size
         );
@@ -170,6 +196,7 @@ export function UploadNewOrderModal({ isOpen, onClose, onSubmit }: UploadNewOrde
         if (exists) {
           duplicates.push(`${file.name} (${formatFileSize(file.size)})`);
         } else {
+          processedFilesRef.current.add(fileKey);
           newFiles.push(file);
         }
       });
@@ -178,8 +205,20 @@ export function UploadNewOrderModal({ isOpen, onClose, onSubmit }: UploadNewOrde
         alert(`The following file(s) are already in the upload list:\n${duplicates.join('\n')}`);
       }
       
+      // Reset processing flag after state update
+      setTimeout(() => {
+        isProcessingRef.current = false;
+      }, 100);
+      
       return [...prev, ...newFiles];
     });
+
+    // Reset input AFTER processing to prevent double-firing
+    setTimeout(() => {
+      if (event.target) {
+        event.target.value = '';
+      }
+    }, 0);
   };
 
   const removeFile = (index: number) => {

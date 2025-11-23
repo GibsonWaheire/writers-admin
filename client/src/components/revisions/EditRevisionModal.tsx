@@ -3,7 +3,7 @@
  * Allows writers to edit revision notes and manage files
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
@@ -44,6 +44,10 @@ export function EditRevisionModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // Guards to prevent duplicate uploads
+  const isProcessingRef = useRef(false);
+  const processedFilesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (isOpen) {
@@ -92,8 +96,20 @@ export function EditRevisionModal({
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Guard: Prevent if already processing (React StrictMode protection)
+    if (isProcessingRef.current) {
+      console.log('⚠️ EditRevisionModal: Already processing files, skipping duplicate call');
+      if (e.target) {
+        e.target.value = '';
+      }
+      return;
+    }
+
     const selectedFiles = e.target.files;
     if (!selectedFiles || selectedFiles.length === 0) return;
+
+    // Mark as processing
+    isProcessingRef.current = true;
 
     try {
       setError(null);
@@ -101,26 +117,51 @@ export function EditRevisionModal({
       
       // Filter out duplicates before uploading
       const newFiles = fileArray.filter(file => {
+        // Create unique file identifier
+        const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+        
+        // Check if already processed in this batch
+        if (processedFilesRef.current.has(fileKey)) {
+          return false; // Skip duplicate
+        }
+        
+        // Check for duplicates in state
         const exists = files.some(
           (f) => (f.originalName || f.filename) === file.name && f.size === file.size
         );
+        
         if (exists) {
           setError(`File "${file.name}" (${formatFileSize(file.size)}) is already uploaded.`);
+          return false;
         }
-        return !exists;
+        
+        processedFilesRef.current.add(fileKey);
+        return true;
       });
 
       if (newFiles.length === 0) {
         // All files were duplicates
-        e.target.value = '';
+        isProcessingRef.current = false;
+        if (e.target) {
+          e.target.value = '';
+        }
         return;
       }
 
       const uploadedFiles = await onUploadFiles(newFiles);
       setFiles(prev => [...prev, ...uploadedFiles]);
-      // Reset input
-      e.target.value = '';
+      
+      // Reset processing flag
+      isProcessingRef.current = false;
+      
+      // Reset input AFTER processing to prevent double-firing
+      setTimeout(() => {
+        if (e.target) {
+          e.target.value = '';
+        }
+      }, 0);
     } catch (err) {
+      isProcessingRef.current = false;
       setError(err instanceof Error ? err.message : 'Failed to upload files');
     }
   };
