@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { Badge } from './ui/badge';
 import type { Order } from '../types/order';
 
 interface RequestRevisionModalProps {
@@ -48,9 +49,16 @@ export function RequestRevisionModal({
               <RefreshCw className="h-6 w-6 text-orange-600" />
             </div>
             Request Revision
+            {order.revisionCount && order.revisionCount > 0 && (
+              <Badge variant="outline" className="ml-2 bg-orange-50 text-orange-700 border-orange-300">
+                Revision #{order.revisionCount + 1}
+              </Badge>
+            )}
           </DialogTitle>
           <DialogDescription className="text-gray-600 mt-2">
-            Explain what needs to be revised in this order. This will be sent to the writer.
+            {order.revisionCount && order.revisionCount > 0
+              ? `This will be revision #${order.revisionCount + 1} for this order. Explain what still needs to be revised.`
+              : 'Explain what needs to be revised in this order. This will be sent to the writer.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -61,6 +69,14 @@ export function RequestRevisionModal({
             <div className="text-sm text-gray-600">
               <p>Order ID: {order.id}</p>
               <p>Pages: {order.pages} • Words: {order.words?.toLocaleString() || 'N/A'}</p>
+              {order.revisionCount && order.revisionCount > 0 && (
+                <p className="mt-2 text-orange-700 font-medium">
+                  Current Revision Count: {order.revisionCount}
+                  {order.revisionCount === 1 && ' (First Revision)'}
+                  {order.revisionCount === 2 && ' (Second Revision)'}
+                  {order.revisionCount > 2 && ` (Revision #${order.revisionCount})`}
+                </p>
+              )}
             </div>
           </div>
 

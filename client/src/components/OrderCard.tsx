@@ -284,6 +284,8 @@ export function OrderCard({
       
       if (order.status === 'Submitted') {
         const isRevisionSubmission = (order.revisionFiles && order.revisionFiles.length > 0) || !!order.revisionResponseNotes;
+        const revisionCount = order.revisionCount || 0;
+        const nextRevisionNumber = revisionCount + 1;
 
         return (
           <div className="flex gap-2">
@@ -299,9 +301,10 @@ export function OrderCard({
               onClick={() => onAction?.('request_revision', order.id)}
               size="sm"
               className="bg-yellow-600 hover:bg-yellow-700"
+              title={revisionCount > 0 ? `Request Revision #${nextRevisionNumber}` : 'Request First Revision'}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Request Revision
+              {revisionCount > 0 ? `Rev #${nextRevisionNumber}` : 'Request Revision'}
             </Button>
             <Button 
               onClick={() => onAction?.('reject', order.id)}
