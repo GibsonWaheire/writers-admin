@@ -63,6 +63,7 @@ const writerMenuItems: MenuItem[] = [
     subItems: [
       { icon: ClipboardList, label: 'Available POD', path: '/pod-orders?tab=available', emoji: '📋' },
       { icon: UserCheck, label: 'My POD Orders', path: '/pod-orders?tab=my-orders', emoji: '👤' },
+      { icon: AlertTriangle, label: 'POD Revisions', path: '/pod-orders/revisions', emoji: '🔄' },
       { icon: CheckCircle, label: 'Completed POD', path: '/pod-orders?tab=completed', emoji: '✅' }
     ]
   },
@@ -97,6 +98,7 @@ const adminMenuItems: MenuItem[] = [
     subItems: [
       { icon: ClipboardList, label: 'All POD Orders', path: '/admin/pod-orders', emoji: '📋' },
       { icon: AlertTriangle, label: 'Pending Review', path: '/admin/pod-orders?tab=pending', emoji: '⚠️' },
+      { icon: RefreshCw, label: 'POD Revision Reviews', path: '/admin/pod-orders/revisions', emoji: '🔄' },
       { icon: CheckCircle, label: 'Ready for Delivery', path: '/admin/pod-orders?tab=ready', emoji: '🚚' },
       { icon: BarChart3, label: 'POD Analytics', path: '/admin/pod-orders?tab=analytics', emoji: '📊' }
     ]

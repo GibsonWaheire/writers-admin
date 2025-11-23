@@ -12,6 +12,7 @@ import { usePOD } from '../contexts/PODContext';
 import { PODConfirmationModal } from './PODConfirmationModal';
 import { PODReassignmentModal } from './PODReassignmentModal';
 import { PODSubmitModal } from './PODSubmitModal';
+import { RequestPODRevisionModal } from './RequestPODRevisionModal';
 import type { PODOrder, PODStatus, PODWriterConfirmation } from '../types/pod';
 import { getWriterIdForUser } from '../utils/writer';
 import { 
@@ -23,7 +24,9 @@ import {
   CheckCircle,
   Truck,
   CreditCard,
-  RotateCcw
+  RotateCcw,
+  RefreshCw,
+  XCircle
 } from 'lucide-react';
 
 interface PODOrderCardProps {
@@ -58,6 +61,8 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
   const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showRequestRevisionModal, setShowRequestRevisionModal] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
@@ -72,6 +77,9 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
   const canWork = order.status === 'Assigned' && order.writerId === writerId;
   const canDeliver = order.status === 'In Progress' && order.writerId === writerId;
   const canRecordPayment = order.status === 'Delivered' && order.writerId === writerId;
+  const isAdmin = user?.role === 'admin';
+  const canApprovePOD = isAdmin && (order.status === 'Submitted to Admin' || (order.status === 'Submitted to Admin' && order.revisionCount && order.revisionCount > 0));
+  const canRequestPODRevision = isAdmin && order.status === 'Submitted to Admin';
 
   // Calculate remaining time in hours
   const getRemainingTime = () => {
@@ -490,6 +498,62 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
               </div>
             </div>
           )}
+
+          {/* Admin Actions for Submitted POD Orders */}
+          {isAdmin && order.status === 'Submitted to Admin' && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-purple-800 mb-3">
+                <FileText className="h-5 w-5" />
+                <span className="font-medium">Admin Review Required</span>
+                {order.revisionCount && order.revisionCount > 0 && (
+                  <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                    POD Revision #{order.revisionCount}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={async () => {
+                    if (!confirm('Approve this POD order? It will be marked as ready for delivery.')) return;
+                    setIsApproving(true);
+                    try {
+                      await handlePODOrderAction('admin_approve', order.id, {
+                        adminId: user?.id,
+                        notes: 'POD order approved by admin'
+                      });
+                    } catch (error) {
+                      console.error('Failed to approve POD order:', error);
+                      alert('Failed to approve POD order. Please try again.');
+                    } finally {
+                      setIsApproving(false);
+                    }
+                  }}
+                  disabled={isApproving}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isApproving ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2 animate-spin" />
+                      Approving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      {order.revisionCount && order.revisionCount > 0 ? 'Approve POD Revision' : 'Approve POD Order'}
+                    </>
+                  )}
+                </Button>
+                <Button 
+                  onClick={() => setShowRequestRevisionModal(true)}
+                  variant="outline"
+                  className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-300"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  {order.revisionCount && order.revisionCount > 0 ? `Request Revision #${(order.revisionCount || 0) + 1}` : 'Request Revision'}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Order Info Footer */}
@@ -524,6 +588,28 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
         onClose={() => setShowSubmitModal(false)}
         onSubmit={handleSubmitPODOrder}
       />
+
+      {/* Request POD Revision Modal */}
+      {isAdmin && (
+        <RequestPODRevisionModal
+          isOpen={showRequestRevisionModal}
+          onClose={() => setShowRequestRevisionModal(false)}
+          order={order}
+          onRequestRevision={async (orderId, explanation, notes) => {
+            try {
+              await handlePODOrderAction('admin_reject', orderId, {
+                adminId: user?.id,
+                notes: explanation,
+                explanation: explanation
+              });
+              setShowRequestRevisionModal(false);
+            } catch (error) {
+              console.error('Failed to request POD revision:', error);
+              alert('Failed to request revision. Please try again.');
+            }
+          }}
+        />
+      )}
     </Card>
   );
 }

@@ -10,6 +10,59 @@
 5. **EditRevisionModal** (`client/src/components/revisions/EditRevisionModal.tsx`)
 6. **OrderViewModal** (revision sections)
 7. **OrderContext** (revision logic)
+8. **POD Revisions** - NEW:
+   - **Writer PODRevisionsPage** (`client/src/pages/writer/PODRevisionsPage.tsx`)
+   - **AdminPODRevisionsPage** (`client/src/pages/admin/AdminPODRevisionsPage.tsx`)
+   - **RequestPODRevisionModal** (`client/src/components/RequestPODRevisionModal.tsx`)
+   - **PODOrderCard** (revision actions)
+   - **PODContext** (POD revision logic)
+
+---
+
+## 🆕 POD REVISIONS - NEW SECTION
+
+### **POD Revision System Overview**
+
+POD (Proof of Delivery) orders now have a complete revision workflow similar to regular orders:
+
+#### ✅ **Currently Implemented:**
+1. **Writer POD Revisions Page** - Writers can view POD orders requiring revision
+2. **Admin POD Revisions Page** - Admins can review and approve POD revision submissions
+3. **Request POD Revision Modal** - Admin can request revisions with explanation
+4. **POD Revision Tracking** - Revision count and notes are tracked
+5. **POD Order Card Actions** - Approve and Request Revision buttons for admin
+
+#### ❌ **POD Revision Issues to Fix:**
+1. POD revision files not properly separated (original vs revision)
+2. No POD revision history timeline
+3. Missing POD revision score tracking
+4. No POD revision templates
+5. Limited POD revision filtering options
+6. No POD revision comparison view
+
+#### ✅ **POD Revision Improvements Needed:**
+
+**A. POD Revision File Management**
+- Separate `originalFiles` and `revisionFiles` for POD orders
+- Track file versions for POD orders
+- File comparison for POD revisions
+
+**B. POD Revision History**
+- Complete timeline of POD revision requests
+- Track POD revision submissions
+- POD revision approval/rejection history
+
+**C. POD Revision Analytics**
+- POD revision rates
+- Average POD revision time
+- POD revision success rates
+- Writer POD revision performance
+
+**D. POD Revision UI Enhancements**
+- POD revision round badges
+- POD revision deadline countdown
+- POD revision score display
+- POD revision templates
 
 ---
 

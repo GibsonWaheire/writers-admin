@@ -9,6 +9,7 @@ import AdminOrdersPage from "./pages/AdminOrdersPage";
 import AllOrdersPage from "./pages/admin/AllOrdersPage";
 import PendingReviewPage from "./pages/admin/PendingReviewPage";
 import AdminRevisionsPage from "./pages/admin/AdminRevisionsPage";
+import AdminPODRevisionsPage from "./pages/admin/AdminPODRevisionsPage";
 import AssignmentCenterPage from "./pages/admin/AssignmentCenterPage";
 import WriterMonitorPage from "./pages/admin/WriterMonitorPage";
 import OrderAnalyticsPage from "./pages/admin/OrderAnalyticsPage";
@@ -22,6 +23,7 @@ import AdminPODOrdersPage from "./pages/admin/AdminPODOrdersPage";
 import AvailableOrdersPage from "./pages/writer/AvailableOrdersPage";
 import AssignedOrdersPage from "./pages/writer/AssignedOrdersPage";
 import RevisionsPage from "./pages/writer/RevisionsPage";
+import PODRevisionsPage from "./pages/writer/PODRevisionsPage";
 import CompletedOrdersPage from "./pages/writer/CompletedOrdersPage";
 import RejectedOrdersPage from "./pages/writer/RejectedOrdersPage";
 import PickedOrdersPage from "./pages/writer/PickedOrdersPage";
@@ -160,6 +162,13 @@ function AppRouter() {
           </Layout>
         </ProtectedRoute>
       } />
+      <Route path="/pod-orders/revisions" element={
+        <ProtectedRoute>
+          <Layout>
+            <PODRevisionsPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
       <Route path="/my-orders" element={<Navigate to="/orders/assigned" replace />} />
       <Route path="/wallet" element={
         <ProtectedRoute>
@@ -291,6 +300,13 @@ function AppRouter() {
         <ProtectedRoute requiredRole="admin">
           <Layout>
             <AdminPODOrdersPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/pod-orders/revisions" element={
+        <ProtectedRoute requiredRole="admin">
+          <Layout>
+            <AdminPODRevisionsPage />
           </Layout>
         </ProtectedRoute>
       } />
