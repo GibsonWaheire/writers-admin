@@ -27,8 +27,8 @@ export function SubmitRevisionModal({
   const [revisionNotes, setRevisionNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Use files already uploaded to the order
-  const uploadedFiles = order.uploadedFiles || [];
+  // Use revision files (or uploadedFiles as fallback for backward compatibility)
+  const uploadedFiles = order.revisionFiles || order.uploadedFiles || [];
 
   const handleSubmit = async (e?: React.MouseEvent) => {
     // Prevent any default behavior

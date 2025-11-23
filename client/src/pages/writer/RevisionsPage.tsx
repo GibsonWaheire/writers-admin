@@ -9,9 +9,12 @@ import {
   AlertTriangle,
   Clock,
   DollarSign,
-  FileText
+  FileText,
+  Upload,
+  Send
 } from 'lucide-react';
 import { OrderViewModal } from '../../components/OrderViewModal';
+import { SubmitRevisionModal } from '../../components/SubmitRevisionModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Order } from '../../types/order';
@@ -21,6 +24,8 @@ export default function RevisionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [submittingOrder, setSubmittingOrder] = useState<Order | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<string>("");
 
   const { 
@@ -81,11 +86,54 @@ export default function RevisionsPage() {
       await handleOrderAction(action, orderId, data);
       // Keep modal open for file uploads, close for other actions
       if (action !== 'upload_files') {
-        setIsModalOpen(false);
-        setSelectedOrder(null);
+      setIsModalOpen(false);
+      setSelectedOrder(null);
       }
     } catch (error) {
       console.error('Failed to perform order action:', error);
+    }
+  };
+
+  const handleSubmitRevision = (order: Order) => {
+    // Check if revision files are uploaded
+    const hasRevisionFiles = order.revisionFiles && order.revisionFiles.length > 0;
+    
+    if (!hasRevisionFiles) {
+      alert('Please upload revision files first before submitting. Click "View Details" to upload files.');
+      return;
+    }
+
+    setSubmittingOrder(order);
+    setIsSubmitModalOpen(true);
+  };
+
+  const handleSubmitRevisionConfirm = async (data: {
+    files: any[];
+    notes: string;
+    revisionNotes?: string;
+  }) => {
+    if (!submittingOrder) return;
+
+    if (!data.revisionNotes || !data.revisionNotes.trim()) {
+      alert('Please provide a revision summary explaining what changes were made.');
+      return;
+    }
+
+    try {
+      await handleOrderAction('resubmit', submittingOrder.id, {
+        files: submittingOrder.revisionFiles || [],
+        revisionNotes: data.revisionNotes,
+        notes: data.notes
+      });
+
+      setIsSubmitModalOpen(false);
+      setSubmittingOrder(null);
+      
+      // Show success message
+      alert('Revision submitted successfully! Admin will review your submission.');
+    } catch (error) {
+      console.error('Failed to submit revision:', error);
+      alert('Failed to submit revision. Please try again.');
     }
   };
 
@@ -247,7 +295,7 @@ export default function RevisionsPage() {
                       </div>
                     )}
                     
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
                       <div>
                         <span className="text-gray-600">Pages:</span>
                         <span className="font-medium ml-2">{order.pages}</span>
@@ -261,14 +309,37 @@ export default function RevisionsPage() {
                         <span className="font-medium ml-2 text-green-600">KES {(order.pages * 350).toLocaleString()}</span>
                       </div>
                       <div>
-                        <span className="text-gray-600">Status:</span>
-                        <Badge variant="secondary" className="ml-2">{order.status}</Badge>
+                        <span className="text-gray-600">Files:</span>
+                        <span className="font-medium ml-2">
+                          {order.revisionFiles?.length || 0} uploaded
+                        </span>
                       </div>
                     </div>
+
+                    {/* File Upload Status */}
+                    {order.revisionFiles && order.revisionFiles.length > 0 ? (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <FileText className="h-4 w-4" />
+                          <span className="text-sm font-medium">
+                            {order.revisionFiles.length} revision file{order.revisionFiles.length !== 1 ? 's' : ''} ready to submit
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                        <div className="flex items-center gap-2 text-yellow-700">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span className="text-sm font-medium">
+                            No revision files uploaded yet. Upload files before submitting.
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-end gap-2 pt-4 border-t">
+                <div className="flex items-center justify-between pt-4 border-t">
                   <Button
                     variant="outline"
                     size="sm"
@@ -277,7 +348,31 @@ export default function RevisionsPage() {
                     <FileText className="h-4 w-4 mr-2" />
                     View Details
                   </Button>
-                </div>
+
+                  {/* Submit Revision Button */}
+                    <Button
+                      size="sm"
+                    onClick={() => handleSubmitRevision(order)}
+                    disabled={!order.revisionFiles || order.revisionFiles.length === 0}
+                    className={`${
+                      order.revisionFiles && order.revisionFiles.length > 0
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {order.revisionFiles && order.revisionFiles.length > 0 ? (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Submit Revision for Review
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Files First
+                      </>
+                    )}
+                    </Button>
+                  </div>
               </CardContent>
             </Card>
           ))
@@ -325,6 +420,18 @@ export default function RevisionsPage() {
         />
       )}
 
+      {/* Submit Revision Modal */}
+      {submittingOrder && (
+        <SubmitRevisionModal
+          isOpen={isSubmitModalOpen}
+          onClose={() => {
+            setIsSubmitModalOpen(false);
+            setSubmittingOrder(null);
+          }}
+          order={submittingOrder}
+          onSubmit={handleSubmitRevisionConfirm}
+        />
+      )}
     </div>
   );
 }
