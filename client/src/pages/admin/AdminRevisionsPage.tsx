@@ -21,7 +21,9 @@ import {
   XCircle,
   Search,
   Filter,
-  TrendingUp
+  TrendingUp,
+  History,
+  ArrowRight
 } from 'lucide-react';
 import { OrderViewModal } from '../../components/OrderViewModal';
 import { RequestRevisionModal } from '../../components/RequestRevisionModal';
@@ -307,19 +309,48 @@ export default function AdminRevisionsPage() {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <h3 className="text-lg font-semibold text-gray-900">{order.title}</h3>
-                      <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                      <Badge variant="secondary" className="bg-orange-100 text-orange-700 border border-orange-300">
+                        <RefreshCw className="h-3 w-3 mr-1" />
                         Revision Submitted
                       </Badge>
                       {order.revisionCount && order.revisionCount > 0 && (
-                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                        <Badge 
+                          variant="outline" 
+                          className={`${
+                            order.revisionCount === 1 
+                              ? 'bg-blue-50 text-blue-700 border-blue-400' 
+                              : order.revisionCount === 2
+                              ? 'bg-yellow-50 text-yellow-700 border-yellow-400'
+                              : 'bg-red-50 text-red-700 border-red-400'
+                          } font-semibold`}
+                        >
+                          <AlertTriangle className="h-3 w-3 mr-1" />
                           Round #{order.revisionCount}
+                          {order.revisionCount === 1 && ' (First)'}
+                          {order.revisionCount === 2 && ' (Second)'}
+                          {order.revisionCount >= 3 && ' (Multiple)'}
                         </Badge>
                       )}
                       {order.revisionScore !== undefined && (
-                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                        <Badge 
+                          variant="outline" 
+                          className={`${
+                            order.revisionScore >= 8
+                              ? 'bg-green-50 text-green-700 border-green-300'
+                              : order.revisionScore >= 6
+                              ? 'bg-yellow-50 text-yellow-700 border-yellow-300'
+                              : 'bg-red-50 text-red-700 border-red-300'
+                          } font-medium`}
+                        >
                           Score: {order.revisionScore}/10
+                        </Badge>
+                      )}
+                      {order.revisionFiles && order.revisionFiles.length > 0 && (
+                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
+                          <FileText className="h-3 w-3 mr-1" />
+                          {order.revisionFiles.length} file{order.revisionFiles.length !== 1 ? 's' : ''}
                         </Badge>
                       )}
                     </div>
@@ -364,13 +395,104 @@ export default function AdminRevisionsPage() {
                       </div>
                     )}
 
-                    {/* Original Revision Request */}
-                    {order.revisionExplanation && (
+                    {/* Revision History Timeline */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <History className="h-4 w-4 text-gray-600" />
+                        <h4 className="text-sm font-semibold text-gray-800">Revision History</h4>
+                      </div>
+                      <div className="space-y-3">
+                        {/* Original Submission */}
+                        <div className="flex items-start gap-3">
+                          <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-semibold text-gray-700">Original Submission</span>
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 text-xs">
+                                Round 0
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-gray-600">
+                              Submitted: {order.submittedAt 
+                                ? new Date(order.submittedAt).toLocaleString()
+                                : new Date(order.createdAt).toLocaleString()}
+                            </p>
+                            {order.originalFiles && order.originalFiles.length > 0 && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {order.originalFiles.length} file{order.originalFiles.length !== 1 ? 's' : ''}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Revision Requests */}
+                        {order.revisionCount && order.revisionCount > 0 && (
+                          <>
+                            {Array.from({ length: order.revisionCount }, (_, i) => i + 1).map((round) => (
+                              <div key={round} className="flex items-start gap-3">
+                                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                                  round === order.revisionCount ? 'bg-orange-500' : 'bg-gray-400'
+                                }`}></div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-xs font-semibold text-gray-700">
+                                      Revision Request #{round}
+                                    </span>
+                                    <Badge 
+                                      variant="outline" 
+                                      className={`text-xs ${
+                                        round === order.revisionCount
+                                          ? 'bg-orange-50 text-orange-700 border-orange-300'
+                                          : 'bg-gray-50 text-gray-700 border-gray-300'
+                                      }`}
+                                    >
+                                      Round {round}
+                                    </Badge>
+                                    {round === order.revisionCount && (
+                                      <Badge className="bg-orange-600 text-white text-xs">
+                                        Current
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {round === order.revisionCount && order.revisionExplanation && (
+                                    <p className="text-xs text-orange-800 bg-orange-50 border border-orange-200 rounded p-2 mt-1">
+                                      {order.revisionExplanation}
+                                    </p>
+                                  )}
+                                  {round === order.revisionCount && order.revisionFiles && order.revisionFiles.length > 0 && (
+                                    <div className="mt-2">
+                                      <p className="text-xs text-gray-600 mb-1">Revision Files Submitted:</p>
+                                      <p className="text-xs text-green-700 font-medium">
+                                        ✓ {order.revisionFiles.length} file{order.revisionFiles.length !== 1 ? 's' : ''} ready for review
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        )}
+
+                        {/* Current Status */}
+                        <div className="flex items-start gap-3 pt-2 border-t border-gray-300">
+                          <ArrowRight className="h-4 w-4 text-gray-500 mt-1 flex-shrink-0" />
+                          <div className="flex-1">
+                            <span className="text-xs font-bold text-gray-800">Current Status:</span>
+                            <Badge className="ml-2 bg-orange-600 text-white text-xs">
+                              Pending Admin Review
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Original Revision Request (if no history timeline) */}
+                    {order.revisionExplanation && (!order.revisionCount || order.revisionCount === 0) && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                         <div className="flex items-start gap-2">
                           <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
                           <div className="flex-1">
-                            <p className="text-xs font-medium text-red-700 mb-1">Original Revision Request:</p>
+                            <p className="text-xs font-medium text-red-700 mb-1">Revision Request:</p>
                             <p className="text-xs text-red-800 line-clamp-2">{order.revisionExplanation}</p>
                           </div>
                         </div>

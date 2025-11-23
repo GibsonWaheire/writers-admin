@@ -44,7 +44,7 @@ interface InvoicesContextType {
   getInvoicesByOrder: (orderId: string) => InvoiceData[];
   getOrdersWithoutInvoices: (writerId: string, ordersList: any[], podOrdersList: any[]) => any[]; // New: Get completed orders without invoices
   calculateLateFees: (invoiceId: string) => number;
-  exportInvoices: (format: 'csv' | 'pdf' | 'excel') => void;
+  exportInvoices: (format: 'csv' | 'pdf' | 'excel', writerId?: string) => void;
 }
 
 const InvoicesContext = createContext<InvoicesContextType | undefined>(undefined);
@@ -316,10 +316,103 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
     return invoice.totalAmountKES * fee;
   }, [invoices]);
 
-  const exportInvoices = useCallback((format: 'csv' | 'pdf' | 'excel') => {
-    // Implementation for exporting invoices
-    console.log(`Exporting invoices in ${format} format`);
-  }, []);
+  const exportInvoices = useCallback((format: 'csv' | 'pdf' | 'excel', writerId?: string) => {
+    // Filter invoices by writer if provided
+    const invoicesToExport = writerId 
+      ? invoices.filter(inv => inv.writerId === writerId)
+      : invoices;
+
+    if (invoicesToExport.length === 0) {
+      alert('No invoices to export');
+      return;
+    }
+
+    if (format === 'csv') {
+      // CSV Headers
+      const headers = [
+        'Invoice ID',
+        'Order ID',
+        'Order Title',
+        'Order Type',
+        'Pages',
+        'Invoice Status',
+        'Payment Status',
+        'Total Amount (KES)',
+        'Writer Earnings (KES)',
+        'Platform Fee (KES)',
+        'Due Date',
+        'Created At',
+        'Paid At',
+        'Payment Method',
+        'Submitted At',
+        'Approved At',
+        'Notes'
+      ];
+
+      // CSV Rows
+      const rows = invoicesToExport.map(invoice => {
+        const formatDate = (dateString?: string) => {
+          if (!dateString) return '';
+          try {
+            return new Date(dateString).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+          } catch {
+            return dateString;
+          }
+        };
+
+        return [
+          invoice.id || '',
+          invoice.orderId || '',
+          `"${(invoice.orderTitle || '').replace(/"/g, '""')}"`, // Escape quotes in CSV
+          invoice.orderType || '',
+          invoice.pages?.toString() || '0',
+          invoice.invoiceStatus || invoice.status || '',
+          invoice.paymentStatus || '',
+          invoice.totalAmountKES?.toFixed(2) || '0.00',
+          invoice.writerEarnings?.toFixed(2) || '0.00',
+          invoice.platformFee?.toFixed(2) || '0.00',
+          formatDate(invoice.dueDate),
+          formatDate(invoice.createdAt),
+          formatDate(invoice.paidAt),
+          invoice.paymentMethod || '',
+          formatDate(invoice.submittedAt),
+          formatDate(invoice.approvedAt),
+          `"${(invoice.notes || '').replace(/"/g, '""')}"` // Escape quotes in CSV
+        ];
+      });
+
+      // Combine headers and rows
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', `invoices_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      URL.revokeObjectURL(url);
+    } else if (format === 'pdf' || format === 'excel') {
+      // PDF and Excel export can be implemented later
+      console.log(`Exporting invoices in ${format} format - Coming soon`);
+      alert(`${format.toUpperCase()} export is coming soon. Please use CSV export for now.`);
+    }
+  }, [invoices]);
 
   // Calculate totals
   const totalInvoices = invoices.length;

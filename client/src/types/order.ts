@@ -125,6 +125,17 @@ export interface Order {
     changes: string[];
     notificationSent: boolean;
   };
+  // Bidding system - multiple writers can bid on same order
+  bids?: Array<{
+    id: string;
+    writerId: string;
+    writerName: string;
+    bidAt: string;
+    status: 'pending' | 'approved' | 'declined';
+    notes?: string;
+    questions?: WriterQuestion[];
+    confirmation?: WriterConfirmation;
+  }>;
 }
 
 export type PaperType = 

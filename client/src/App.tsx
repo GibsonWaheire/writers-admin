@@ -13,7 +13,7 @@ import AdminPODRevisionsPage from "./pages/admin/AdminPODRevisionsPage";
 import AssignmentCenterPage from "./pages/admin/AssignmentCenterPage";
 import WriterMonitorPage from "./pages/admin/WriterMonitorPage";
 import OrderAnalyticsPage from "./pages/admin/OrderAnalyticsPage";
-import AdminPickedOrdersPage from "./pages/admin/PickedOrdersPage";
+import AdminBidOrdersPage from "./pages/admin/AdminBidOrdersPage";
 import AdminWritersPage from "./pages/AdminWritersPage";
 import AdminReviewsPage from "./pages/AdminReviewsPage";
 import AdminFinancialPage from "./pages/AdminFinancialPage";
@@ -243,7 +243,7 @@ function AppRouter() {
       <Route path="/admin/orders/picked" element={
         <ProtectedRoute requiredRole="admin">
           <Layout>
-            <AdminPickedOrdersPage />
+            <AdminBidOrdersPage />
           </Layout>
         </ProtectedRoute>
       } />

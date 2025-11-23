@@ -100,7 +100,8 @@ def create_order():
         reviews=json_lib.dumps(data.get('reviews', [])),
         client_messages=json_lib.dumps(data.get('clientMessages', [])),
         admin_messages=json_lib.dumps(data.get('adminMessages', [])),
-        last_admin_edit=json_lib.dumps(data.get('lastAdminEdit')) if data.get('lastAdminEdit') else None
+        last_admin_edit=json_lib.dumps(data.get('lastAdminEdit')) if data.get('lastAdminEdit') else None,
+        bids=json_lib.dumps(data.get('bids', []))
     )
     
     db.session.add(order)
@@ -234,6 +235,8 @@ def update_order(order_id):
         order.fine_reason = data['fineReason'] if data['fineReason'] else None
     if 'fineHistory' in data:
         order.fine_history = json_lib.dumps(data['fineHistory']) if data['fineHistory'] else None
+    if 'bids' in data:
+        order.bids = json_lib.dumps(data['bids']) if data['bids'] else None
     
     order.updated_at = datetime.utcnow()
     

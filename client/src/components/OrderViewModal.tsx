@@ -25,7 +25,10 @@ import {
   FileType,
   Upload,
   RefreshCw,
-  Paperclip
+  Paperclip,
+  Hand,
+  Users,
+  Clock
 } from 'lucide-react';
 import type { Order, OrderStatus, WriterConfirmation, WriterQuestion } from '../types/order';
 import { getWriterIdForUser } from '../utils/writer';
@@ -432,7 +435,7 @@ export function OrderViewModal({
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 bg-gray-100">
+          <TabsList className={`grid w-full ${userRole === 'admin' && order.bids && order.bids.length > 0 ? 'grid-cols-5' : 'grid-cols-4'} bg-gray-100`}>
             <TabsTrigger 
               value="details"
               className="data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:font-semibold"
@@ -447,6 +450,18 @@ export function OrderViewModal({
               <FileText className="h-4 w-4 mr-2" />
               Requirements
             </TabsTrigger>
+            {userRole === 'admin' && order.bids && order.bids.length > 0 && (
+              <TabsTrigger 
+                value="bids"
+                className="data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=active]:font-semibold"
+              >
+                <Hand className="h-4 w-4 mr-2" />
+                Bids
+                <Badge variant="secondary" className="ml-2 bg-white text-green-600">
+                  {order.bids.filter((b: any) => b.status === 'pending').length}
+                </Badge>
+              </TabsTrigger>
+            )}
             <TabsTrigger 
               value="messages"
               className="data-[state=active]:bg-indigo-500 data-[state=active]:text-white data-[state=active]:font-semibold"
@@ -703,6 +718,109 @@ export function OrderViewModal({
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Bids Tab (Admin Only) */}
+          {userRole === 'admin' && order.bids && order.bids.length > 0 && (
+            <TabsContent value="bids" className="space-y-4 bg-green-50/30 p-4 rounded-lg">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Hand className="h-5 w-5 text-green-600" />
+                    Order Bids
+                    <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300">
+                      {order.bids.filter((b: any) => b.status === 'pending').length} Pending
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {order.bids.map((bid: any) => {
+                      const isPending = bid.status === 'pending';
+                      const isApproved = bid.status === 'approved';
+                      const isDeclined = bid.status === 'declined';
+                      
+                      return (
+                        <Card 
+                          key={bid.id} 
+                          className={`border-l-4 ${
+                            isPending ? 'border-l-yellow-500 bg-yellow-50/50' :
+                            isApproved ? 'border-l-green-500 bg-green-50/50' :
+                            'border-l-red-500 bg-red-50/50'
+                          }`}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <User className="h-4 w-4 text-gray-500" />
+                                  <span className="font-semibold text-gray-900">{bid.writerName || 'Unknown Writer'}</span>
+                                  <Badge 
+                                    variant="outline" 
+                                    className={
+                                      isPending 
+                                        ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
+                                        isApproved
+                                        ? 'bg-green-50 text-green-700 border-green-300'
+                                        : 'bg-red-50 text-red-700 border-red-300'
+                                    }
+                                  >
+                                    {isPending ? 'Pending' : isApproved ? 'Approved' : 'Declined'}
+                                  </Badge>
+                                </div>
+                                
+                                <div className="text-sm text-gray-600 space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="h-3 w-3" />
+                                    <span>Bid placed: {new Date(bid.bidAt).toLocaleString()}</span>
+                                  </div>
+                                  {bid.notes && (
+                                    <div className="mt-2 p-2 bg-white rounded border border-gray-200">
+                                      <span className="font-medium text-gray-700">Notes:</span>
+                                      <p className="text-gray-600 mt-1">{bid.notes}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {isPending && (
+                                <div className="flex items-center gap-2 ml-4">
+                                  <Button
+                                    size="sm"
+                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                    onClick={() => {
+                                      if (confirm(`Approve bid from ${bid.writerName}? This will assign the order to them and decline all other pending bids.`)) {
+                                        onAction('approve_bid', order.id, { bidId: bid.id });
+                                      }
+                                    }}
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                                    onClick={() => {
+                                      if (confirm(`Decline bid from ${bid.writerName}? The order will remain available for other writers.`)) {
+                                        onAction('decline_bid', order.id, { bidId: bid.id });
+                                      }
+                                    }}
+                                  >
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                    Decline
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
           {/* Messages Tab */}
           <TabsContent value="messages" className="space-y-4 bg-purple-50/30 p-4 rounded-lg">

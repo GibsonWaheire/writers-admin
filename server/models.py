@@ -174,6 +174,8 @@ class Order(db.Model):
     fine_amount = db.Column(db.Float, default=0)
     fine_reason = db.Column(db.Text)
     fine_history = db.Column(db.Text)  # JSON array string
+    # Bidding system - multiple writers can bid on same order
+    bids = db.Column(db.Text)  # JSON array string - Array of bid objects
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -244,6 +246,7 @@ class Order(db.Model):
             'clientMessages': json.loads(self.client_messages) if self.client_messages else [],
             'adminMessages': json.loads(self.admin_messages) if self.admin_messages else [],
             'lastAdminEdit': json.loads(self.last_admin_edit) if self.last_admin_edit else None,
+            'bids': json.loads(self.bids) if self.bids else [],
             'createdAt': self.created_at.isoformat() if self.created_at else None,
             'updatedAt': self.updated_at.isoformat() if self.updated_at else None
         }

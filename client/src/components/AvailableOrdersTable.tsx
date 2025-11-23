@@ -7,9 +7,13 @@ import {
   Search, 
   Eye, 
   CheckCircle, 
-  BookOpen
+  BookOpen,
+  Users,
+  Hand
 } from "lucide-react";
 import type { Order, WriterConfirmation, WriterQuestion } from '../types/order';
+import { getWriterIdForUser } from '../utils/writer';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AvailableOrdersTableProps {
   orders: Order[];
@@ -28,6 +32,8 @@ export function AvailableOrdersTable({
   const [filterDiscipline, setFilterDiscipline] = useState<string>("");
   const [filterPaperType, setFilterPaperType] = useState<string>("");
   const [filterPriceRange, setFilterPriceRange] = useState<string>("");
+  const { user } = useAuth();
+  const currentWriterId = getWriterIdForUser(user?.id);
 
   // Filter orders based on search and filters
   const filteredOrders = orders.filter(order => {
@@ -239,6 +245,13 @@ export function AvailableOrdersTable({
                             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                               {order.status === 'Auto-Reassigned' ? 'Reassigned' : 'Available'}
                             </Badge>
+                            {/* Show bid count if there are bids */}
+                            {order.bids && order.bids.length > 0 && (
+                              <div className="flex items-center gap-1 text-xs text-blue-600">
+                                <Users className="h-3 w-3" />
+                                <span>{order.bids.filter((b: any) => b.status === 'pending').length} writer{order.bids.filter((b: any) => b.status === 'pending').length !== 1 ? 's' : ''} bid</span>
+                              </div>
+                            )}
                             {order.status === 'Auto-Reassigned' && (
                               <div className="text-xs text-orange-600">
                                 Previously assigned to another writer
@@ -279,14 +292,37 @@ export function AvailableOrdersTable({
                     <TableCell className="py-4">
                       <div className="flex items-center gap-2">
                         {userRole === 'writer' && order.status === 'Available' && !order.writerId && (
-                          <Button 
-                            onClick={() => handleBidOrder(order)}
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Bid on Order
-                          </Button>
+                          (() => {
+                            // Check if current writer has already bid
+                            const hasBid = order.bids?.some((bid: any) => 
+                              bid.writerId === currentWriterId && bid.status === 'pending'
+                            );
+                            
+                            if (hasBid) {
+                              return (
+                                <Button 
+                                  variant="outline"
+                                  size="sm"
+                                  className="bg-blue-50 border-blue-300 text-blue-700 cursor-default"
+                                  disabled
+                                >
+                                  <Hand className="h-4 w-4 mr-2" />
+                                  Bid Submitted
+                                </Button>
+                              );
+                            }
+                            
+                            return (
+                              <Button 
+                                onClick={() => handleBidOrder(order)}
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Bid on Order
+                              </Button>
+                            );
+                          })()
                         )}
                         
                         {userRole === 'writer' && order.writerId && order.status !== 'Available' && (

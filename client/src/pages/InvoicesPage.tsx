@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
   Search, 
@@ -13,9 +12,7 @@ import {
   Clock,
   AlertTriangle,
   TrendingUp,
-  Plus,
-  Send,
-  CreditCard
+  Plus
 } from "lucide-react";
 import { InvoiceCard } from "../components/InvoiceCard";
 import { CreateInvoiceModal } from "../components/CreateInvoiceModal";
@@ -101,7 +98,9 @@ export default function InvoicesPage() {
   };
 
   const handleExportInvoices = (format: 'csv' | 'pdf' | 'excel') => {
-    exportInvoices(format);
+    // Pass writerId for writers so they only export their own invoices
+    const exportWriterId = currentUserRole === 'writer' ? writerId : undefined;
+    exportInvoices(format, exportWriterId);
   };
 
   // Get invoices by status
@@ -449,6 +448,30 @@ export default function InvoicesPage() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Create Invoice Modal */}
+      {currentUserRole === 'writer' && (
+        <CreateInvoiceModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          orders={ordersWithoutInvoices}
+          onCreateInvoice={handleCreateInvoice}
+        />
+      )}
+
+      {/* Invoice Details Modal */}
+      {selectedInvoice && (
+        <InvoiceDetailsModal
+          isOpen={isDetailsModalOpen}
+          onClose={() => {
+            setIsDetailsModalOpen(false);
+            setSelectedInvoice(null);
+          }}
+          invoice={selectedInvoice}
+          onSubmit={selectedInvoice?.invoiceStatus === 'draft' ? handleSubmitInvoice : undefined}
+          onRequestPayment={selectedInvoice?.invoiceStatus === 'approved' ? handleRequestPayment : undefined}
+        />
+      )}
     </div>
   );
 }
@@ -488,33 +511,6 @@ function InvoicesList({ invoices, onDownload, onViewDetails, onSubmit, onRequest
           userRole={userRole}
         />
       ))}
-    </div>
-  );
-}
-
-      {/* Create Invoice Modal */}
-      {currentUserRole === 'writer' && (
-        <CreateInvoiceModal
-          isOpen={isCreateModalOpen}
-          onClose={() => setIsCreateModalOpen(false)}
-          orders={ordersWithoutInvoices}
-          onCreateInvoice={handleCreateInvoice}
-        />
-      )}
-
-      {/* Invoice Details Modal */}
-      {selectedInvoice && (
-        <InvoiceDetailsModal
-          isOpen={isDetailsModalOpen}
-          onClose={() => {
-            setIsDetailsModalOpen(false);
-            setSelectedInvoice(null);
-          }}
-          invoice={selectedInvoice}
-          onSubmit={selectedInvoice?.invoiceStatus === 'draft' ? handleSubmitInvoice : undefined}
-          onRequestPayment={selectedInvoice?.invoiceStatus === 'approved' ? handleRequestPayment : undefined}
-        />
-      )}
     </div>
   );
 }

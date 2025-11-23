@@ -130,8 +130,11 @@ export function Sidebar() {
   const writerOrders = orders.filter(order => order.writerId === currentWriterId);
   
   const activeOrders = writerOrders.filter(order => 
-    ['Awaiting Approval', 'Confirmed', 'In Progress', 'Submitted to Admin', 'Under Admin Review', 'Admin Approved', 'Client Review', 'Client Approved', 'Editor Revision', 'Awaiting Payment', 'Pay Later'].includes(order.status)
+    ['Assigned', 'In Progress', 'Submitted'].includes(order.status)
   ).length;
+  
+  const revisionOrders = writerOrders.filter(order => order.status === 'Revision').length;
+  const rejectedOrders = writerOrders.filter(order => order.status === 'Rejected').length;
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -170,6 +173,16 @@ export function Sidebar() {
     const isExpanded = expandedItems.includes(item.path);
     const isOrderManagement = item.path === '/admin/orders' || item.path === '/orders/available';
     
+    // Get badge count for sub-items
+    const getSubItemBadge = (subItemPath: string): number => {
+      if (!isAdmin) {
+        if (subItemPath === '/orders/assigned') return activeOrders;
+        if (subItemPath === '/orders/revisions') return revisionOrders;
+        if (subItemPath === '/orders/rejected') return rejectedOrders;
+      }
+      return 0;
+    };
+    
     if (hasSubItems) {
       return (
         <div key={item.path}>
@@ -205,21 +218,32 @@ export function Sidebar() {
           {/* Sub-items - Always show for Order Management, conditional for others */}
           {!isCollapsed && (isOrderManagement || isExpanded) && (
             <div className="ml-6 mt-1 space-y-1">
-              {item.subItems?.map((subItem: MenuItem) => (
-                <Link
-                  key={subItem.path}
-                  to={subItem.path}
-                  onClick={closeMobile}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                    isSubItemActive(subItem.path)
-                      ? 'bg-blue-50 text-blue-600 border-l-2 border-blue-400'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <span className="text-sm">{subItem.emoji}</span>
-                  <span className="text-sm font-medium">{subItem.label}</span>
-                </Link>
-              ))}
+              {item.subItems?.map((subItem: MenuItem) => {
+                const badgeCount = getSubItemBadge(subItem.path);
+                return (
+                  <Link
+                    key={subItem.path}
+                    to={subItem.path}
+                    onClick={closeMobile}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                      isSubItemActive(subItem.path)
+                        ? 'bg-blue-50 text-blue-600 border-l-2 border-blue-400'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="text-sm">{subItem.emoji}</span>
+                    <span className="text-sm font-medium flex-1">{subItem.label}</span>
+                    {badgeCount > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5"
+                      >
+                        {badgeCount}
+                      </Badge>
+                    )}
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>

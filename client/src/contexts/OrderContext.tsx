@@ -6,6 +6,7 @@ import { notificationHelpers } from '../services/notificationService';
 import { useAuth } from './AuthContext';
 import { useWallet } from './WalletContext';
 import { useNotifications } from './NotificationContext';
+import { useToast } from './ToastContext';
 import { normalizeWriterId } from '../utils/writer';
 
 interface OrderContextType {
@@ -69,10 +70,23 @@ interface OrderContextType {
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
-const normalizeOrderData = (order: Order): Order => ({
-  ...order,
-  writerId: normalizeWriterId(order.writerId) || order.writerId,
-});
+const normalizeOrderData = (order: Order): Order => {
+  // Parse bids if it's a string (from database JSON)
+  let bids = order.bids;
+  if (typeof bids === 'string') {
+    try {
+      bids = JSON.parse(bids);
+    } catch {
+      bids = [];
+    }
+  }
+  
+  return {
+    ...order,
+    writerId: normalizeWriterId(order.writerId) || order.writerId,
+    bids: bids || [],
+  };
+};
 
 export function OrderProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -92,6 +106,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     notificationContext = useNotifications();
   } catch (e) {
     // NotificationContext not available yet
+  }
+  
+  // Try to get toast context for popup notifications
+  let toastContext: ReturnType<typeof useToast> | null = null;
+  try {
+    toastContext = useToast();
+  } catch (e) {
+    // ToastContext not available yet
   }
   
   const [orders, setOrders] = useState<Order[]>([]);
@@ -283,16 +305,38 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         
         switch (action) {
         case 'bid':
-          // Writer places a bid; admin must approve before assignment.
-          newStatus = 'Awaiting Approval';
-          updates.writerId = additionalData?.writerId || 'unknown';
-          updates.assignedWriter = additionalData?.writerName || 'Unknown Writer';
-          updates.assignedAt = new Date().toISOString();
-          updates.pickedBy = 'writer';
-          updates.assignedBy = 'writer'; // Track that writer picked it themselves
-          updates.assignmentPriority = additionalData?.priority || 'medium'; // Default priority for bids
-          updates.assignmentNotes = additionalData?.notes;
-          updates.requiresConfirmation = true; // Waiting for admin approval
+          // Writer places a bid; order stays Available, bid is added to bids array
+          // Multiple writers can bid on the same order
+          const writerId = additionalData?.writerId as string || 'unknown';
+          const writerName = additionalData?.writerName as string || 'Unknown Writer';
+          
+          // Check if writer already bid on this order
+          const existingBids = order.bids || [];
+          const hasExistingBid = existingBids.some((bid: any) => 
+            bid.writerId === writerId && bid.status === 'pending'
+          );
+          
+          if (hasExistingBid) {
+            console.warn('⚠️ OrderContext: Writer has already bid on this order');
+            throw new Error('You have already placed a bid on this order');
+          }
+          
+          // Create new bid
+          const newBid = {
+            id: `bid-${orderId}-${writerId}-${Date.now()}`,
+            writerId,
+            writerName,
+            bidAt: new Date().toISOString(),
+            status: 'pending' as const,
+            notes: additionalData?.notes as string,
+            questions: additionalData?.questions as any[],
+            confirmation: additionalData?.confirmation as any
+          };
+          
+          // Add bid to bids array (order stays Available)
+          updates.bids = [...existingBids, newBid];
+          // Keep status as Available - don't change it
+          newStatus = 'Available';
           
           // Log activity
           logOrderActivity(
@@ -300,51 +344,58 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             order.orderNumber,
             'bid',
             oldStatus,
-            'Awaiting Approval',
-            `Order ${order.orderNumber || orderId} bid by writer ${updates.assignedWriter}`,
-            { writerId: updates.writerId, writerName: updates.assignedWriter, pickedBy: 'writer' }
+            'Available',
+            `Writer ${writerName} placed a bid on order ${order.orderNumber || orderId}`,
+            { writerId, writerName, bidId: newBid.id }
           ).catch(err => console.error('Failed to log activity:', err));
           
-          // Create assignment history entry for picked orders
-          // This ensures it appears in "recently picked" section
-          if (notificationContext?.createAssignment) {
-            notificationContext.createAssignment(
-              orderId,
-              updates.writerId as string,
-              'writer', // assignedBy
-              {
-                priority: 'medium',
-                requireConfirmation: true,
-                writerName: updates.assignedWriter as string,
-                assignedByName: updates.assignedWriter as string
-              }
-            ).catch(err => console.error('Failed to create assignment history:', err));
-          }
-          
-          // Notify admin that writer picked the order
+          // Notify admin that writer bid on the order
           notificationHelpers.notifyAdminOrderBid(
             orderId,
             order.title,
-            updates.assignedWriter as string
+            writerName
           ).catch(err => console.error('Failed to notify admin:', err));
           
           console.log('🎯 OrderContext: Order bid by writer:', {
             orderId,
             oldStatus,
-            newStatus: 'Awaiting Approval',
-            writerId: updates.writerId,
-            writerName: updates.assignedWriter,
-            assignedAt: updates.assignedAt,
-            note: 'Order is now awaiting admin approval before being assigned'
+            newStatus: 'Available',
+            writerId,
+            writerName,
+            bidId: newBid.id,
+            totalBids: updates.bids.length,
+            note: 'Order remains Available, bid added to bids array'
           });
           break;
         
         case 'approve_bid':
-          if (order.status !== 'Awaiting Approval') {
-            console.warn('⚠️ OrderContext: approve_bid only valid for orders awaiting approval');
-            break;
+          // Approve a specific bid by bidId, assign order to that writer
+          const bidIdToApprove = additionalData?.bidId as string;
+          if (!bidIdToApprove) {
+            throw new Error('Bid ID is required to approve a bid');
           }
+          
+          const bids = order.bids || [];
+          const bidToApprove = bids.find((bid: any) => bid.id === bidIdToApprove && bid.status === 'pending');
+          
+          if (!bidToApprove) {
+            throw new Error('Bid not found or already processed');
+          }
+          
+          // Update bid status to approved
+          updates.bids = bids.map((bid: any) => 
+            bid.id === bidIdToApprove 
+              ? { ...bid, status: 'approved' as const }
+              : bid.status === 'pending' ? { ...bid, status: 'declined' as const } : bid
+          );
+          
+          // Assign order to the approved writer
           newStatus = 'Assigned';
+          updates.writerId = bidToApprove.writerId;
+          updates.assignedWriter = bidToApprove.writerName;
+          updates.assignedAt = new Date().toISOString();
+          updates.pickedBy = 'writer';
+          updates.assignedBy = 'writer';
           updates.requiresConfirmation = false;
           updates.confirmedAt = new Date().toISOString();
           updates.confirmedBy = additionalData?.adminId || user?.id || 'admin';
@@ -353,39 +404,54 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             orderId,
             order.orderNumber,
             'approve_bid',
-            'Awaiting Approval',
+            oldStatus,
             'Assigned',
-            `Admin approved bid for order ${order.orderNumber || orderId}`,
-            { writerId: order.writerId, writerName: order.assignedWriter, approvedBy: updates.confirmedBy }
+            `Admin approved bid from ${bidToApprove.writerName} for order ${order.orderNumber || orderId}`,
+            { writerId: bidToApprove.writerId, writerName: bidToApprove.writerName, bidId: bidIdToApprove, approvedBy: updates.confirmedBy }
           ).catch(err => console.error('Failed to log activity:', err));
           
-          if (order.writerId) {
-            notificationType = 'order_assigned';
-            notificationData = { orderId, orderTitle: order.title };
+          notificationType = 'order_assigned';
+          notificationData = { orderId, orderTitle: order.title };
+          
+          // Show toast notification for order assignment
+          if (bidToApprove.writerId && toastContext) {
+            toastContext.showToast({
+              type: 'success',
+              title: 'Bid Approved! ✅',
+              message: `Your bid on "${order.title}" has been approved. Order is now assigned to you.`,
+              duration: 6000
+            });
           }
           break;
         
         case 'decline_bid':
-          if (order.status !== 'Awaiting Approval') {
-            console.warn('⚠️ OrderContext: decline_bid only valid for orders awaiting approval');
-            break;
+          // Decline a specific bid by bidId, remove it but keep order available
+          const bidIdToDecline = additionalData?.bidId as string;
+          if (!bidIdToDecline) {
+            throw new Error('Bid ID is required to decline a bid');
           }
+          
+          const allBids = order.bids || [];
+          const bidToDecline = allBids.find((bid: any) => bid.id === bidIdToDecline);
+          
+          if (!bidToDecline) {
+            throw new Error('Bid not found');
+          }
+          
+          // Remove the declined bid from bids array (or mark as declined)
+          updates.bids = allBids.filter((bid: any) => bid.id !== bidIdToDecline);
+          
+          // Order stays Available
           newStatus = 'Available';
-          updates.writerId = undefined;
-          updates.assignedWriter = undefined;
-          updates.pickedBy = undefined;
-          updates.assignedBy = undefined;
-          updates.assignmentNotes = additionalData?.notes;
-          updates.requiresConfirmation = false;
           
           logOrderActivity(
             orderId,
             order.orderNumber,
             'decline_bid',
-            'Awaiting Approval',
+            oldStatus,
             'Available',
-            `Admin declined bid for order ${order.orderNumber || orderId}`,
-            { reason: additionalData?.notes }
+            `Admin declined bid from ${bidToDecline.writerName} for order ${order.orderNumber || orderId}`,
+            { writerId: bidToDecline.writerId, writerName: bidToDecline.writerName, bidId: bidIdToDecline, reason: additionalData?.notes }
           ).catch(err => console.error('Failed to log activity:', err));
           break;
         
@@ -403,6 +469,19 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           updates.assignmentPriority = additionalData?.priority || 'medium';
           updates.assignmentDeadline = additionalData?.deadline;
           updates.requiresConfirmation = additionalData?.requireConfirmation || false;
+          
+          // Show toast notification for direct assignment
+          if (updates.writerId && toastContext) {
+            const assignedWriterId = normalizeWriterId(updates.writerId as string);
+            if (assignedWriterId) {
+              toastContext.showToast({
+                type: 'success',
+                title: 'New Order Assigned! 🎉',
+                message: `You've been assigned: "${order.title}"`,
+                duration: 6000
+              });
+            }
+          }
           
           // Log activity
           logOrderActivity(
@@ -626,6 +705,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             fineAmount: updates.fineAmount,
             adminNotes: updates.adminReviewNotes
           });
+          
+          // Show toast notification for rejection (urgent)
+          if (order.writerId && toastContext) {
+            toastContext.showToast({
+              type: 'error',
+              title: 'Order Rejected ❌',
+              message: `"${order.title}" has been rejected. ${additionalData?.notes ? `Reason: ${(additionalData.notes as string).substring(0, 100)}` : 'Please check details.'}`,
+              duration: 8000
+            });
+          }
           break;
           
         case 'request_revision':
@@ -703,6 +792,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           if (order.writerId) {
             notificationType = 'revision';
             notificationData = { explanation: updates.revisionExplanation };
+          }
+          
+          // Show toast notification for revision request (urgent)
+          if (order.writerId && toastContext) {
+            toastContext.showToast({
+              type: 'warning',
+              title: 'Revision Required ⚠️',
+              message: `"${order.title}" needs revision. ${updates.revisionExplanation ? updates.revisionExplanation.substring(0, 100) + (updates.revisionExplanation.length > 100 ? '...' : '') : 'Please check details.'}`,
+              duration: 10000
+            });
           }
           break;
           
@@ -1003,32 +1102,67 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           break;
           
         case 'bid':
-          orderWithUpdates.status = 'Awaiting Approval';
-          orderWithUpdates.writerId = additionalData?.writerId as string;
-          orderWithUpdates.assignedWriter = additionalData?.writerName as string;
-          orderWithUpdates.assignedAt = new Date().toISOString();
-          orderWithUpdates.pickedBy = 'writer';
-          orderWithUpdates.assignedBy = 'writer';
-          orderWithUpdates.assignmentPriority = additionalData?.priority || 'medium';
-          orderWithUpdates.assignmentNotes = additionalData?.notes;
-          orderWithUpdates.requiresConfirmation = true;
+          // Add bid to bids array, keep status as Available
+          const writerId = additionalData?.writerId as string || 'unknown';
+          const writerName = additionalData?.writerName as string || 'Unknown Writer';
+          const existingBids = order.bids || [];
+          
+          // Check for duplicate bid
+          const hasBid = existingBids.some((bid: any) => 
+            bid.writerId === writerId && bid.status === 'pending'
+          );
+          
+          if (!hasBid) {
+            const newBid = {
+              id: `bid-${order.id}-${writerId}-${Date.now()}`,
+              writerId,
+              writerName,
+              bidAt: new Date().toISOString(),
+              status: 'pending' as const,
+              notes: additionalData?.notes as string,
+              questions: additionalData?.questions as any[],
+              confirmation: additionalData?.confirmation as any
+            };
+            orderWithUpdates.bids = [...existingBids, newBid];
+          }
+          // Keep status as Available
+          orderWithUpdates.status = 'Available';
           break;
         
         case 'approve_bid':
-          orderWithUpdates.status = 'Assigned';
-          orderWithUpdates.requiresConfirmation = false;
-          orderWithUpdates.confirmedAt = new Date().toISOString();
-          orderWithUpdates.confirmedBy = additionalData?.adminId as string || 'admin';
+          // Approve specific bid and assign order
+          const bidIdToApprove = additionalData?.bidId as string;
+          const allBids = order.bids || [];
+          const bidToApprove = allBids.find((bid: any) => bid.id === bidIdToApprove);
+          
+          if (bidToApprove) {
+            // Update bids: approve selected, decline others
+            orderWithUpdates.bids = allBids.map((bid: any) => 
+              bid.id === bidIdToApprove 
+                ? { ...bid, status: 'approved' as const }
+                : bid.status === 'pending' ? { ...bid, status: 'declined' as const } : bid
+            );
+            
+            // Assign to approved writer
+            orderWithUpdates.status = 'Assigned';
+            orderWithUpdates.writerId = bidToApprove.writerId;
+            orderWithUpdates.assignedWriter = bidToApprove.writerName;
+            orderWithUpdates.assignedAt = new Date().toISOString();
+            orderWithUpdates.pickedBy = 'writer';
+            orderWithUpdates.assignedBy = 'writer';
+            orderWithUpdates.requiresConfirmation = false;
+            orderWithUpdates.confirmedAt = new Date().toISOString();
+            orderWithUpdates.confirmedBy = additionalData?.adminId as string || 'admin';
+          }
           break;
         
         case 'decline_bid':
+          // Remove declined bid, keep order available
+          const bidIdToDecline = additionalData?.bidId as string;
+          const currentBids = order.bids || [];
+          orderWithUpdates.bids = currentBids.filter((bid: any) => bid.id !== bidIdToDecline);
+          // Order stays Available
           orderWithUpdates.status = 'Available';
-          orderWithUpdates.writerId = undefined;
-          orderWithUpdates.assignedWriter = undefined;
-          orderWithUpdates.pickedBy = undefined;
-          orderWithUpdates.assignedBy = undefined;
-          orderWithUpdates.assignmentNotes = additionalData?.notes;
-          orderWithUpdates.requiresConfirmation = false;
           break;
           
         case 'make_available':
@@ -1306,11 +1440,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
   // Get available orders (excluding assigned orders and picked orders)
   const getAvailableOrders = useCallback(() => {
+    // Available orders include:
+    // 1. Orders with status 'Available' and no assigned writer
+    // 2. Orders with bids are still available (status stays 'Available')
     return orders.filter(order => 
       order.status === 'Available' && 
       !order.writerId && 
-      !order.assignedWriter &&
-      order.pickedBy !== 'writer' // Exclude orders that were picked by writers
+      !order.assignedWriter
+      // Note: Orders with bids are still Available, so we include them
     );
   }, [orders]);
 
@@ -1480,9 +1617,25 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
       // Track changes for notification
       const changes: string[] = [];
+      const importantChanges: string[] = [];
+      
       Object.entries(updates).forEach(([key, value]) => {
-        if (order[key as keyof Order] !== value) {
-          changes.push(`${key}: ${order[key as keyof Order]} → ${value}`);
+        const oldValue = order[key as keyof Order];
+        if (oldValue !== value) {
+          changes.push(`${key}: ${oldValue} → ${value}`);
+          
+          // Track important changes that writers need to know about
+          if (['price', 'priceKES', 'totalPriceKES', 'pages', 'deadline', 'title', 'description', 'requirements'].includes(key)) {
+            if (key === 'price' || key === 'priceKES' || key === 'totalPriceKES') {
+              importantChanges.push(`Price changed: KES ${oldValue} → KES ${value}`);
+            } else if (key === 'deadline') {
+              importantChanges.push(`Deadline changed: ${new Date(oldValue as string).toLocaleDateString()} → ${new Date(value as string).toLocaleDateString()}`);
+            } else if (key === 'pages') {
+              importantChanges.push(`Page count changed: ${oldValue} → ${value} pages`);
+            } else {
+              importantChanges.push(`${key} was updated`);
+            }
+          }
         }
       });
 
@@ -1493,7 +1646,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         updatedAt: new Date().toISOString(),
         lastAdminEdit: {
           editedAt: new Date().toISOString(),
-          editedBy: 'admin', // TODO: Get actual admin ID
+          editedBy: user?.id || 'admin',
           changes,
           notificationSent: false
         }
@@ -1508,10 +1661,33 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
       console.log('✅ Order updated:', { orderId, changes });
       
-      // If order is assigned and has changes, send notification
-      if ((order.writerId || order.assignedWriter) && changes.length > 0) {
-        // TODO: Send notification to writer about changes
-        console.log('📢 Writer notification needed for order changes:', { orderId, changes });
+      // If order is assigned and has important changes, notify writer
+      if ((order.writerId || order.assignedWriter) && importantChanges.length > 0) {
+        const writerId = normalizeWriterId(order.writerId || '');
+        
+        // Send notification
+        if (notificationContext && writerId) {
+          await notificationContext.addNotification({
+            userId: writerId,
+            type: 'order_updated',
+            title: 'Order Details Changed ⚠️',
+            message: `"${order.title}" has been updated by admin. Changes: ${importantChanges.join(', ')}`,
+            actionUrl: `/orders/assigned`,
+            actionLabel: 'View Order',
+            priority: 'high',
+            metadata: { orderId, changes: importantChanges }
+          });
+        }
+        
+        // Show toast notification
+        if (toastContext) {
+          toastContext.showToast({
+            type: 'warning',
+            title: 'Order Updated by Admin ⚠️',
+            message: `"${order.title}" has been modified. ${importantChanges[0] || 'Please review changes.'}`,
+            duration: 8000
+          });
+        }
       }
     } catch (error) {
       console.error('❌ Failed to update order:', error);
@@ -1526,8 +1702,35 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Order not found');
       }
 
+      // If order is assigned, notify writer before deletion
       if (order.writerId || order.assignedWriter) {
-        throw new Error('Cannot delete assigned orders');
+        const writerId = normalizeWriterId(order.writerId || '');
+        
+        // Send notification to writer
+        if (notificationContext && writerId) {
+          await notificationContext.addNotification({
+            userId: writerId,
+            type: 'order_deleted',
+            title: 'Order Deleted by Admin ❌',
+            message: `"${order.title}" has been deleted by admin. If you were working on this order, please contact support.`,
+            actionUrl: `/orders`,
+            actionLabel: 'View Orders',
+            priority: 'urgent',
+            metadata: { orderId, orderTitle: order.title }
+          });
+        }
+        
+        // Show toast notification
+        if (toastContext) {
+          toastContext.showToast({
+            type: 'error',
+            title: 'Order Deleted ❌',
+            message: `"${order.title}" has been deleted by admin. Please contact support if needed.`,
+            duration: 10000
+          });
+        }
+        
+        throw new Error('Cannot delete assigned orders. Writer has been notified.');
       }
 
       // Delete from database
