@@ -9,6 +9,7 @@ import { PODOrderCard } from '../components/PODOrderCard';
 import { PODUploadModal } from '../components/PODUploadModal';
 import { usePOD } from '../contexts/PODContext';
 import { useAuth } from '../contexts/AuthContext';
+import { getWriterIdForUser } from '../utils/writer';
 import { 
   Search, 
   DollarSign, 
@@ -37,7 +38,7 @@ export default function PODOrdersPage() {
   const [isPODUploadOpen, setIsPODUploadOpen] = useState(false);
 
   // Get writer-specific data
-  const writerId = user?.id || 'writer-1';
+  const writerId = getWriterIdForUser(user?.id);
   const writerPODOrders = getWriterPODOrders(writerId);
   const availablePODOrders = getAvailablePODOrders();
 

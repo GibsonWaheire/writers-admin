@@ -6,6 +6,7 @@ import { notificationHelpers } from '../services/notificationService';
 import { useAuth } from './AuthContext';
 import { useWallet } from './WalletContext';
 import { useNotifications } from './NotificationContext';
+import { normalizeWriterId } from '../utils/writer';
 
 interface OrderContextType {
   orders: Order[];
@@ -68,6 +69,11 @@ interface OrderContextType {
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
+const normalizeOrderData = (order: Order): Order => ({
+  ...order,
+  writerId: normalizeWriterId(order.writerId) || order.writerId,
+});
+
 export function OrderProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   
@@ -97,7 +103,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     const loadOrders = async () => {
       try {
         const ordersData = await db.find<Order>('orders');
-        setOrders(ordersData);
+        const normalized = ordersData.map(normalizeOrderData);
+        setOrders(normalized);
         setLastUpdate(new Date().toISOString());
         setIsConnected(true);
       } catch (error) {
@@ -114,7 +121,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log('🔄 OrderContext: Real-time update received, refreshing orders...');
         const ordersData = await db.find<Order>('orders');
-        setOrders(ordersData);
+        const normalized = ordersData.map(normalizeOrderData);
+        setOrders(normalized);
         setLastUpdate(new Date().toISOString());
         setIsConnected(true);
         
@@ -140,7 +148,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('🔄 OrderContext: Starting manual refresh...');
       const ordersData = await db.find<Order>('orders');
-      setOrders(ordersData);
+      const normalized = ordersData.map(normalizeOrderData);
+      setOrders(normalized);
       setLastUpdate(new Date().toISOString());
       setIsConnected(true);
       console.log('✅ OrderContext: Orders refreshed from database');
@@ -851,6 +860,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         }
         
         const updatedOrder = { ...order, status: newStatus, ...updates };
+        const normalizedWriterId = normalizeWriterId(updatedOrder.writerId);
+        if (normalizedWriterId) {
+          updatedOrder.writerId = normalizedWriterId;
+        }
         
         // Store updated order for notification
         updatedOrderForNotification = updatedOrder as Order;
@@ -882,7 +895,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     // Send notification after state update (if needed)
     if (notificationType && updatedOrderForNotification) {
       const writerId = notificationType === 'assigned' 
-        ? (additionalData?.writerId as string || updatedOrderForNotification.writerId)
+        ? normalizeWriterId(additionalData?.writerId as string) || updatedOrderForNotification.writerId
         : updatedOrderForNotification.writerId;
       
       if (writerId && writerId !== 'unknown') {
@@ -1154,6 +1167,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         default:
           console.warn('🔄 OrderContext: Unknown action in database update:', action);
           return;
+      }
+
+      const normalizedWriterIdForDb = normalizeWriterId(orderWithUpdates.writerId as string);
+      if (normalizedWriterIdForDb) {
+        orderWithUpdates.writerId = normalizedWriterIdForDb;
       }
 
       console.log('💾 OrderContext: Saving order to database:', {

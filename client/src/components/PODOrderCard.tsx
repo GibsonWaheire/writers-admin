@@ -13,6 +13,7 @@ import { PODConfirmationModal } from './PODConfirmationModal';
 import { PODReassignmentModal } from './PODReassignmentModal';
 import { PODSubmitModal } from './PODSubmitModal';
 import type { PODOrder, PODStatus, PODWriterConfirmation } from '../types/pod';
+import { getWriterIdForUser } from '../utils/writer';
 import { 
   FileText, 
   DollarSign, 
@@ -67,9 +68,10 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
   const statusConfig = getStatusConfig(order.status);
   const isOverdue = new Date(order.deadline) < new Date();
   const canPick = order.status === 'Available' && !order.writerId;
-  const canWork = order.status === 'Assigned' && order.writerId === user?.id;
-  const canDeliver = order.status === 'In Progress' && order.writerId === user?.id;
-  const canRecordPayment = order.status === 'Delivered' && order.writerId === user?.id;
+  const writerId = getWriterIdForUser(user?.id);
+  const canWork = order.status === 'Assigned' && order.writerId === writerId;
+  const canDeliver = order.status === 'In Progress' && order.writerId === writerId;
+  const canRecordPayment = order.status === 'Delivered' && order.writerId === writerId;
 
   // Calculate remaining time in hours
   const getRemainingTime = () => {
@@ -102,7 +104,7 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
       console.log('POD Order Confirmation:', confirmation);
       
       // Use the pickPODOrder function to assign the order to the writer
-      pickPODOrder(order.id, user.id, user.name || 'Unknown Writer');
+      pickPODOrder(order.id, writerId, user.name || 'Unknown Writer');
       // Close the confirmation modal
       setIsConfirmationModalOpen(false);
     }
@@ -266,7 +268,7 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
             </Button>
           )}
 
-          {order.status === 'In Progress' && order.writerId === user?.id && (
+          {order.status === 'In Progress' && order.writerId === writerId && (
             <Button onClick={handleReadyForDelivery} className="bg-yellow-600 hover:bg-yellow-700">
               <Truck className="w-4 h-4 mr-2" />
               Ready for Delivery
@@ -380,7 +382,7 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
           )}
 
           {/* Additional Actions for Picked Orders */}
-          {(order.status === 'Assigned' || order.status === 'In Progress') && order.writerId === user?.id && (
+          {(order.status === 'Assigned' || order.status === 'In Progress') && order.writerId === writerId && (
             <>
               <Button 
                 onClick={() => setShowReassignModal(true)}
@@ -402,7 +404,7 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
           )}
 
           {/* Action for Admin Approved Orders */}
-          {order.status === 'Admin Approved' && order.writerId === user?.id && (
+          {order.status === 'Admin Approved' && order.writerId === writerId && (
             <Button 
               onClick={handleReadyForDelivery}
               className="bg-green-600 hover:bg-green-700"
@@ -413,7 +415,7 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
           )}
 
           {/* Action for Ready for Delivery Orders */}
-          {order.status === 'Ready for Delivery' && order.writerId === user?.id && (
+          {order.status === 'Ready for Delivery' && order.writerId === writerId && (
             <Button 
               onClick={() => setIsDeliveryModalOpen(true)}
               className="bg-yellow-600 hover:bg-yellow-700"
@@ -424,7 +426,7 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
           )}
 
           {/* Show admin review status for submitted orders */}
-          {order.status === 'Submitted to Admin' && order.writerId === user?.id && (
+          {order.status === 'Submitted to Admin' && order.writerId === writerId && (
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
               <div className="flex items-center gap-2 text-purple-800">
                 <FileText className="h-5 w-5" />
@@ -438,7 +440,7 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
           )}
 
           {/* Show admin approved status */}
-          {order.status === 'Admin Approved' && order.writerId === user?.id && (
+          {order.status === 'Admin Approved' && order.writerId === writerId && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center gap-2 text-green-800">
                 <CheckCircle className="h-5 w-5" />
@@ -457,7 +459,7 @@ export function PODOrderCard({ order }: PODOrderCardProps) {
           )}
 
           {/* Show revision required status */}
-          {order.status === 'Revision Required' && order.writerId === user?.id && (
+          {order.status === 'Revision Required' && order.writerId === writerId && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center gap-2 text-red-800">
                 <AlertTriangle className="h-5 w-5" />

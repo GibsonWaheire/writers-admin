@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { AlertTriangle, FileText, Upload, CheckCircle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, FileText, CheckCircle, RefreshCw } from 'lucide-react';
 import type { Order, UploadedFile } from '../types/order';
 
 interface SubmitRevisionModalProps {
@@ -25,15 +25,24 @@ export function SubmitRevisionModal({
 }: SubmitRevisionModalProps) {
   const [notes, setNotes] = useState('');
   const [revisionNotes, setRevisionNotes] = useState('');
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Use files already uploaded to the order
+  const uploadedFiles = order.uploadedFiles || [];
 
-  const handleSubmit = async () => {
-    // Validation: Must have at least one file and revision explanation
+  const handleSubmit = async (e?: React.MouseEvent) => {
+    // Prevent any default behavior
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    // Validation: Must have at least one file uploaded
     if (uploadedFiles.length === 0) {
-      alert('Please upload at least one file before submitting the revision.');
+      alert('Please upload revision files first using the "Upload Revision Files" button.');
       return;
     }
+    // Validation: Must have revision explanation
     if (!revisionNotes.trim()) {
       alert('Please provide a revision summary explaining what changes were made.');
       return;
@@ -44,35 +53,31 @@ export function SubmitRevisionModal({
       await onSubmit({
         files: uploadedFiles,
         notes: notes.trim(),
-        revisionNotes: revisionNotes.trim() || undefined
+        revisionNotes: revisionNotes.trim()
       });
-      onClose();
+      // Reset form state
       setNotes('');
       setRevisionNotes('');
-      setUploadedFiles([]);
+      // Close modal after a brief delay
+      setTimeout(() => {
+        onClose();
+      }, 500);
+    } catch (error) {
+      console.error('Failed to submit revision:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleFileUpload = (file: File) => {
-    const newFile: UploadedFile = {
-      id: `file-${Date.now()}`,
-      filename: file.name,
-      originalName: file.name,
-      size: file.size,
-      type: file.type,
-      url: URL.createObjectURL(file),
-      uploadedAt: new Date().toISOString()
-    };
-    setUploadedFiles(prev => [...prev, newFile]);
-  };
+  const isFormValid = uploadedFiles.length > 0 && revisionNotes.trim().length > 0;
 
-  const removeFile = (fileId: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
-
-  const isFormValid = uploadedFiles.length > 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -169,61 +174,41 @@ export function SubmitRevisionModal({
             </div>
           </div>
 
-          {/* File Upload */}
+          {/* Uploaded Files Display */}
           <div className="space-y-4">
-            <div>
-              <Label className="text-sm font-medium">Upload Revised Work *</Label>
-              <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <div className="text-sm text-gray-600">
-                  <label htmlFor="revision-file-upload" className="cursor-pointer">
-                    <span className="font-medium text-blue-600 hover:text-blue-500">
-                      Click to upload
-                    </span>{' '}
-                    or drag and drop
-                  </label>
-                  <input
-                    id="revision-file-upload"
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.txt,.rtf,.ppt,.pptx,.xls,.xlsx,.csv,.odt,.ods,.odp"
-                    onChange={(e) => {
-                      if (e.target.files) {
-                        Array.from(e.target.files).forEach(handleFileUpload);
-                      }
-                    }}
-                    className="hidden"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Supported formats: PDF, Word (.doc, .docx), PowerPoint (.ppt, .pptx), Excel (.xls, .xlsx), CSV, TXT, RTF, and more
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Uploaded Files List */}
-            {uploadedFiles.length > 0 && (
+            <Label className="text-sm font-medium">Revision Files *</Label>
+            {uploadedFiles.length > 0 ? (
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Uploaded Files:</Label>
                 {uploadedFiles.map((file) => (
-                  <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium">{file.filename}</span>
-                      <span className="text-xs text-gray-500">
-                        ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                      </span>
+                  <div key={file.id} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-sm">{file.originalName || file.filename}</p>
+                        <p className="text-xs text-gray-500">
+                          {formatFileSize(file.size)} • Uploaded {new Date(file.uploadedAt).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeFile(file.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      Remove
-                    </Button>
+                    <CheckCircle className="h-5 w-5 text-green-600" />
                   </div>
                 ))}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-green-800">
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="text-sm font-medium">{uploadedFiles.length} file(s) ready for submission</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <AlertTriangle className="h-5 w-5" />
+                  <div>
+                    <p className="font-medium text-sm">No revision files uploaded</p>
+                    <p className="text-xs mt-1">Please upload revision files first using the "Upload Revision Files" button.</p>
+                  </div>
+                </div>
               </div>
             )}
           </div>

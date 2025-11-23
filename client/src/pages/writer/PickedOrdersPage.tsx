@@ -12,6 +12,7 @@ import { OrderViewModal } from '../../components/OrderViewModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Order } from '../../types/order';
+import { getWriterIdForUser } from '../../utils/writer';
 
 export default function BidOrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -22,17 +23,6 @@ export default function BidOrdersPage() {
   const { orders } = useOrders();
   const { user } = useAuth();
 
-  // Map user ID to writer ID
-  const getWriterIdForUser = (userId: string | undefined) => {
-    if (!userId) return 'writer-1';
-    if (userId.startsWith('writer-')) return userId;
-    const userToWriterMap: Record<string, string> = {
-      '1': 'writer-1',
-      '2': 'writer-2',
-      '3': 'writer-1', // john.doe@example.com maps to writer-1
-    };
-    return userToWriterMap[userId] || userId;
-  };
   const currentWriterId = getWriterIdForUser(user?.id);
 
   // Get bid orders by this writer

@@ -14,6 +14,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import type { Order, WriterQuestion, WriterConfirmation } from '../types/order';
+import { getWriterIdForUser } from '../utils/writer';
 
 interface OrderConfirmationModalProps {
   isOpen: boolean;
@@ -29,17 +30,6 @@ export function OrderConfirmationModal({
   onConfirm 
 }: OrderConfirmationModalProps) {
   const { user } = useAuth();
-  // Map user ID to writer ID
-  const getWriterIdForUser = (userId: string | undefined) => {
-    if (!userId) return 'writer-1';
-    if (userId.startsWith('writer-')) return userId;
-    const userToWriterMap: Record<string, string> = {
-      '1': 'writer-1',
-      '2': 'writer-2',
-      '3': 'writer-1', // john.doe@example.com maps to writer-1
-    };
-    return userToWriterMap[userId] || userId;
-  };
   const [confirmation, setConfirmation] = useState<WriterConfirmation>({
     id: `conf-${Date.now()}`,
     hasReadInstructions: false,

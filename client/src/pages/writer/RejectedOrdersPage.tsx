@@ -19,6 +19,7 @@ import { OrderViewModal } from '../../components/OrderViewModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Order } from '../../types/order';
+import { getWriterIdForUser } from '../../utils/writer';
 
 export default function RejectedOrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -33,7 +34,7 @@ export default function RejectedOrdersPage() {
   } = useOrders();
   
   const { user } = useAuth();
-  const currentWriterId = user?.id || 'writer-1';
+  const currentWriterId = getWriterIdForUser(user?.id);
 
   // Get rejected orders for current writer
   const rejectedOrders = orders.filter(order => 

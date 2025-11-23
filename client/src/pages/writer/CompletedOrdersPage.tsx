@@ -18,6 +18,7 @@ import { OrderViewModal } from '../../components/OrderViewModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Order } from '../../types/order';
+import { getWriterIdForUser } from '../../utils/writer';
 
 export default function CompletedOrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -33,7 +34,7 @@ export default function CompletedOrdersPage() {
   } = useOrders();
   
   const { user } = useAuth();
-  const currentWriterId = user?.id || 'writer-1';
+  const currentWriterId = getWriterIdForUser(user?.id);
 
   // Get completed orders for current writer
   const completedOrders = orders.filter(order => 

@@ -17,6 +17,7 @@ import { OrderViewModal } from '../../components/OrderViewModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Order } from '../../types/order';
+import { getWriterIdForUser } from '../../utils/writer';
 
 export default function AssignedOrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,19 +31,6 @@ export default function AssignedOrdersPage() {
   } = useOrders();
   
   const { user } = useAuth();
-  // Map user ID to writer ID - john.doe@example.com (user ID: 3) maps to writer-1
-  const getWriterIdForUser = (userId: string | undefined) => {
-    if (!userId) return 'writer-1';
-    // Check if it's already a writer ID
-    if (userId.startsWith('writer-')) return userId;
-    // Map user IDs to writer IDs
-    const userToWriterMap: Record<string, string> = {
-      '1': 'writer-1',
-      '2': 'writer-2',
-      '3': 'writer-1', // john.doe@example.com maps to writer-1
-    };
-    return userToWriterMap[userId] || userId;
-  };
   const currentWriterId = getWriterIdForUser(user?.id);
 
   // Get assigned orders for current writer (including all assigned and in-progress orders)

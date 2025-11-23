@@ -209,18 +209,10 @@ export function UploadNewOrderModal({ isOpen, onClose, onSubmit }: UploadNewOrde
         confirmationStatus: 'pending',
         paymentType: 'advance',
         clientMessages: [],
+        uploadedFiles: [], // Empty initially - writers will upload completed work files
         // Add urgency level tracking
         urgencyLevel: formData.urgencyLevel,
-        // Add file attachments if any
-        uploadedFiles: uploadedFiles.map((file, index) => ({
-          id: `file-${Date.now()}-${index}`,
-          filename: file.name,
-          originalName: file.name,
-          size: file.size,
-          type: file.type,
-          url: URL.createObjectURL(file),
-          uploadedAt: new Date().toISOString()
-        })),
+        // Add requirement file attachments (not uploadedFiles - those are for completed work)
         attachments: uploadedFiles.map((file, index) => ({
           id: `file-${Date.now()}-${index}`,
           filename: file.name,

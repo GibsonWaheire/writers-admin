@@ -19,6 +19,7 @@ import {
 import { InvoiceCard } from "../components/InvoiceCard";
 import { useInvoices } from "../contexts/InvoicesContext";
 import { useAuth } from "../contexts/AuthContext";
+import { getWriterIdForUser } from "../utils/writer";
 
 export default function InvoicesPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,6 +40,7 @@ export default function InvoicesPage() {
   
   const { user } = useAuth();
   const currentUserRole = user?.role || 'writer';
+  const writerId = getWriterIdForUser(user?.id);
 
   // Filter invoices based on search and filters
   const filterInvoices = (invoiceList: typeof invoices) => {
@@ -97,7 +99,7 @@ export default function InvoicesPage() {
     if (currentUserRole === 'admin') {
       return invoices; // Admins see all invoices
     } else if (currentUserRole === 'writer') {
-      return invoices.filter(inv => inv.writerId === user?.id); // Writers see their own invoices
+      return invoices.filter(inv => inv.writerId === writerId); // Writers see their own invoices
     } else {
       return invoices; // Clients see all invoices (or could be filtered by their orders)
     }

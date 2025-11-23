@@ -28,6 +28,7 @@ import { useOrders } from '../contexts/OrderContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
 import { useMessages } from '../contexts/MessagesContext';
+import { getWriterIdForUser } from '../utils/writer';
 
 interface MenuItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -118,7 +119,7 @@ export function Sidebar() {
   const { wallet } = useWallet();
   const { unreadCount } = useMessages();
 
-  const currentWriterId = user?.id || 'writer-1';
+  const currentWriterId = getWriterIdForUser(user?.id);
   const isAdmin = user?.role === 'admin';
   const menuItems = isAdmin ? adminMenuItems : writerMenuItems;
   

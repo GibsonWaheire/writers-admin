@@ -8,17 +8,15 @@ import {
   RefreshCw,
   AlertTriangle,
   Clock,
-  MessageSquare,
   FileText,
-  Calendar,
   DollarSign
 } from 'lucide-react';
-import { OrderCard } from '../../components/OrderCard';
 import { OrderViewModal } from '../../components/OrderViewModal';
 import { SubmitRevisionModal } from '../../components/SubmitRevisionModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Order } from '../../types/order';
+import { getWriterIdForUser } from '../../utils/writer';
 
 export default function RevisionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -33,12 +31,12 @@ export default function RevisionsPage() {
   } = useOrders();
   
   const { user } = useAuth();
-  const currentWriterId = user?.id || 'writer-1';
+  const currentWriterId = getWriterIdForUser(user?.id);
 
   // Get revision orders for current writer
   const revisionOrders = orders.filter(order => 
     order.writerId === currentWriterId && 
-    ['Revision Required', 'Revision Submitted', 'Under Revision Review'].includes(order.status)
+    ['Revision'].includes(order.status)
   );
 
   // Filter orders based on search and priority
@@ -74,9 +72,18 @@ export default function RevisionsPage() {
 
   const filteredOrders = filterOrders(revisionOrders);
 
-  const handleSubmitRevision = async (orderId: string, data: any) => {
+  const handleSubmitRevision = async (submission: {
+    files: import('../../types/order').UploadedFile[];
+    notes: string;
+    revisionNotes?: string;
+  }) => {
+    if (!selectedOrder) return;
     try {
-      await handleOrderAction('resubmit', orderId, data);
+      await handleOrderAction('resubmit', selectedOrder.id, {
+        files: submission.files,
+        notes: submission.notes,
+        revisionNotes: submission.revisionNotes
+      });
       setIsRevisionModalOpen(false);
       setSelectedOrder(null);
     } catch (error) {
@@ -119,9 +126,7 @@ export default function RevisionsPage() {
 
   // Get order counts by status and priority
   const statusCounts = {
-    'Revision Required': revisionOrders.filter(o => o.status === 'Revision Required').length,
-    'Revision Submitted': revisionOrders.filter(o => o.status === 'Revision Submitted').length,
-    'Under Revision Review': revisionOrders.filter(o => o.status === 'Under Revision Review').length
+    'Revision': revisionOrders.filter(o => o.status === 'Revision').length
   };
 
   const urgentRevisions = revisionOrders.filter(order => ['overdue', 'urgent'].includes(getDeadlineStatus(order)));
@@ -177,7 +182,7 @@ export default function RevisionsPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Pending Action</p>
-                <p className="text-2xl font-bold text-gray-900">{statusCounts['Revision Required']}</p>
+                <p className="text-2xl font-bold text-gray-900">{statusCounts['Revision']}</p>
               </div>
             </div>
           </CardContent>
@@ -237,42 +242,80 @@ export default function RevisionsPage() {
       </Card>
 
       {/* Orders Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="space-y-4">
         {filteredOrders.length > 0 ? (
           filteredOrders.map(order => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              onViewDetails={handleViewOrder}
-              showActions={true}
-              actions={
-                order.status === 'Revision Required' ? (
-                  <div className="flex gap-2">
+            <Card key={order.id} className="border-l-4 border-l-orange-500">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{order.title}</h3>
+                    <p className="text-sm text-gray-600 mb-3">{order.description}</p>
+                    
+                    {/* Revision Feedback from Admin */}
+                    {order.revisionExplanation && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-red-900 mb-2">Revision Required</h4>
+                            <p className="text-sm text-red-800 whitespace-pre-wrap">{order.revisionExplanation}</p>
+                            {order.revisionCount && order.revisionCount > 0 && (
+                              <p className="text-xs text-red-700 mt-2">
+                                Revision #{order.revisionCount} • Score: {order.revisionScore || 10}/10
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Pages:</span>
+                        <span className="font-medium ml-2">{order.pages}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Deadline:</span>
+                        <span className="font-medium ml-2">{new Date(order.deadline).toLocaleDateString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Value:</span>
+                        <span className="font-medium ml-2 text-green-600">KES {(order.pages * 350).toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Status:</span>
+                        <Badge variant="secondary" className="ml-2">{order.status}</Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-end gap-2 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewOrder(order)}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Details
+                  </Button>
+                  {order.status === 'Revision' && (
                     <Button
                       size="sm"
                       onClick={() => {
                         setSelectedOrder(order);
                         setIsRevisionModalOpen(true);
                       }}
-                      className="flex-1"
+                      className="bg-orange-600 hover:bg-orange-700"
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
                       Submit Revision
                     </Button>
-                  </div>
-                ) : order.status === 'Revision Submitted' ? (
-                  <Badge variant="secondary" className="w-full justify-center">
-                    <Clock className="h-4 w-4 mr-2" />
-                    Under Review
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="w-full justify-center">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    In Review Process
-                  </Badge>
-                )
-              }
-            />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           ))
         ) : (
           <div className="col-span-full">

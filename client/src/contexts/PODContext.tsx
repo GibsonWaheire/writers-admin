@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { PODOrder, PODStatus, PODDelivery, PODPayment } from '../types/pod';
 import { db } from '../services/database';
+import { normalizeWriterId } from '../utils/writer';
 
 interface PODContextType {
   podOrders: PODOrder[];
@@ -35,17 +36,23 @@ interface PODContextType {
 
 const PODContext = createContext<PODContextType | undefined>(undefined);
 
+const normalizePODOrder = (order: PODOrder): PODOrder => ({
+  ...order,
+  writerId: normalizeWriterId(order.writerId) || order.writerId,
+});
+
 export function PODProvider({ children }: { children: React.ReactNode }) {
   const [pODOrders, setPODOrders] = useState<PODOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load POD orders from database on mount
+  // Load POD orders from database on mount and subscribe to real-time updates
   useEffect(() => {
     const loadPODOrders = async () => {
       try {
         setIsLoading(true);
         const podOrdersData = await db.find<PODOrder>('podOrders');
-        setPODOrders(podOrdersData);
+        const normalized = podOrdersData.map(normalizePODOrder);
+        setPODOrders(normalized);
       } catch (error) {
         console.error('Failed to load POD orders:', error);
       } finally {
@@ -53,7 +60,21 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    // Initial load
     loadPODOrders();
+
+    // Subscribe to real-time updates
+    const unsubscribe = db.subscribeToCollection('podOrders', async () => {
+      try {
+        const podOrdersData = await db.find<PODOrder>('podOrders');
+        const normalized = podOrdersData.map(normalizePODOrder);
+        setPODOrders(normalized);
+      } catch (error) {
+        console.error('Failed to refresh POD orders:', error);
+      }
+    });
+
+    return unsubscribe;
   }, []);
 
   // All test data removed - POD orders are loaded from database only
@@ -80,7 +101,7 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
       priceKES: 0, // No longer used
       deadline: deadlineDate.toISOString() // Set deadline based on hours
     };
-    setPODOrders(prev => [...prev, newOrder]);
+    setPODOrders(prev => [...prev, normalizePODOrder(newOrder)]);
   }, []);
 
   // Function to calculate POD amount for any order
@@ -96,7 +117,7 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
   const updatePODOrderStatus = useCallback((orderId: string, status: PODStatus) => {
     setPODOrders(prev => prev.map(order => 
       order.id === orderId 
-        ? { ...order, status, updatedAt: new Date().toISOString() }
+        ? normalizePODOrder({ ...order, status, updatedAt: new Date().toISOString() })
         : order
     ));
   }, []);
@@ -104,13 +125,13 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
   const assignPODOrderToWriter = useCallback((orderId: string, writerId: string, writerName: string) => {
     setPODOrders(prev => prev.map(order => 
       order.id === orderId 
-        ? { 
+        ? normalizePODOrder({ 
             ...order, 
             writerId, 
             assignedWriter: writerName,
             status: 'Assigned', 
             updatedAt: new Date().toISOString() 
-          }
+          })
         : order
     ));
   }, []);
@@ -118,13 +139,13 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
   const pickPODOrder = useCallback((orderId: string, writerId: string, writerName: string) => {
     setPODOrders(prev => prev.map(order => 
       order.id === orderId 
-        ? { 
+        ? normalizePODOrder({ 
             ...order, 
             writerId, 
             assignedWriter: writerName,
             status: 'Assigned', 
             updatedAt: new Date().toISOString() 
-          }
+          })
         : order
     ));
   }, []);
@@ -181,13 +202,13 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
         case 'reassign':
           newStatus = 'Available';
           // Clear writer assignment when reassigning
-          return { 
+          return normalizePODOrder({ 
             ...order, 
             status: newStatus, 
             writerId: undefined,
             assignedWriter: undefined,
             updatedAt 
-          };
+          });
         case 'cancel':
           newStatus = 'Cancelled';
           break;
@@ -202,7 +223,7 @@ export function PODProvider({ children }: { children: React.ReactNode }) {
           break;
       }
       
-      return { ...order, status: newStatus, ...updates };
+      return normalizePODOrder({ ...order, status: newStatus, ...updates });
     }));
   }, []);
 

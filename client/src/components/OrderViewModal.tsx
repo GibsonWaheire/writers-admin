@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { OrderConfirmationModal } from './OrderConfirmationModal';
 import { RequestRevisionModal } from './RequestRevisionModal';
 import { SubmitToAdminModal } from './SubmitToAdminModal';
+import { SubmitRevisionModal } from './SubmitRevisionModal';
 import { UploadOrderFilesModal } from './UploadOrderFilesModal';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -24,6 +25,7 @@ import {
   Upload
 } from 'lucide-react';
 import type { Order, OrderStatus, WriterConfirmation, WriterQuestion } from '../types/order';
+import { getWriterIdForUser } from '../utils/writer';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -48,6 +50,7 @@ export function OrderViewModal({
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showRevisionSubmitModal, setShowRevisionSubmitModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
 
   const getStatusBadge = (status: OrderStatus) => {
@@ -172,15 +175,34 @@ export function OrderViewModal({
     }
 
     if (order.status === 'Revision') {
-      return (
-        <Button 
-          onClick={() => onAction('resubmit', order.id, { notes })}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          <FileText className="h-4 w-4 mr-2" />
-          Submit Revision
-        </Button>
-      );
+      // Check if revision files have been uploaded (files uploaded after revision was requested)
+      const revisionRequestedAt = order.adminReviewedAt || order.updatedAt;
+      const hasRevisionFiles = order.uploadedFiles && order.uploadedFiles.length > 0 && 
+        order.uploadedFiles.some(f => new Date(f.uploadedAt) > new Date(revisionRequestedAt || 0));
+      
+      if (!hasRevisionFiles) {
+        // Step 1: Upload revision files first
+        return (
+          <Button 
+            onClick={() => setShowUploadModal(true)}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Revision Files
+          </Button>
+        );
+      } else {
+        // Step 2: Submit revision after files are uploaded
+        return (
+          <Button 
+            onClick={() => setShowRevisionSubmitModal(true)}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Submit Revision
+          </Button>
+        );
+      }
     }
 
     if (order.status === 'Approved') {
@@ -199,17 +221,6 @@ export function OrderViewModal({
   };
 
   const handleOrderConfirm = (confirmation: WriterConfirmation, questions: WriterQuestion[]) => {
-    // Map user ID to writer ID
-    const getWriterIdForUser = (userId: string | undefined) => {
-      if (!userId) return 'writer-1';
-      if (userId.startsWith('writer-')) return userId;
-      const userToWriterMap: Record<string, string> = {
-        '1': 'writer-1',
-        '2': 'writer-2',
-        '3': 'writer-1', // john.doe@example.com maps to writer-1
-      };
-      return userToWriterMap[userId] || userId;
-    };
     const writerId = getWriterIdForUser(user?.id) || confirmation.writerId || 'writer-1';
     
     // Use 'bid' action to submit a bid for admin approval
@@ -613,7 +624,22 @@ export function OrderViewModal({
                           <FileText className="h-4 w-4 text-blue-600" />
                           <span className="text-sm font-medium">{attachment.originalName}</span>
                           <span className="text-xs text-gray-500">({formatFileSize(attachment.size)})</span>
-                          <Button size="sm" variant="outline" className="ml-auto">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="ml-auto"
+                            onClick={() => {
+                              if (attachment.url) {
+                                const link = document.createElement('a');
+                                link.href = attachment.url;
+                                link.download = attachment.originalName || attachment.filename;
+                                link.target = '_blank';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              }
+                            }}
+                          >
                             <Download className="h-3 w-3 mr-1" />
                             Download
                           </Button>
@@ -696,7 +722,21 @@ export function OrderViewModal({
                           <span className="text-sm text-gray-500">
                             {new Date(file.uploadedAt).toLocaleDateString()}
                           </span>
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              if (file.url) {
+                                const link = document.createElement('a');
+                                link.href = file.url;
+                                link.download = file.originalName || file.filename;
+                                link.target = '_blank';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              }
+                            }}
+                          >
                             <Download className="h-4 w-4 mr-2" />
                             Download
                           </Button>
@@ -746,19 +786,35 @@ export function OrderViewModal({
               setShowUploadModal(false);
             }}
           />
-          <SubmitToAdminModal
-            order={order}
-            isOpen={showSubmitModal}
-            onClose={() => setShowSubmitModal(false)}
-            onSubmit={async (submission) => {
-              await onAction('submit_to_admin', order.id, {
-                files: order.uploadedFiles || [],
-                notes: submission.notes,
-                estimatedCompletionTime: submission.estimatedCompletionTime
-              });
-              setShowSubmitModal(false);
-            }}
-          />
+          {order.status === 'Revision' ? (
+            <SubmitRevisionModal
+              order={order}
+              isOpen={showRevisionSubmitModal}
+              onClose={() => setShowRevisionSubmitModal(false)}
+              onSubmit={async (submission) => {
+                await onAction('resubmit', order.id, {
+                  files: order.uploadedFiles || [],
+                  notes: submission.notes,
+                  revisionNotes: submission.revisionNotes
+                });
+                setShowRevisionSubmitModal(false);
+              }}
+            />
+          ) : (
+            <SubmitToAdminModal
+              order={order}
+              isOpen={showSubmitModal}
+              onClose={() => setShowSubmitModal(false)}
+              onSubmit={async (submission) => {
+                await onAction('submit_to_admin', order.id, {
+                  files: order.uploadedFiles || [],
+                  notes: submission.notes,
+                  estimatedCompletionTime: submission.estimatedCompletionTime
+                });
+                setShowSubmitModal(false);
+              }}
+            />
+          )}
         </>
       )}
     </Modal>
