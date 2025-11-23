@@ -12,16 +12,23 @@ import {
   XCircle,
   AlertTriangle,
   TrendingUp,
-  User
+  User,
+  Send,
+  CreditCard,
+  Eye
 } from 'lucide-react';
 import type { InvoiceData } from '../contexts/InvoicesContext';
 
 interface InvoiceCardProps {
   invoice: InvoiceData;
   onDownload?: (invoiceId: string) => void;
+  onViewDetails?: (invoice: InvoiceData) => void;
+  onSubmit?: (invoiceId: string) => void;
+  onRequestPayment?: (invoiceId: string) => void;
+  userRole?: string;
 }
 
-export function InvoiceCard({ invoice, onDownload }: InvoiceCardProps) {
+export function InvoiceCard({ invoice, onDownload, onViewDetails, onSubmit, onRequestPayment, userRole }: InvoiceCardProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
@@ -58,6 +65,22 @@ export function InvoiceCard({ invoice, onDownload }: InvoiceCardProps) {
       <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Regular Order</Badge>;
   };
 
+  const getInvoiceStatusBadge = (invoiceStatus?: string) => {
+    if (!invoiceStatus) return null;
+    switch (invoiceStatus) {
+      case 'draft':
+        return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Draft</Badge>;
+      case 'submitted':
+        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Submitted</Badge>;
+      case 'approved':
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Approved</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Rejected</Badge>;
+      default:
+        return null;
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -86,6 +109,7 @@ export function InvoiceCard({ invoice, onDownload }: InvoiceCardProps) {
             </p>
           </div>
           <div className="flex flex-col items-end gap-2 ml-4">
+            {invoice.invoiceStatus && getInvoiceStatusBadge(invoice.invoiceStatus)}
             {getStatusBadge(invoice.status)}
             {getPaymentStatusBadge(invoice.paymentStatus)}
             {getOrderTypeBadge(invoice.orderType)}
@@ -197,6 +221,41 @@ export function InvoiceCard({ invoice, onDownload }: InvoiceCardProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            {onViewDetails && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => onViewDetails(invoice)}
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                View Details
+              </Button>
+            )}
+            
+            {/* Submit Invoice Button (for draft invoices) */}
+            {userRole === 'writer' && invoice.invoiceStatus === 'draft' && onSubmit && (
+              <Button 
+                size="sm"
+                onClick={() => onSubmit(invoice.id)}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Submit for Review
+              </Button>
+            )}
+            
+            {/* Request Payment Button (for approved invoices) */}
+            {userRole === 'writer' && invoice.invoiceStatus === 'approved' && invoice.paymentStatus === 'pending' && onRequestPayment && (
+              <Button 
+                size="sm"
+                onClick={() => onRequestPayment(invoice.id)}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Request Payment
+              </Button>
+            )}
+            
             {onDownload && (
               <Button 
                 variant="outline" 

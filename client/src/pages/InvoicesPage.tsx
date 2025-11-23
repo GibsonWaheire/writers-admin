@@ -2,22 +2,27 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-// import { Badge } from "../components/ui/badge"; // Will be used for future badge components
+import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
   Search, 
-  // Filter, 
   Download,
   DollarSign,
   FileText,
   CheckCircle,
   Clock,
-  // XCircle,
   AlertTriangle,
-  TrendingUp
+  TrendingUp,
+  Plus,
+  Send,
+  CreditCard
 } from "lucide-react";
 import { InvoiceCard } from "../components/InvoiceCard";
+import { CreateInvoiceModal } from "../components/CreateInvoiceModal";
+import { InvoiceDetailsModal } from "../components/InvoiceDetailsModal";
 import { useInvoices } from "../contexts/InvoicesContext";
+import { useOrders } from "../contexts/OrderContext";
+import { usePOD } from "../contexts/PODContext";
 import { useAuth } from "../contexts/AuthContext";
 import { getWriterIdForUser } from "../utils/writer";
 
@@ -35,12 +40,23 @@ export default function InvoicesPage() {
     pendingAmount, 
     overdueAmount,
     getInvoicesByStatus,
+    getInvoicesByInvoiceStatus,
+    getOrdersWithoutInvoices,
+    createInvoiceFromOrder,
+    submitInvoice,
+    requestPayment,
     exportInvoices
   } = useInvoices();
   
+  const { orders } = useOrders();
+  const { podOrders } = usePOD();
   const { user } = useAuth();
   const currentUserRole = user?.role || 'writer';
   const writerId = getWriterIdForUser(user?.id);
+  
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   // Filter invoices based on search and filters
   const filterInvoices = (invoiceList: typeof invoices) => {
@@ -107,6 +123,40 @@ export default function InvoicesPage() {
 
   const relevantInvoices = getRelevantInvoices();
   const filteredInvoices = filterInvoices(relevantInvoices);
+  
+  // Get orders without invoices (for writers only)
+  const ordersWithoutInvoices = currentUserRole === 'writer' 
+    ? getOrdersWithoutInvoices(writerId, orders, podOrders || [])
+    : [];
+  
+  // Get invoices by invoice status
+  const draftInvoices = getInvoicesByInvoiceStatus('draft');
+  const submittedInvoices = getInvoicesByInvoiceStatus('submitted');
+  const approvedInvoices = getInvoicesByInvoiceStatus('approved');
+  
+  const handleCreateInvoice = (order: any, orderType: 'regular' | 'pod') => {
+    createInvoiceFromOrder(order, orderType);
+    setIsCreateModalOpen(false);
+    alert('Invoice created successfully! You can now submit it for review.');
+  };
+  
+  const handleSubmitInvoice = (invoiceId: string) => {
+    if (!confirm('Submit this invoice for admin review? Once submitted, you cannot edit it.')) {
+      return;
+    }
+    submitInvoice(invoiceId, writerId);
+    alert('Invoice submitted for admin review!');
+  };
+  
+  const handleRequestPayment = (invoiceId: string) => {
+    requestPayment(invoiceId, writerId);
+    alert('Payment request sent to admin!');
+  };
+  
+  const handleViewInvoiceDetails = (invoice: any) => {
+    setSelectedInvoice(invoice);
+    setIsDetailsModalOpen(true);
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -117,6 +167,15 @@ export default function InvoicesPage() {
           <p className="text-muted-foreground">Track and manage all payment invoices</p>
         </div>
         <div className="flex items-center gap-2">
+          {currentUserRole === 'writer' && ordersWithoutInvoices.length > 0 && (
+            <Button 
+              onClick={() => setIsCreateModalOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Invoice ({ordersWithoutInvoices.length})
+            </Button>
+          )}
           <Button 
             variant="outline" 
             onClick={() => handleExportInvoices('csv')}
@@ -133,6 +192,35 @@ export default function InvoicesPage() {
           </Button>
         </div>
       </div>
+      
+      {/* Orders Without Invoices Alert (Writers Only) */}
+      {currentUserRole === 'writer' && ordersWithoutInvoices.length > 0 && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="font-medium text-blue-900">
+                    {ordersWithoutInvoices.length} completed order{ordersWithoutInvoices.length !== 1 ? 's' : ''} without invoices
+                  </p>
+                  <p className="text-sm text-blue-700">
+                    Create invoices for these orders to request payment
+                  </p>
+                </div>
+              </div>
+              <Button 
+                onClick={() => setIsCreateModalOpen(true)}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Invoices
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -272,8 +360,15 @@ export default function InvoicesPage() {
 
       {/* Invoices Tabs */}
       <Tabs defaultValue="all" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className={`grid w-full ${currentUserRole === 'writer' ? 'grid-cols-8' : 'grid-cols-5'}`}>
           <TabsTrigger value="all">All ({filteredInvoices.length})</TabsTrigger>
+          {currentUserRole === 'writer' && (
+            <>
+              <TabsTrigger value="draft">Draft ({draftInvoices.length})</TabsTrigger>
+              <TabsTrigger value="submitted">Submitted ({submittedInvoices.length})</TabsTrigger>
+              <TabsTrigger value="approved">Approved ({approvedInvoices.length})</TabsTrigger>
+            </>
+          )}
           <TabsTrigger value="pending">Pending ({pendingInvoices.length})</TabsTrigger>
           <TabsTrigger value="paid">Paid ({paidInvoices.length})</TabsTrigger>
           <TabsTrigger value="overdue">Overdue ({overdueInvoices.length})</TabsTrigger>
@@ -284,13 +379,52 @@ export default function InvoicesPage() {
           <InvoicesList 
             invoices={filteredInvoices} 
             onDownload={handleDownloadInvoice}
+            onViewDetails={currentUserRole === 'writer' ? handleViewInvoiceDetails : undefined}
+            onSubmit={currentUserRole === 'writer' ? handleSubmitInvoice : undefined}
+            onRequestPayment={currentUserRole === 'writer' ? handleRequestPayment : undefined}
+            userRole={currentUserRole}
           />
         </TabsContent>
+
+        {currentUserRole === 'writer' && (
+          <>
+            <TabsContent value="draft" className="space-y-4">
+              <InvoicesList 
+                invoices={filterInvoices(draftInvoices)} 
+                onDownload={handleDownloadInvoice}
+                onViewDetails={handleViewInvoiceDetails}
+                onSubmit={handleSubmitInvoice}
+                userRole={currentUserRole}
+              />
+            </TabsContent>
+
+            <TabsContent value="submitted" className="space-y-4">
+              <InvoicesList 
+                invoices={filterInvoices(submittedInvoices)} 
+                onDownload={handleDownloadInvoice}
+                onViewDetails={handleViewInvoiceDetails}
+                userRole={currentUserRole}
+              />
+            </TabsContent>
+
+            <TabsContent value="approved" className="space-y-4">
+              <InvoicesList 
+                invoices={filterInvoices(approvedInvoices)} 
+                onDownload={handleDownloadInvoice}
+                onViewDetails={handleViewInvoiceDetails}
+                onRequestPayment={handleRequestPayment}
+                userRole={currentUserRole}
+              />
+            </TabsContent>
+          </>
+        )}
 
         <TabsContent value="pending" className="space-y-4">
           <InvoicesList 
             invoices={pendingInvoices} 
             onDownload={handleDownloadInvoice}
+            onViewDetails={currentUserRole === 'writer' ? handleViewInvoiceDetails : undefined}
+            userRole={currentUserRole}
           />
         </TabsContent>
 
@@ -322,9 +456,13 @@ export default function InvoicesPage() {
 interface InvoicesListProps {
   invoices: any[];
   onDownload: (invoiceId: string) => void;
+  onViewDetails?: (invoice: any) => void;
+  onSubmit?: (invoiceId: string) => void;
+  onRequestPayment?: (invoiceId: string) => void;
+  userRole?: string;
 }
 
-function InvoicesList({ invoices, onDownload }: InvoicesListProps) {
+function InvoicesList({ invoices, onDownload, onViewDetails, onSubmit, onRequestPayment, userRole }: InvoicesListProps) {
   if (invoices.length === 0) {
     return (
       <Card>
@@ -344,8 +482,39 @@ function InvoicesList({ invoices, onDownload }: InvoicesListProps) {
           key={invoice.id} 
           invoice={invoice} 
           onDownload={onDownload}
+          onViewDetails={onViewDetails}
+          onSubmit={onSubmit}
+          onRequestPayment={onRequestPayment}
+          userRole={userRole}
         />
       ))}
+    </div>
+  );
+}
+
+      {/* Create Invoice Modal */}
+      {currentUserRole === 'writer' && (
+        <CreateInvoiceModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          orders={ordersWithoutInvoices}
+          onCreateInvoice={handleCreateInvoice}
+        />
+      )}
+
+      {/* Invoice Details Modal */}
+      {selectedInvoice && (
+        <InvoiceDetailsModal
+          isOpen={isDetailsModalOpen}
+          onClose={() => {
+            setIsDetailsModalOpen(false);
+            setSelectedInvoice(null);
+          }}
+          invoice={selectedInvoice}
+          onSubmit={selectedInvoice?.invoiceStatus === 'draft' ? handleSubmitInvoice : undefined}
+          onRequestPayment={selectedInvoice?.invoiceStatus === 'approved' ? handleRequestPayment : undefined}
+        />
+      )}
     </div>
   );
 }

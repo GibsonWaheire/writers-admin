@@ -11,8 +11,18 @@ export interface InvoiceData extends Invoice {
   writerEarnings: number;
   platformFee: number;
   paymentStatus: 'pending' | 'paid' | 'cancelled' | 'overdue';
+  invoiceStatus?: 'draft' | 'submitted' | 'approved' | 'rejected'; // New: Invoice workflow status
   dueDate: string;
   lateFees?: number;
+  submittedAt?: string; // When invoice was submitted for review
+  submittedBy?: string; // Who submitted the invoice
+  approvedAt?: string; // When invoice was approved
+  approvedBy?: string; // Who approved the invoice
+  rejectedAt?: string; // When invoice was rejected
+  rejectedBy?: string; // Who rejected the invoice
+  rejectionReason?: string; // Reason for rejection
+  paymentRequestedAt?: string; // When payment was requested
+  notes?: string; // Additional notes
 }
 
 interface InvoicesContextType {
@@ -23,11 +33,16 @@ interface InvoicesContextType {
   pendingAmount: number;
   overdueAmount: number;
   createInvoice: (orderId: string, orderType: 'regular' | 'pod', writerId: string, writerName: string) => void;
+  createInvoiceFromOrder: (order: any, orderType: 'regular' | 'pod') => InvoiceData; // New: Create invoice from order
+  submitInvoice: (invoiceId: string, writerId: string) => void; // New: Submit invoice for admin review
+  requestPayment: (invoiceId: string, writerId: string) => void; // New: Request payment for approved invoice
   updateInvoiceStatus: (invoiceId: string, status: InvoiceData['paymentStatus']) => void;
   markInvoiceAsPaid: (invoiceId: string, paymentMethod: string, paidAt?: string) => void;
   getInvoicesByStatus: (status: InvoiceData['paymentStatus']) => InvoiceData[];
+  getInvoicesByInvoiceStatus: (status: InvoiceData['invoiceStatus']) => InvoiceData[]; // New: Filter by invoice status
   getInvoicesByWriter: (writerId: string) => InvoiceData[];
   getInvoicesByOrder: (orderId: string) => InvoiceData[];
+  getOrdersWithoutInvoices: (writerId: string, ordersList: any[], podOrdersList: any[]) => any[]; // New: Get completed orders without invoices
   calculateLateFees: (invoiceId: string) => number;
   exportInvoices: (format: 'csv' | 'pdf' | 'excel') => void;
 }
@@ -143,10 +158,83 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
       writerEarnings: 0,
       platformFee: 0,
       paymentStatus: 'pending',
+      invoiceStatus: 'draft', // Start as draft
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
     };
 
     setInvoices(prev => [newInvoice, ...prev]);
+  }, []);
+
+  // Create invoice from a completed order
+  const createInvoiceFromOrder = useCallback((order: any, orderType: 'regular' | 'pod'): InvoiceData => {
+    const totalAmountKES = orderType === 'pod' 
+      ? (order.podAmount || order.pages * 350)
+      : (order.totalPriceKES || order.pages * 350);
+    
+    const writerEarnings = orderType === 'pod'
+      ? totalAmountKES * 0.8 // 80% for POD
+      : order.pages * 350; // 350 KES per page for regular
+    
+    const platformFee = totalAmountKES - writerEarnings;
+    
+    const newInvoice: InvoiceData = {
+      id: `INV-${orderType.toUpperCase()}-${order.id}-${Date.now()}`,
+      orderId: order.id,
+      orderTitle: order.title,
+      writerId: order.writerId,
+      writerName: order.assignedWriter || 'Unknown Writer',
+      amount: totalAmountKES,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      orderType,
+      pages: order.pages,
+      totalAmountKES,
+      writerEarnings,
+      platformFee,
+      paymentStatus: 'pending',
+      invoiceStatus: 'draft', // Start as draft, writer can submit
+      dueDate: order.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    };
+
+    setInvoices(prev => {
+      // Check if invoice already exists for this order
+      const exists = prev.find(inv => inv.orderId === order.id);
+      if (exists) return prev;
+      return [newInvoice, ...prev];
+    });
+    
+    return newInvoice;
+  }, []);
+
+  // Submit invoice for admin review
+  const submitInvoice = useCallback((invoiceId: string, writerId: string) => {
+    setInvoices(prev => 
+      prev.map(inv => 
+        inv.id === invoiceId && inv.writerId === writerId
+          ? { 
+              ...inv, 
+              invoiceStatus: 'submitted',
+              submittedAt: new Date().toISOString(),
+              submittedBy: writerId
+            }
+          : inv
+      )
+    );
+  }, []);
+
+  // Request payment for approved invoice
+  const requestPayment = useCallback((invoiceId: string, writerId: string) => {
+    setInvoices(prev => 
+      prev.map(inv => 
+        inv.id === invoiceId && inv.writerId === writerId
+          ? { 
+              ...inv, 
+              paymentRequestedAt: new Date().toISOString()
+            }
+          : inv
+      )
+    );
+    // TODO: Send notification to admin
   }, []);
 
   const updateInvoiceStatus = useCallback((invoiceId: string, status: InvoiceData['paymentStatus']) => {
@@ -176,12 +264,38 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
     return invoices.filter(inv => inv.paymentStatus === status);
   }, [invoices]);
 
+  const getInvoicesByInvoiceStatus = useCallback((status: InvoiceData['invoiceStatus']) => {
+    return invoices.filter(inv => inv.invoiceStatus === status);
+  }, [invoices]);
+
   const getInvoicesByWriter = useCallback((writerId: string) => {
     return invoices.filter(inv => inv.writerId === writerId);
   }, [invoices]);
 
   const getInvoicesByOrder = useCallback((orderId: string) => {
     return invoices.filter(inv => inv.orderId === orderId);
+  }, [invoices]);
+
+  // Get completed orders that don't have invoices yet
+  // Note: This function should be called from components that have access to orders and podOrders
+  const getOrdersWithoutInvoices = useCallback((writerId: string, ordersList: any[], podOrdersList: any[]) => {
+    if (!writerId) return [];
+    
+    // Get completed regular orders without invoices
+    const completedOrders = (ordersList || []).filter((order: any) => 
+      order.writerId === writerId &&
+      ['Completed', 'Admin Approved', 'Client Approved'].includes(order.status) &&
+      !invoices.find(inv => inv.orderId === order.id && inv.orderType === 'regular')
+    );
+    
+    // Get completed POD orders without invoices
+    const completedPODOrders = (podOrdersList || []).filter((podOrder: any) => 
+      podOrder.writerId === writerId &&
+      ['Payment Received', 'Delivered'].includes(podOrder.status) &&
+      !invoices.find(inv => inv.orderId === podOrder.id && inv.orderType === 'pod')
+    );
+    
+    return [...completedOrders, ...completedPODOrders];
   }, [invoices]);
 
   const calculateLateFees = useCallback((invoiceId: string) => {
@@ -227,11 +341,16 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
       pendingAmount,
       overdueAmount,
       createInvoice,
+      createInvoiceFromOrder,
+      submitInvoice,
+      requestPayment,
       updateInvoiceStatus,
       markInvoiceAsPaid,
       getInvoicesByStatus,
+      getInvoicesByInvoiceStatus,
       getInvoicesByWriter,
       getInvoicesByOrder,
+      getOrdersWithoutInvoices,
       calculateLateFees,
       exportInvoices
     }}>
