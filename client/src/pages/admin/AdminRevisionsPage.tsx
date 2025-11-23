@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import { Input } from '../../components/ui/input';
 import { 
   CheckCircle, 
   Trash2, 
@@ -17,9 +18,13 @@ import {
   Clock,
   User,
   DollarSign,
-  XCircle
+  XCircle,
+  Search,
+  Filter,
+  TrendingUp
 } from 'lucide-react';
 import { OrderViewModal } from '../../components/OrderViewModal';
+import { RequestRevisionModal } from '../../components/RequestRevisionModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Order } from '../../types/order';
@@ -27,8 +32,12 @@ import type { Order } from '../../types/order';
 export default function AdminRevisionsPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isApproving, setIsApproving] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [writerFilter, setWriterFilter] = useState<string>('all');
+  const [revisionCountFilter, setRevisionCountFilter] = useState<string>('all');
 
   const { 
     orders, 
@@ -43,6 +52,40 @@ export default function AdminRevisionsPage() {
     order.revisionFiles && 
     order.revisionFiles.length > 0
   );
+
+  // Get unique writers for filter
+  const uniqueWriters = Array.from(new Set(
+    revisionOrders.map(order => order.assignedWriter || 'Unknown').filter(Boolean)
+  ));
+
+  // Filter orders
+  const filteredOrders = revisionOrders.filter(order => {
+    const matchesSearch = !searchTerm || 
+      order.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.discipline.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.assignedWriter && order.assignedWriter.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesWriter = writerFilter === 'all' || order.assignedWriter === writerFilter;
+    
+    let matchesRevisionCount = true;
+    if (revisionCountFilter !== 'all') {
+      const count = order.revisionCount || 0;
+      switch (revisionCountFilter) {
+        case 'first':
+          matchesRevisionCount = count === 1;
+          break;
+        case 'second':
+          matchesRevisionCount = count === 2;
+          break;
+        case 'third+':
+          matchesRevisionCount = count >= 3;
+          break;
+      }
+    }
+    
+    return matchesSearch && matchesWriter && matchesRevisionCount;
+  });
 
   const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
@@ -100,6 +143,37 @@ export default function AdminRevisionsPage() {
     setSelectedOrder(null);
   };
 
+  const handleRequestRevision = (order: Order) => {
+    setSelectedOrder(order);
+    setIsRevisionModalOpen(true);
+  };
+
+  const handleRequestRevisionConfirm = async (orderId: string, explanation: string, notes?: string) => {
+    try {
+      await handleOrderAction('request_revision', orderId, {
+        adminId: user?.id,
+        explanation: explanation,
+        notes: notes
+      });
+      
+      setIsRevisionModalOpen(false);
+      setSelectedOrder(null);
+    } catch (error) {
+      console.error('Failed to request revision:', error);
+      alert('Failed to request revision. Please try again.');
+    }
+  };
+
+  // Calculate stats
+  const avgRevisionCount = revisionOrders.length > 0
+    ? (revisionOrders.reduce((sum, order) => sum + (order.revisionCount || 0), 0) / revisionOrders.length).toFixed(1)
+    : '0';
+
+  const totalRevisionFiles = revisionOrders.reduce((sum, order) => sum + (order.revisionFiles?.length || 0), 0);
+  const avgFilesPerRevision = revisionOrders.length > 0
+    ? (totalRevisionFiles / revisionOrders.length).toFixed(1)
+    : '0';
+
   const getTimeAgo = (dateString: string) => {
     const now = new Date();
     const date = new Date(dateString);
@@ -119,12 +193,51 @@ export default function AdminRevisionsPage() {
           <p className="text-gray-600 mt-1">Review and approve revision submissions from writers</p>
         </div>
         <Badge variant="outline" className="text-lg px-4 py-2 bg-orange-50 text-orange-700 border-orange-200">
-          {revisionOrders.length} Pending Review
+          {filteredOrders.length} Pending Review
         </Badge>
       </div>
 
+      {/* Search and Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Search revisions by title, writer, or discipline..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex gap-2">
+              <select
+                value={writerFilter}
+                onChange={(e) => setWriterFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Writers</option>
+                {uniqueWriters.map(writer => (
+                  <option key={writer} value={writer}>{writer}</option>
+                ))}
+              </select>
+              <select
+                value={revisionCountFilter}
+                onChange={(e) => setRevisionCountFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Revisions</option>
+                <option value="first">First Revision</option>
+                <option value="second">Second Revision</option>
+                <option value="third+">Third+ Revision</option>
+              </select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-3">
@@ -133,7 +246,8 @@ export default function AdminRevisionsPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Pending Revisions</p>
-                <p className="text-2xl font-bold text-gray-900">{revisionOrders.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{filteredOrders.length}</p>
+                <p className="text-xs text-gray-500 mt-1">Avg Round: {avgRevisionCount}</p>
               </div>
             </div>
           </CardContent>
@@ -147,7 +261,8 @@ export default function AdminRevisionsPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Ready to Approve</p>
-                <p className="text-2xl font-bold text-gray-900">{revisionOrders.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{filteredOrders.length}</p>
+                <p className="text-xs text-gray-500 mt-1">All reviewed</p>
               </div>
             </div>
           </CardContent>
@@ -161,9 +276,23 @@ export default function AdminRevisionsPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Files</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {revisionOrders.reduce((sum, order) => sum + (order.revisionFiles?.length || 0), 0)}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{totalRevisionFiles}</p>
+                <p className="text-xs text-gray-500 mt-1">Avg: {avgFilesPerRevision} per revision</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Unique Writers</p>
+                <p className="text-2xl font-bold text-gray-900">{uniqueWriters.length}</p>
+                <p className="text-xs text-gray-500 mt-1">With revisions</p>
               </div>
             </div>
           </CardContent>
@@ -172,8 +301,8 @@ export default function AdminRevisionsPage() {
 
       {/* Revision Orders List */}
       <div className="space-y-4">
-        {revisionOrders.length > 0 ? (
-          revisionOrders.map(order => (
+        {filteredOrders.length > 0 ? (
+          filteredOrders.map(order => (
             <Card key={order.id} className="border-l-4 border-l-orange-500 hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4">
@@ -183,6 +312,16 @@ export default function AdminRevisionsPage() {
                       <Badge variant="secondary" className="bg-orange-100 text-orange-700">
                         Revision Submitted
                       </Badge>
+                      {order.revisionCount && order.revisionCount > 0 && (
+                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                          Round #{order.revisionCount}
+                        </Badge>
+                      )}
+                      {order.revisionScore !== undefined && (
+                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                          Score: {order.revisionScore}/10
+                        </Badge>
+                      )}
                     </div>
                     
                     <p className="text-sm text-gray-600 mb-4">{order.description}</p>
@@ -254,6 +393,17 @@ export default function AdminRevisionsPage() {
                   </div>
                   
                   <div className="flex items-center gap-2">
+                    {/* REQUEST ANOTHER REVISION BUTTON */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRequestRevision(order)}
+                      className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-300"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Request Another Revision
+                    </Button>
+                    
                     {/* DELETE BUTTON */}
                     <Button
                       variant="outline"
@@ -320,6 +470,19 @@ export default function AdminRevisionsPage() {
           order={selectedOrder}
           onAction={handleOrderActionLocal}
           userRole="admin"
+        />
+      )}
+
+      {/* Request Revision Modal */}
+      {selectedOrder && (
+        <RequestRevisionModal
+          isOpen={isRevisionModalOpen}
+          onClose={() => {
+            setIsRevisionModalOpen(false);
+            setSelectedOrder(null);
+          }}
+          order={selectedOrder}
+          onRequestRevision={handleRequestRevisionConfirm}
         />
       )}
     </div>
