@@ -442,9 +442,12 @@ export default function AllOrdersPage() {
           }}
           order={orderToAssign}
           onAssign={handleAssignToWriter}
-          onMakeAvailable={() => {
+          onMakeAvailable={(notes) => {
             if (orderToAssign) {
-              handleOrderAction('make_available', orderToAssign.id, {});
+              handleOrderAction('make_available', orderToAssign.id, { 
+                notes,
+                source: 'admin'
+              });
               setShowAssignmentModal(false);
               setOrderToAssign(null);
             }

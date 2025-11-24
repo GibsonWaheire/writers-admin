@@ -1,162 +1,135 @@
-/**
- * Enhanced Bid Card Component
- * Displays bid information with status and actions
- */
-
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
+import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
-import { 
-  User, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  DollarSign,
-  Calendar,
-  FileText
-} from 'lucide-react';
-import type { Order } from '../../types/order';
+import { Badge } from '../ui/badge';
+import { User, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { WriterPerformanceBadge } from './WriterPerformanceBadge';
+import { MeritScoreIndicator } from './MeritScoreIndicator';
+import { getTimeAgo } from '../../utils/bidHelpers';
+import type { BidWithWriter } from '../../utils/bidHelpers';
 
-export interface BidInfo {
-  orderId: string;
-  orderTitle: string;
-  writerId: string;
-  writerName: string;
-  bidAt: string;
-  bidAmount?: number;
-  bidNotes?: string;
-  status: 'pending' | 'approved' | 'declined';
-  order?: Order;
-}
-
-export interface BidCardProps {
-  bid: BidInfo;
-  userRole: 'admin' | 'writer';
-  onApprove?: (bidId: string) => void;
-  onDecline?: (bidId: string) => void;
-  onViewOrder?: (orderId: string) => void;
+interface BidCardProps {
+  bidWithWriter: BidWithWriter;
+  onApprove: (orderId: string, bidId: string) => void;
+  onDecline: (orderId: string, bidId: string) => void;
+  onViewWriter?: (writerId: string) => void;
 }
 
 export function BidCard({ 
-  bid, 
-  userRole, 
+  bidWithWriter, 
   onApprove, 
-  onDecline, 
-  onViewOrder 
+  onDecline,
+  onViewWriter 
 }: BidCardProps) {
-  const getStatusBadge = () => {
-    switch (bid.status) {
-      case 'approved':
-        return <Badge variant="default" className="bg-green-100 text-green-800">Approved</Badge>;
-      case 'declined':
-        return <Badge variant="destructive">Declined</Badge>;
-      default:
-        return <Badge variant="secondary">Pending</Badge>;
-    }
+  const { bid, order, writer, performance, meritScore } = bidWithWriter;
+
+  // Default performance for new writers without history
+  const defaultPerformance = {
+    completionRate: 100,
+    onTimeDeliveryRate: 100,
+    revisionRate: 0,
+    rejectionRate: 0,
+    averageRating: 4.0,
+    totalOrders: 0,
+    completedOrders: 0,
+    totalEarnings: 0
   };
 
-  const getTimeAgo = (dateString: string) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    return `${Math.floor(diffInHours / 24)}d ago`;
-  };
+  const displayPerformance = performance || defaultPerformance;
+  const displayMeritScore = meritScore || 50; // Default merit score for new writers
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
+    <Card className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 hover:shadow-md transition-shadow">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-4">
+          {/* Left: Writer Info & Performance */}
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-lg line-clamp-2 mb-2">{bid.orderTitle}</CardTitle>
-            <div className="flex items-center gap-2 flex-wrap">
-              {getStatusBadge()}
-              <Badge variant="outline" className="text-xs">
-                <Clock className="h-3 w-3 mr-1" />
-                {getTimeAgo(bid.bidAt)}
+            <div className="flex items-center gap-2 mb-3">
+              <User className="h-4 w-4 text-gray-500 flex-shrink-0" />
+              <span className="font-semibold text-gray-900 truncate">
+                {writer?.name || bid.writerName || 'Unknown Writer'}
+              </span>
+              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 text-xs flex-shrink-0">
+                Pending
               </Badge>
+              <MeritScoreIndicator score={displayMeritScore} showLabel={false} />
             </div>
+
+            {/* Performance Metrics */}
+            <div className="mb-3">
+              <WriterPerformanceBadge performance={displayPerformance} compact />
+            </div>
+
+            {/* Additional Stats */}
+            <div className="text-xs text-gray-600 space-y-1 mb-3">
+              <div className="flex items-center gap-2">
+                <Clock className="h-3 w-3" />
+                <span>Bid placed: {getTimeAgo(bid.bidAt)}</span>
+              </div>
+              {displayPerformance.totalOrders > 0 ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-3 w-3 text-green-600" />
+                    <span>{displayPerformance.completedOrders} completed orders</span>
+                  </div>
+                  {displayPerformance.totalEarnings > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-600">
+                        KES {displayPerformance.totalEarnings.toLocaleString()} earned
+                      </span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-300">
+                    New Writer
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            {/* Bid Notes */}
+            {(bid.bidNotes || bid.notes) && (
+              <div className="mt-2 p-2 bg-white rounded border border-gray-200 text-xs">
+                <span className="font-medium text-gray-700">Bid Notes:</span>
+                <p className="text-gray-600 mt-1">{bid.bidNotes || bid.notes}</p>
+              </div>
+            )}
           </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm">
-            <User className="h-4 w-4 text-gray-500" />
-            <span className="text-gray-600">Writer:</span>
-            <span className="font-medium">{bid.writerName}</span>
-          </div>
-          
-          {bid.bidAmount && (
-            <div className="flex items-center gap-2 text-sm">
-              <DollarSign className="h-4 w-4 text-gray-500" />
-              <span className="text-gray-600">Bid Amount:</span>
-              <span className="font-medium text-green-600">KES {bid.bidAmount.toLocaleString()}</span>
-            </div>
-          )}
-          
-          {bid.bidNotes && (
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
-                <FileText className="h-4 w-4" />
-                Notes:
-              </div>
-              <p className="text-sm text-gray-600">{bid.bidNotes}</p>
-            </div>
-          )}
-          
-          {bid.order && (
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <span className="text-gray-600">Pages:</span>
-                <span className="font-medium ml-2">{bid.order.pages}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Deadline:</span>
-                <span className="font-medium ml-2">
-                  {new Date(bid.order.deadline).toLocaleDateString()}
-                </span>
-              </div>
-            </div>
-          )}
-          
-          {userRole === 'admin' && bid.status === 'pending' && (
-            <div className="flex gap-2 pt-2 border-t">
+
+          {/* Right: Actions */}
+          <div className="flex flex-col gap-2 flex-shrink-0">
+            {onViewWriter && writer && (
               <Button
+                variant="outline"
                 size="sm"
-                className="flex-1 bg-green-600 hover:bg-green-700"
-                onClick={() => onApprove?.(bid.orderId)}
+                onClick={() => onViewWriter(writer.id)}
+                className="text-xs"
               >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Approve
+                <Eye className="h-3 w-3 mr-1" />
+                Profile
               </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                className="flex-1"
-                onClick={() => onDecline?.(bid.orderId)}
-              >
-                <XCircle className="h-4 w-4 mr-2" />
-                Decline
-              </Button>
-            </div>
-          )}
-          
-          {onViewOrder && (
+            )}
+            <Button
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white text-xs"
+              onClick={() => onApprove(order.id, bid.id)}
+            >
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Approve
+            </Button>
             <Button
               variant="outline"
               size="sm"
-              className="w-full"
-              onClick={() => onViewOrder(bid.orderId)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 text-xs"
+              onClick={() => onDecline(order.id, bid.id)}
             >
-              View Order Details
+              <XCircle className="h-3 w-3 mr-1" />
+              Decline
             </Button>
-          )}
+          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
-

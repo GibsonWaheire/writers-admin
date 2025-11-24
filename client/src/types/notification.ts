@@ -1,7 +1,7 @@
 export interface Notification {
   id: string;
   userId: string; // Writer or admin ID
-  type: 'order_assigned' | 'order_completed' | 'order_approved' | 'order_rejected' | 'payment_received' | 'system_update' | 'assignment_confirmed' | 'assignment_declined';
+  type: 'order_assigned' | 'order_completed' | 'order_approved' | 'order_rejected' | 'payment_received' | 'system_update' | 'assignment_confirmed' | 'assignment_declined' | 'revision';
   title: string;
   message: string;
   actionUrl?: string;

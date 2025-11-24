@@ -31,6 +31,7 @@ import PODOrdersPage from "./pages/PODOrdersPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import WalletPage from "./pages/WalletPage";
 import ReviewsPage from "./pages/ReviewsPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { ToastProvider } from "./contexts/ToastContext";
@@ -52,15 +53,24 @@ const queryClient = new QueryClient();
 
 // Protected Route Component
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: 'writer' | 'admin' }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isInitialized } = useAuth();
 
-  if (!isAuthenticated) {
+  // Wait for auth to initialize before checking
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !user) {
     return <Navigate to="/" replace />;
   }
 
-  if (requiredRole && user?.role !== requiredRole) {
+  if (requiredRole && user.role !== requiredRole) {
     // Redirect to appropriate dashboard based on user role
-    if (user?.role === 'admin') {
+    if (user.role === 'admin') {
       return <Navigate to="/admin" replace />;
     } else {
       return <Navigate to="/writer" replace />;
@@ -98,8 +108,9 @@ function AppRouter() {
   }
 
   // If user is authenticated, show dashboard routes
+  // Use user.id as key to force re-render when user changes
   return (
-    <Routes>
+    <Routes key={user?.id || 'default'}>
       <Route path="/" element={
         user?.role === 'admin' ? 
           <Navigate to="/admin" replace /> : 
@@ -195,6 +206,13 @@ function AppRouter() {
         <ProtectedRoute>
           <Layout>
             <InvoicesPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/notifications" element={
+        <ProtectedRoute>
+          <Layout>
+            <NotificationsPage />
           </Layout>
         </ProtectedRoute>
       } />
@@ -315,41 +333,52 @@ function AppRouter() {
   );
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <ToastProvider>
-        <OrderProvider>
-          <PODProvider>
-            <WalletProvider>
-              <ReviewsProvider>
-                <FinancialProvider>
-                  <UsersProvider>
-                    <AnalyticsProvider>
-                      <MessagesProvider>
-                        <InvoicesProvider>
-                          <AppNotificationProvider>
-                            <SettingsProvider>
-                              <TooltipProvider>
-                                <BrowserRouter>
-                                  <AppRouter />
-                                </BrowserRouter>
-                              </TooltipProvider>
-                            </SettingsProvider>
-                          </AppNotificationProvider>
-                        </InvoicesProvider>
-                      </MessagesProvider>
-                    </AnalyticsProvider>
-                  </UsersProvider>
-                </FinancialProvider>
-              </ReviewsProvider>
-            </WalletProvider>
-          </PODProvider>
-        </OrderProvider>
-      </ToastProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AppWithRouter />
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
+
+// Separate component to access auth context
+function AppWithRouter() {
+  const { user } = useAuth();
+  
+  return (
+    <ToastProvider>
+      <OrderProvider>
+        <PODProvider>
+          <WalletProvider>
+            <ReviewsProvider>
+              <FinancialProvider>
+                <UsersProvider>
+                  <AnalyticsProvider>
+                    <MessagesProvider>
+                      <InvoicesProvider>
+                        <AppNotificationProvider>
+                          <SettingsProvider>
+                            <TooltipProvider>
+                              <BrowserRouter key={user?.id || 'default'}>
+                                <AppRouter />
+                              </BrowserRouter>
+                            </TooltipProvider>
+                          </SettingsProvider>
+                        </AppNotificationProvider>
+                      </InvoicesProvider>
+                    </MessagesProvider>
+                  </AnalyticsProvider>
+                </UsersProvider>
+              </FinancialProvider>
+            </ReviewsProvider>
+          </WalletProvider>
+        </PODProvider>
+      </OrderProvider>
+    </ToastProvider>
+  );
+}
 
 export default App;
 

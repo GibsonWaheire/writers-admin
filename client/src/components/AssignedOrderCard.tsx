@@ -259,9 +259,11 @@ export function AssignedOrderCard({
                     Start Work
                   </Button>
                 )}
-                {order.status === 'In Progress' && (
+                {/* Upload and Submit buttons for Assigned and In Progress orders */}
+                {(order.status === 'Assigned' || order.status === 'In Progress') && (
                   <>
-                    {(!order.uploadedFiles || order.uploadedFiles.length === 0) ? (
+                    {(!order.originalFiles || order.originalFiles.length === 0) && 
+                     (!order.uploadedFiles || order.uploadedFiles.length === 0) ? (
                       // Step 1: Upload files first
                       <Button
                         size="sm"
@@ -279,7 +281,7 @@ export function AssignedOrderCard({
                         className="flex-1 bg-blue-600 hover:bg-blue-700"
                       >
                         <FileText className="h-4 w-4 mr-1" />
-                        Submit Work
+                        Submit for Review
                       </Button>
                     ) : null}
                   </>
@@ -338,8 +340,8 @@ export function AssignedOrderCard({
           onUpload={async (files) => {
             if (onUploadFiles) {
               await onUploadFiles(order.id, files);
+              // Modal will close itself after successful upload
             }
-            setShowUploadModal(false);
           }}
         />
       )}
@@ -352,9 +354,10 @@ export function AssignedOrderCard({
           onClose={() => setShowSubmitModal(false)}
           onSubmit={async (submission) => {
             if (onSubmitWork) {
-              // Use already uploaded files from order
+              // Use originalFiles if available, otherwise uploadedFiles
+              const filesToSubmit = order.originalFiles || order.uploadedFiles || [];
               await onSubmitWork(order.id, {
-                files: order.uploadedFiles || [],
+                files: filesToSubmit,
                 notes: submission.notes,
                 estimatedCompletionTime: submission.estimatedCompletionTime
               });

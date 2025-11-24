@@ -23,12 +23,19 @@ def create_writer():
     import uuid
     from datetime import datetime
     
+    # New writers should start with 'application_submitted' status, not 'active'
+    # Only admins can approve them to 'active' status
+    default_status = 'application_submitted' if not data.get('status') else data.get('status')
+    # If explicitly setting to 'active', allow it (for admin-created writers or approved applications)
+    if data.get('status') == 'active':
+        default_status = 'active'
+    
     writer = Writer(
         id=data.get('id', str(uuid.uuid4())),
         email=data.get('email'),
         name=data.get('name'),
         phone=data.get('phone'),
-        status=data.get('status', 'active'),
+        status=default_status,
         role=data.get('role', 'writer'),
         national_id=data.get('nationalId'),
         date_of_birth=data.get('dateOfBirth'),

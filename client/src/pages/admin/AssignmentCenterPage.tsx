@@ -86,7 +86,10 @@ export default function AssignmentCenterPage() {
 
   const handleMakeAvailable = (notes?: string) => {
     if (orderToAssign) {
-      handleOrderAction('make_available', orderToAssign.id, { notes });
+      handleOrderAction('make_available', orderToAssign.id, { 
+        notes,
+        source: 'admin'
+      });
       setShowAssignmentModal(false);
       setOrderToAssign(null);
     }

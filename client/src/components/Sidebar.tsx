@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -119,8 +119,15 @@ export function Sidebar() {
   const isMobile = useIsMobile();
   
   const { orders } = useOrders();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { wallet } = useWallet();
+  
+  // Reset expanded items when user changes
+  useEffect(() => {
+    if (user) {
+      setExpandedItems(user.role === 'admin' ? ['/admin/orders'] : ['/orders/available']);
+    }
+  }, [user?.id, user?.role]);
   const { unreadCount } = useMessages();
 
   const currentWriterId = getWriterIdForUser(user?.id);

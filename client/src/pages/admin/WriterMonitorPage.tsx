@@ -39,6 +39,13 @@ interface WriterStats {
   maxCapacity: number;
   recentOrders: Order[];
   performanceTrend: 'up' | 'down' | 'stable';
+  // Additional info
+  phone?: string;
+  specializations?: string[];
+  country?: string;
+  createdAt?: string;
+  lastActiveAt?: string;
+  status?: string;
 }
 
 export default function WriterMonitorPage() {
@@ -46,6 +53,7 @@ export default function WriterMonitorPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'rating' | 'orders' | 'earnings'>('rating');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
 
   const { 
     orders, 
@@ -68,8 +76,21 @@ export default function WriterMonitorPage() {
     setSelectedOrder(null);
   };
 
-  // Calculate comprehensive writer statistics
-  const writerStats: WriterStats[] = writers.map(writer => {
+  // Filter to only show active/approved writers (exclude pending, rejected, inactive)
+  // But allow filtering by status
+  const activeWriters = writers.filter(writer => {
+    if (statusFilter === 'all') {
+      return writer.status === 'active' || writer.status === 'suspended';
+    } else if (statusFilter === 'active') {
+      return writer.status === 'active';
+    } else if (statusFilter === 'suspended') {
+      return writer.status === 'suspended';
+    }
+    return false;
+  });
+
+  // Calculate comprehensive writer statistics (only for active writers)
+  const writerStats: WriterStats[] = activeWriters.map(writer => {
     const writerOrders = orders.filter(o => o.writerId === writer.id);
     const activeOrders = getWriterActiveOrders(writer.id);
     const stats = getWriterOrderStats(writer.id);
@@ -102,6 +123,8 @@ export default function WriterMonitorPage() {
       recentSuccessRate > successRate + 5 ? 'up' :
       recentSuccessRate < successRate - 5 ? 'down' : 'stable';
 
+    const writerData = writers.find(w => w.id === writer.id);
+    
     return {
       id: writer.id,
       name: writer.name,
@@ -117,7 +140,14 @@ export default function WriterMonitorPage() {
       currentCapacity: activeOrders.length,
       maxCapacity: writer.maxConcurrentOrders || 5,
       recentOrders: recentOrders.slice(0, 5),
-      performanceTrend
+      performanceTrend,
+      // Additional writer info
+      phone: writerData?.phone,
+      specializations: writerData?.specializations || [],
+      country: writerData?.country,
+      createdAt: writerData?.createdAt,
+      lastActiveAt: writerData?.lastActiveAt,
+      status: writerData?.status
     };
   });
 
@@ -166,12 +196,20 @@ export default function WriterMonitorPage() {
     return 'bg-green-100 text-green-800 border-green-200';
   };
 
+  // Get pending applications count
+  const pendingApplications = writers.filter(w => 
+    w.status === 'application_submitted' || w.status === 'pending'
+  ).length;
+
   const overallStats = {
-    totalWriters: writers.length,
+    totalWriters: activeWriters.length,
     activeWriters: writerStats.filter(w => w.activeOrders > 0).length,
     availableWriters: writerStats.filter(w => w.currentCapacity < w.maxCapacity).length,
-    avgSuccessRate: Math.round(writerStats.reduce((sum, w) => sum + w.successRate, 0) / writers.length),
-    totalEarnings: writerStats.reduce((sum, w) => sum + w.totalEarnings, 0)
+    avgSuccessRate: writerStats.length > 0 
+      ? Math.round(writerStats.reduce((sum, w) => sum + w.successRate, 0) / writerStats.length)
+      : 0,
+    totalEarnings: writerStats.reduce((sum, w) => sum + w.totalEarnings, 0),
+    pendingApplications
   };
 
   return (
@@ -181,34 +219,59 @@ export default function WriterMonitorPage() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Writer Monitor</h1>
           <p className="text-muted-foreground">
-            Track writer performance, capacity, and order management
+            Track approved writers' performance, capacity, and order management. Only active writers are shown here.
           </p>
         </div>
-        <Button 
-          variant="outline"
-          onClick={refreshOrders}
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {overallStats.pendingApplications > 0 && (
+            <Button 
+              variant="outline"
+              onClick={() => window.location.href = '/admin/writers?tab=pending'}
+              className="border-orange-300 text-orange-700 hover:bg-orange-50"
+            >
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              {overallStats.pendingApplications} Pending Applications
+            </Button>
+          )}
+          <Button 
+            variant="outline"
+            onClick={refreshOrders}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Overall Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <Card className="bg-blue-50 border-blue-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-blue-700">Total Writers</CardTitle>
+            <CardTitle className="text-sm font-medium text-blue-700">Active Writers</CardTitle>
             <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-700">{overallStats.totalWriters}</div>
-            <p className="text-xs text-blue-600">Registered writers</p>
+            <p className="text-xs text-blue-600">Approved & active</p>
           </CardContent>
         </Card>
 
+        {overallStats.pendingApplications > 0 && (
+          <Card className="bg-orange-50 border-orange-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-orange-700">Pending Applications</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-700">{overallStats.pendingApplications}</div>
+              <p className="text-xs text-orange-600">Awaiting approval</p>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="bg-green-50 border-green-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">Active Writers</CardTitle>
+            <CardTitle className="text-sm font-medium text-green-700">Working Now</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
@@ -259,7 +322,7 @@ export default function WriterMonitorPage() {
           <CardTitle>Filters & Search</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -269,6 +332,16 @@ export default function WriterMonitorPage() {
                 className="pl-10"
               />
             </div>
+            
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'suspended')}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active Only</option>
+              <option value="suspended">Suspended</option>
+            </select>
             
             <select
               value={sortBy}
@@ -282,7 +355,7 @@ export default function WriterMonitorPage() {
             </select>
             
             <div className="text-sm text-gray-600 flex items-center">
-              Showing {filteredWriters.length} writers
+              Showing {filteredWriters.length} writer{filteredWriters.length !== 1 ? 's' : ''}
             </div>
           </div>
         </CardContent>
@@ -294,21 +367,53 @@ export default function WriterMonitorPage() {
           <Card key={writer.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg">{writer.name}</CardTitle>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CardTitle className="text-lg">{writer.name}</CardTitle>
+                    {writers.find(w => w.id === writer.id)?.status === 'suspended' && (
+                      <Badge variant="destructive" className="text-xs">Suspended</Badge>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-600">{writer.email}</p>
+                  {writer.phone && (
+                    <p className="text-xs text-gray-500">{writer.phone}</p>
+                  )}
+                  {writer.country && (
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <span>📍</span> {writer.country}
+                    </p>
+                  )}
+                  {writer.specializations && writer.specializations.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {writer.specializations.slice(0, 3).map((spec, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {spec}
+                        </Badge>
+                      ))}
+                      {writer.specializations.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{writer.specializations.length - 3} more
+                        </Badge>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className={`flex items-center gap-1 ${getPerformanceColor(writer.performanceTrend)}`}>
-                    {getPerformanceIcon(writer.performanceTrend)}
-                    <span className="text-sm font-medium">
-                      {writer.performanceTrend === 'up' ? 'Improving' : 
-                       writer.performanceTrend === 'down' ? 'Declining' : 'Stable'}
-                    </span>
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`flex items-center gap-1 ${getPerformanceColor(writer.performanceTrend)}`}>
+                      {getPerformanceIcon(writer.performanceTrend)}
+                      <span className="text-xs font-medium">
+                        {writer.performanceTrend === 'up' ? 'Improving' : 
+                         writer.performanceTrend === 'down' ? 'Declining' : 'Stable'}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 text-yellow-500" />
+                    <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                     <span className="font-medium">{writer.rating.toFixed(1)}</span>
+                    {writer.totalReviews > 0 && (
+                      <span className="text-xs text-gray-500">({writer.totalReviews})</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -382,19 +487,31 @@ export default function WriterMonitorPage() {
               </div>
 
               {/* Performance Indicators */}
-              <div className="mt-4 flex items-center justify-between text-xs text-gray-600">
-                <span>Avg. Completion: {writer.averageCompletionTime}h</span>
-                {writer.rejectedOrders > 0 && (
-                  <span className="text-red-600">
-                    <XCircle className="h-3 w-3 inline mr-1" />
-                    {writer.rejectedOrders} rejected
-                  </span>
-                )}
-                {writer.activeOrders > 0 && (
-                  <span className="text-blue-600">
-                    <Clock className="h-3 w-3 inline mr-1" />
-                    {writer.activeOrders} active
-                  </span>
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Avg. Completion: {writer.averageCompletionTime}h</span>
+                  {writer.rejectedOrders > 0 && (
+                    <span className="text-red-600">
+                      <XCircle className="h-3 w-3 inline mr-1" />
+                      {writer.rejectedOrders} rejected
+                    </span>
+                  )}
+                  {writer.activeOrders > 0 && (
+                    <span className="text-blue-600">
+                      <Clock className="h-3 w-3 inline mr-1" />
+                      {writer.activeOrders} active
+                    </span>
+                  )}
+                </div>
+                {writer.createdAt && (
+                  <div className="text-xs text-gray-500 border-t pt-2">
+                    <span>Joined: {new Date(writer.createdAt).toLocaleDateString()}</span>
+                    {writer.lastActiveAt && (
+                      <span className="ml-3">
+                        Last active: {new Date(writer.lastActiveAt).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             </CardContent>

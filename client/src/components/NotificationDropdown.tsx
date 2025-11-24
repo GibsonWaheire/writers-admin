@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckCircle, AlertCircle, FileText, Wifi, WifiOff } from 'lucide-react';
+import { Bell, CheckCircle, AlertCircle, FileText, Wifi, WifiOff, RefreshCw, DollarSign, ExternalLink, XCircle } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { useOrders } from '../contexts/OrderContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import type { Notification } from '../types/notification';
 
 interface NotificationDropdownProps {
@@ -15,6 +16,7 @@ interface NotificationDropdownProps {
 export function NotificationDropdown({ userRole }: NotificationDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   // Get context values - these will throw errors if contexts are not available
   const notificationContext = useNotifications();
@@ -161,23 +163,32 @@ export function NotificationDropdown({ userRole }: NotificationDropdownProps) {
                 notifications.slice(0, 5).map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                    className={`p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
                       notification.isRead 
                         ? 'bg-gray-50 border-gray-200' 
+                        : notification.priority === 'urgent' || notification.priority === 'high'
+                        ? 'bg-red-50 border-red-300 border-l-4'
                         : 'bg-blue-50 border-blue-200'
                     }`}
-                    onClick={() => handleMarkAsRead(notification.id)}
+                    onClick={async () => {
+                      await handleMarkAsRead(notification.id);
+                      if (notification.actionUrl) {
+                        navigate(notification.actionUrl);
+                        setIsOpen(false);
+                      }
+                    }}
                   >
                     <div className="flex items-start gap-3">
                       <div className="mt-1">
                         {notification.type === 'order_assigned' && <FileText className="h-4 w-4 text-blue-600" />}
                         {notification.type === 'order_completed' && <CheckCircle className="h-4 w-4 text-green-600" />}
                         {notification.type === 'order_approved' && <CheckCircle className="h-4 w-4 text-green-600" />}
-                        {notification.type === 'payment_received' && <CheckCircle className="h-4 w-4 text-green-600" />}
+                        {notification.type === 'payment_received' && <DollarSign className="h-4 w-4 text-green-600" />}
                         {notification.type === 'system_update' && <Bell className="h-4 w-4 text-gray-600" />}
                         {notification.type === 'assignment_confirmed' && <CheckCircle className="h-4 w-4 text-green-600" />}
                         {notification.type === 'assignment_declined' && <AlertCircle className="h-4 w-4 text-red-600" />}
-                        {notification.type === 'order_rejected' && <AlertCircle className="h-4 w-4 text-red-600" />}
+                        {notification.type === 'order_rejected' && <XCircle className="h-4 w-4 text-red-600" />}
+                        {(notification.type === 'revision' || notification.title?.includes('Revision')) && <RefreshCw className="h-4 w-4 text-orange-600" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm text-gray-900">
@@ -186,12 +197,25 @@ export function NotificationDropdown({ userRole }: NotificationDropdownProps) {
                         <div className="text-sm text-gray-600 mt-1">
                           {notification.message || 'No message content'}
                         </div>
-                        <div className="text-xs text-gray-500 mt-2">
-                          {formatTimeAgo(getNotificationTimestamp(notification))}
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="text-xs text-gray-500">
+                            {formatTimeAgo(getNotificationTimestamp(notification))}
+                          </div>
+                          {(notification.priority === 'urgent' || notification.priority === 'high') && (
+                            <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 text-xs">
+                              {notification.priority === 'urgent' ? 'Urgent' : 'High'}
+                            </Badge>
+                          )}
                         </div>
+                        {notification.actionUrl && (
+                          <div className="mt-2 flex items-center gap-1 text-xs text-blue-600">
+                            <ExternalLink className="h-3 w-3" />
+                            <span>{notification.actionLabel || 'View Details'}</span>
+                          </div>
+                        )}
                       </div>
                       {!notification.isRead && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
                       )}
                     </div>
                   </div>
@@ -205,13 +229,19 @@ export function NotificationDropdown({ userRole }: NotificationDropdownProps) {
               )}
 
               {/* View All Link */}
-              {notifications && notifications.length > 5 && (
-                <div className="text-center pt-2">
-                  <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
-                    View all notifications
-                  </Button>
-                </div>
-              )}
+              <div className="text-center pt-2 border-t">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-blue-600 hover:text-blue-700"
+                  onClick={() => {
+                    navigate('/notifications');
+                    setIsOpen(false);
+                  }}
+                >
+                  View all notifications ({notifications.length})
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

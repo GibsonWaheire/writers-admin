@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -10,8 +10,15 @@ import { RequestRevisionModal } from './RequestRevisionModal';
 import { SubmitToAdminModal } from './SubmitToAdminModal';
 import { SubmitRevisionModal } from './SubmitRevisionModal';
 import { UploadOrderFilesModal } from './UploadOrderFilesModal';
+import { BidCard } from './bidding/BidCard';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrders } from '../contexts/OrderContext';
+import { useUsers } from '../contexts/UsersContext';
+import { 
+  getBidsWithPerformance, 
+  sortBidsByMerit,
+  type BidWithWriter 
+} from '../utils/bidHelpers';
 import { 
   DollarSign, 
   FileText, 
@@ -28,7 +35,8 @@ import {
   Paperclip,
   Hand,
   Users,
-  Clock
+  Clock,
+  Trash2
 } from 'lucide-react';
 import type { Order, OrderStatus, WriterConfirmation, WriterQuestion } from '../types/order';
 import { getWriterIdForUser } from '../utils/writer';
@@ -50,6 +58,7 @@ export function OrderViewModal({
 }: OrderViewModalProps) {
   const { user } = useAuth();
   const { orders } = useOrders();
+  const { writers } = useUsers();
   const [activeTab, setActiveTab] = useState('details');
   const [notes, setNotes] = useState('');
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -66,6 +75,18 @@ export function OrderViewModal({
   const currentOrder = latestOrder;
   const hasOriginalFiles = (currentOrder.originalFiles && currentOrder.originalFiles.length > 0);
   const hasRevisionFiles = (currentOrder.revisionFiles && currentOrder.revisionFiles.length > 0);
+
+  // Get bids with performance data for this order
+  const orderBidsWithPerformance = useMemo(() => {
+    if (!currentOrder.bids || currentOrder.bids.length === 0) {
+      return [];
+    }
+    const allBids = getBidsWithPerformance([currentOrder], writers);
+    return sortBidsByMerit(allBids.filter(b => b.order.id === currentOrder.id));
+  }, [currentOrder, writers]);
+
+  const hasBids = orderBidsWithPerformance.length > 0 || (currentOrder.bids && currentOrder.bids.length > 0);
+  const pendingBidsCount = orderBidsWithPerformance.filter(b => b.bid.status === 'pending').length;
   
   // Debug: Log when upload modal state changes
   useEffect(() => {
@@ -225,6 +246,50 @@ export function OrderViewModal({
             Submit Revision
             {canSubmit && currentOrder.uploadedFiles && (
               <span className="ml-2 text-xs">({currentOrder.uploadedFiles.length} file{currentOrder.uploadedFiles.length !== 1 ? 's' : ''})</span>
+            )}
+          </Button>
+        );
+      }
+    }
+
+    // Handle Assigned and In Progress orders - allow upload and submit
+    if (currentOrder.status === 'Assigned' || currentOrder.status === 'In Progress') {
+      const hasFiles = (currentOrder.originalFiles && currentOrder.originalFiles.length > 0) || 
+                      (currentOrder.uploadedFiles && currentOrder.uploadedFiles.length > 0);
+      
+      if (!hasFiles) {
+        // Step 1: Upload files first
+        return (
+          <Button 
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowUploadModal(true);
+            }}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Order Files
+          </Button>
+        );
+      } else {
+        // Step 2: Submit work after files are uploaded
+        const filesToSubmit = currentOrder.originalFiles || currentOrder.uploadedFiles || [];
+        return (
+          <Button 
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowSubmitModal(true);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Submit for Review
+            {filesToSubmit.length > 0 && (
+              <span className="ml-2 text-xs">({filesToSubmit.length} file{filesToSubmit.length !== 1 ? 's' : ''})</span>
             )}
           </Button>
         );
@@ -435,7 +500,7 @@ export function OrderViewModal({
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`grid w-full ${userRole === 'admin' && order.bids && order.bids.length > 0 ? 'grid-cols-5' : 'grid-cols-4'} bg-gray-100`}>
+          <TabsList className={`grid w-full ${userRole === 'admin' && currentOrder.status === 'Available' ? 'grid-cols-5' : 'grid-cols-4'} bg-gray-100`}>
             <TabsTrigger 
               value="details"
               className="data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:font-semibold"
@@ -450,16 +515,18 @@ export function OrderViewModal({
               <FileText className="h-4 w-4 mr-2" />
               Requirements
             </TabsTrigger>
-            {userRole === 'admin' && order.bids && order.bids.length > 0 && (
+            {userRole === 'admin' && currentOrder.status === 'Available' && (
               <TabsTrigger 
                 value="bids"
                 className="data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=active]:font-semibold"
               >
                 <Hand className="h-4 w-4 mr-2" />
                 Bids
-                <Badge variant="secondary" className="ml-2 bg-white text-green-600">
-                  {order.bids.filter((b: any) => b.status === 'pending').length}
-                </Badge>
+                {pendingBidsCount > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    {pendingBidsCount}
+                  </Badge>
+                )}
               </TabsTrigger>
             )}
             <TabsTrigger 
@@ -719,104 +786,106 @@ export function OrderViewModal({
             </Card>
           </TabsContent>
 
-          {/* Bids Tab (Admin Only) */}
-          {userRole === 'admin' && order.bids && order.bids.length > 0 && (
+          {/* Bids Tab (Admin Only - Available Orders) */}
+          {userRole === 'admin' && currentOrder.status === 'Available' && (
             <TabsContent value="bids" className="space-y-4 bg-green-50/30 p-4 rounded-lg">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Hand className="h-5 w-5 text-green-600" />
                     Order Bids
-                    <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300">
-                      {order.bids.filter((b: any) => b.status === 'pending').length} Pending
-                    </Badge>
+                    {pendingBidsCount > 0 && (
+                      <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 border-green-300">
+                        {pendingBidsCount} Pending
+                      </Badge>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {order.bids.map((bid: any) => {
-                      const isPending = bid.status === 'pending';
-                      const isApproved = bid.status === 'approved';
-                      const isDeclined = bid.status === 'declined';
+                  {orderBidsWithPerformance.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          <strong>Tip:</strong> Bids are sorted by merit score (highest first). Review writer performance metrics before assigning.
+                        </p>
+                      </div>
+                      {orderBidsWithPerformance.map((bidWithWriter: BidWithWriter) => {
+                        // Only show pending bids for action
+                        if (bidWithWriter.bid.status !== 'pending') {
+                          return null;
+                        }
+                        return (
+                          <BidCard
+                            key={bidWithWriter.bid.id}
+                            bidWithWriter={bidWithWriter}
+                            onApprove={(orderId, bidId) => {
+                              if (confirm(`Approve bid from ${bidWithWriter.writer?.name || bidWithWriter.bid.writerName}? This will assign the order to them and decline all other pending bids.`)) {
+                                onAction('approve_bid', orderId, { bidId, adminId: user?.id });
+                              }
+                            }}
+                            onDecline={(orderId, bidId) => {
+                              if (confirm(`Decline bid from ${bidWithWriter.writer?.name || bidWithWriter.bid.writerName}? The order will remain available for other writers.`)) {
+                                onAction('decline_bid', orderId, { bidId, notes: 'Bid declined by admin' });
+                              }
+                            }}
+                          />
+                        );
+                      })}
                       
-                      return (
-                        <Card 
-                          key={bid.id} 
-                          className={`border-l-4 ${
-                            isPending ? 'border-l-yellow-500 bg-yellow-50/50' :
-                            isApproved ? 'border-l-green-500 bg-green-50/50' :
-                            'border-l-red-500 bg-red-50/50'
-                          }`}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <User className="h-4 w-4 text-gray-500" />
-                                  <span className="font-semibold text-gray-900">{bid.writerName || 'Unknown Writer'}</span>
-                                  <Badge 
-                                    variant="outline" 
-                                    className={
-                                      isPending 
-                                        ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
-                                        isApproved
-                                        ? 'bg-green-50 text-green-700 border-green-300'
-                                        : 'bg-red-50 text-red-700 border-red-300'
-                                    }
-                                  >
-                                    {isPending ? 'Pending' : isApproved ? 'Approved' : 'Declined'}
-                                  </Badge>
-                                </div>
-                                
-                                <div className="text-sm text-gray-600 space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <Clock className="h-3 w-3" />
-                                    <span>Bid placed: {new Date(bid.bidAt).toLocaleString()}</span>
-                                  </div>
-                                  {bid.notes && (
-                                    <div className="mt-2 p-2 bg-white rounded border border-gray-200">
-                                      <span className="font-medium text-gray-700">Notes:</span>
-                                      <p className="text-gray-600 mt-1">{bid.notes}</p>
+                      {/* Show approved/declined bids for reference */}
+                      {orderBidsWithPerformance.some(b => b.bid.status !== 'pending') && (
+                        <div className="mt-6 pt-6 border-t border-gray-300">
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">Bid History</h4>
+                          <div className="space-y-3">
+                            {orderBidsWithPerformance
+                              .filter(b => b.bid.status !== 'pending')
+                              .map((bidWithWriter: BidWithWriter) => (
+                                <Card 
+                                  key={bidWithWriter.bid.id}
+                                  className={`border-l-4 ${
+                                    bidWithWriter.bid.status === 'approved' 
+                                      ? 'border-l-green-500 bg-green-50/50' 
+                                      : 'border-l-red-500 bg-red-50/50'
+                                  }`}
+                                >
+                                  <CardContent className="p-3">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <User className="h-4 w-4 text-gray-500" />
+                                        <span className="font-medium text-gray-900">
+                                          {bidWithWriter.writer?.name || bidWithWriter.bid.writerName}
+                                        </span>
+                                        <Badge 
+                                          variant="outline"
+                                          className={
+                                            bidWithWriter.bid.status === 'approved'
+                                              ? 'bg-green-50 text-green-700 border-green-300'
+                                              : 'bg-red-50 text-red-700 border-red-300'
+                                          }
+                                        >
+                                          {bidWithWriter.bid.status === 'approved' ? 'Approved' : 'Declined'}
+                                        </Badge>
+                                      </div>
+                                      <span className="text-xs text-gray-500">
+                                        {new Date(bidWithWriter.bid.bidAt).toLocaleString()}
+                                      </span>
                                     </div>
-                                  )}
-                                </div>
-                              </div>
-                              
-                              {isPending && (
-                                <div className="flex items-center gap-2 ml-4">
-                                  <Button
-                                    size="sm"
-                                    className="bg-green-600 hover:bg-green-700 text-white"
-                                    onClick={() => {
-                                      if (confirm(`Approve bid from ${bid.writerName}? This will assign the order to them and decline all other pending bids.`)) {
-                                        onAction('approve_bid', order.id, { bidId: bid.id });
-                                      }
-                                    }}
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-1" />
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
-                                    onClick={() => {
-                                      if (confirm(`Decline bid from ${bid.writerName}? The order will remain available for other writers.`)) {
-                                        onAction('decline_bid', order.id, { bidId: bid.id });
-                                      }
-                                    }}
-                                  >
-                                    <XCircle className="h-4 w-4 mr-1" />
-                                    Decline
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Hand className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500 font-medium">No Bids Yet</p>
+                      <p className="text-gray-400 text-sm mt-1">
+                        Writers can place bids on this order. Bids will appear here once submitted.
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -898,27 +967,45 @@ export function OrderViewModal({
                               </div>
                             </div>
                           </div>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            className="ml-4 flex-shrink-0"
-                            onClick={() => {
-                              if (file.url) {
-                                const link = document.createElement('a');
-                                link.href = file.url;
-                                link.download = file.originalName || file.filename;
-                                link.target = '_blank';
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              } else {
-                                alert('File URL not available. The file may need to be re-uploaded.');
-                              }
-                            }}
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            Download
-                          </Button>
+                          <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                if (file.url) {
+                                  const link = document.createElement('a');
+                                  link.href = file.url;
+                                  link.download = file.originalName || file.filename;
+                                  link.target = '_blank';
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                } else {
+                                  alert('File URL not available. The file may need to be re-uploaded.');
+                                }
+                              }}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Download
+                            </Button>
+                            {/* Show delete button only for writers on assigned/in-progress orders */}
+                            {userRole === 'writer' && 
+                             (currentOrder.status === 'Assigned' || currentOrder.status === 'In Progress') && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to delete "${file.originalName || file.filename}"? This action cannot be undone.`)) {
+                                    onAction('remove_file', currentOrder.id, { fileId: file.id || file.filename });
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -956,27 +1043,44 @@ export function OrderViewModal({
                               </div>
                             </div>
                           </div>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            className="ml-4 flex-shrink-0"
-                            onClick={() => {
-                              if (file.url) {
-                                const link = document.createElement('a');
-                                link.href = file.url;
-                                link.download = file.originalName || file.filename;
-                                link.target = '_blank';
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              } else {
-                                alert('File URL not available. The file may need to be re-uploaded.');
-                              }
-                            }}
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            Download
-                          </Button>
+                          <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                if (file.url) {
+                                  const link = document.createElement('a');
+                                  link.href = file.url;
+                                  link.download = file.originalName || file.filename;
+                                  link.target = '_blank';
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                } else {
+                                  alert('File URL not available. The file may need to be re-uploaded.');
+                                }
+                              }}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Download
+                            </Button>
+                            {/* Show delete button only for writers on revision orders */}
+                            {userRole === 'writer' && currentOrder.status === 'Revision' && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to delete "${file.originalName || file.filename}"? This action cannot be undone.`)) {
+                                    onAction('remove_file', currentOrder.id, { fileId: file.id || file.filename });
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1014,27 +1118,45 @@ export function OrderViewModal({
                               </div>
                             </div>
                           </div>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            className="ml-4 flex-shrink-0"
-                            onClick={() => {
-                              if (file.url) {
-                                const link = document.createElement('a');
-                                link.href = file.url;
-                                link.download = file.originalName || file.filename;
-                                link.target = '_blank';
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              } else {
-                                alert('File URL not available. The file may need to be re-uploaded.');
-                              }
-                            }}
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            Download
-                          </Button>
+                          <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                if (file.url) {
+                                  const link = document.createElement('a');
+                                  link.href = file.url;
+                                  link.download = file.originalName || file.filename;
+                                  link.target = '_blank';
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                } else {
+                                  alert('File URL not available. The file may need to be re-uploaded.');
+                                }
+                              }}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Download
+                            </Button>
+                            {/* Show delete button only for writers on assigned/in-progress orders */}
+                            {userRole === 'writer' && 
+                             (currentOrder.status === 'Assigned' || currentOrder.status === 'In Progress') && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to delete "${file.originalName || file.filename}"? This action cannot be undone.`)) {
+                                    onAction('remove_file', currentOrder.id, { fileId: file.id || file.filename });
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1073,11 +1195,14 @@ export function OrderViewModal({
           isOpen={showRevisionModal}
           onClose={() => setShowRevisionModal(false)}
           order={order}
-          onRequestRevision={async (orderId, explanation, additionalNotes) => {
+          onRequestRevision={async (orderId, explanation, additionalNotes, revisionOptions) => {
             await onAction('request_revision', orderId, { 
               explanation, 
               notes: additionalNotes,
-              adminId: user?.id || 'admin'
+              adminId: user?.id || 'admin',
+              revisionType: revisionOptions?.type,
+              revisionPriority: revisionOptions?.priority,
+              revisionAreas: revisionOptions?.areas
             });
             setShowRevisionModal(false);
           }}
@@ -1149,8 +1274,10 @@ export function OrderViewModal({
               isOpen={showSubmitModal}
               onClose={() => setShowSubmitModal(false)}
               onSubmit={async (submission) => {
+                // Use originalFiles if available, otherwise uploadedFiles
+                const filesToSubmit = currentOrder.originalFiles || currentOrder.uploadedFiles || [];
                 await onAction('submit_to_admin', currentOrder.id, {
-                  files: currentOrder.uploadedFiles || [],
+                  files: filesToSubmit,
                   notes: submission.notes,
                   estimatedCompletionTime: submission.estimatedCompletionTime
                 });

@@ -530,6 +530,19 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           updates.assignmentPriority = undefined;
           updates.assignmentDeadline = undefined;
           updates.requiresConfirmation = undefined;
+          updates.pickedBy = undefined; // Clear pickedBy so order appears in available list
+          updates.bids = []; // Clear all bids when making order available
+          
+          // Log activity
+          logOrderActivity(
+            orderId,
+            order.orderNumber,
+            'make_available',
+            oldStatus,
+            'Available',
+            `Order ${order.orderNumber || orderId} made available by ${updates.madeAvailableBy}`,
+            { reason: additionalData?.reason, notes: additionalData?.notes }
+          ).catch(err => console.error('Failed to log activity:', err));
           
           console.log('🔄 OrderContext: Making order available:', {
             orderId,
@@ -537,7 +550,9 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             newStatus,
             reason: additionalData?.reason,
             source: additionalData?.source,
-            madeAvailableBy: updates.madeAvailableBy
+            madeAvailableBy: updates.madeAvailableBy,
+            clearedBids: true,
+            clearedPickedBy: true
           });
           break;
           
@@ -917,6 +932,60 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
             totalFiles: updates.uploadedFiles.length
           });
           break;
+
+        case 'remove_file':
+          // Remove a specific file from the order
+          if (!additionalData?.fileId) {
+            throw new Error('File ID is required to remove a file.');
+          }
+          
+          const fileIdToRemove = additionalData.fileId as string;
+          
+          // Remove from originalFiles if it exists there
+          if (order.originalFiles && order.originalFiles.length > 0) {
+            const updatedOriginalFiles = order.originalFiles.filter(
+              (f: UploadedFile) => f.id !== fileIdToRemove && f.filename !== fileIdToRemove
+            );
+            if (updatedOriginalFiles.length !== order.originalFiles.length) {
+              updates.originalFiles = updatedOriginalFiles;
+            }
+          }
+          
+          // Remove from uploadedFiles if it exists there
+          if (order.uploadedFiles && order.uploadedFiles.length > 0) {
+            const updatedUploadedFiles = order.uploadedFiles.filter(
+              (f: UploadedFile) => f.id !== fileIdToRemove && f.filename !== fileIdToRemove
+            );
+            if (updatedUploadedFiles.length !== order.uploadedFiles.length) {
+              updates.uploadedFiles = updatedUploadedFiles;
+            }
+          }
+          
+          // Remove from revisionFiles if it exists there
+          if (order.revisionFiles && order.revisionFiles.length > 0) {
+            const updatedRevisionFiles = order.revisionFiles.filter(
+              (f: UploadedFile) => f.id !== fileIdToRemove && f.filename !== fileIdToRemove
+            );
+            if (updatedRevisionFiles.length !== order.revisionFiles.length) {
+              updates.revisionFiles = updatedRevisionFiles;
+            }
+          }
+          
+          // Log activity
+          createOrderActivity(
+            orderId,
+            'remove_file',
+            oldStatus,
+            oldStatus, // Status doesn't change
+            `File removed from order ${order.orderNumber || orderId}`,
+            { fileId: fileIdToRemove }
+          ).catch(err => console.error('Failed to log activity:', err));
+          
+          console.log('🗑️ OrderContext: File removed from order:', {
+            orderId,
+            fileId: fileIdToRemove
+          });
+          break;
           
         case 'complete':
           newStatus = 'Completed';
@@ -1079,11 +1148,17 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     }
 
     // After updating local state, save to database
-    const updatedOrder = orders.find(o => o.id === orderId);
-    if (updatedOrder) {
+    // Use the updatedOrderForNotification that was set during state update
+    if (!updatedOrderForNotification) {
+      console.warn('⚠️ OrderContext: No updated order for database save:', orderId);
+      return;
+    }
+    
+    // Save to database asynchronously (don't block the UI)
+    (async () => {
       // Apply the same updates that were applied to local state
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const orderWithUpdates = { ...updatedOrder } as any;
+      const orderWithUpdates = { ...updatedOrderForNotification } as any;
       
       // Apply the updates based on action (simplified)
       switch (action) {
@@ -1102,65 +1177,25 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           break;
           
         case 'bid':
-          // Add bid to bids array, keep status as Available
-          const writerId = additionalData?.writerId as string || 'unknown';
-          const writerName = additionalData?.writerName as string || 'Unknown Writer';
-          const existingBids = order.bids || [];
-          
-          // Check for duplicate bid
-          const hasBid = existingBids.some((bid: any) => 
-            bid.writerId === writerId && bid.status === 'pending'
-          );
-          
-          if (!hasBid) {
-            const newBid = {
-              id: `bid-${order.id}-${writerId}-${Date.now()}`,
-              writerId,
-              writerName,
-              bidAt: new Date().toISOString(),
-              status: 'pending' as const,
-              notes: additionalData?.notes as string,
-              questions: additionalData?.questions as any[],
-              confirmation: additionalData?.confirmation as any
-            };
-            orderWithUpdates.bids = [...existingBids, newBid];
-          }
+          // Use the bids from the updated order (already includes the new bid from state update)
+          // The bid was already added in the state update above, so just use orderWithUpdates.bids
           // Keep status as Available
           orderWithUpdates.status = 'Available';
+          console.log('💾 OrderContext: Saving bid to database:', {
+            orderId,
+            bidsCount: orderWithUpdates.bids?.length || 0,
+            bids: orderWithUpdates.bids
+          });
           break;
         
         case 'approve_bid':
-          // Approve specific bid and assign order
-          const bidIdToApprove = additionalData?.bidId as string;
-          const allBids = order.bids || [];
-          const bidToApprove = allBids.find((bid: any) => bid.id === bidIdToApprove);
-          
-          if (bidToApprove) {
-            // Update bids: approve selected, decline others
-            orderWithUpdates.bids = allBids.map((bid: any) => 
-              bid.id === bidIdToApprove 
-                ? { ...bid, status: 'approved' as const }
-                : bid.status === 'pending' ? { ...bid, status: 'declined' as const } : bid
-            );
-            
-            // Assign to approved writer
-            orderWithUpdates.status = 'Assigned';
-            orderWithUpdates.writerId = bidToApprove.writerId;
-            orderWithUpdates.assignedWriter = bidToApprove.writerName;
-            orderWithUpdates.assignedAt = new Date().toISOString();
-            orderWithUpdates.pickedBy = 'writer';
-            orderWithUpdates.assignedBy = 'writer';
-            orderWithUpdates.requiresConfirmation = false;
-            orderWithUpdates.confirmedAt = new Date().toISOString();
-            orderWithUpdates.confirmedBy = additionalData?.adminId as string || 'admin';
-          }
+          // All updates already applied in state update above
+          // Just ensure status is set
+          orderWithUpdates.status = 'Assigned';
           break;
         
         case 'decline_bid':
-          // Remove declined bid, keep order available
-          const bidIdToDecline = additionalData?.bidId as string;
-          const currentBids = order.bids || [];
-          orderWithUpdates.bids = currentBids.filter((bid: any) => bid.id !== bidIdToDecline);
+          // All updates already applied in state update above
           // Order stays Available
           orderWithUpdates.status = 'Available';
           break;
@@ -1170,6 +1205,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           orderWithUpdates.writerId = undefined;
           orderWithUpdates.assignedWriter = undefined;
           orderWithUpdates.madeAvailableAt = new Date().toISOString();
+          orderWithUpdates.madeAvailableBy = additionalData?.source === 'writer_reassignment' ? 'writer' : 'admin';
           if (additionalData?.notes) {
             orderWithUpdates.assignmentNotes = additionalData.notes;
           }
@@ -1179,6 +1215,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           orderWithUpdates.assignmentPriority = undefined;
           orderWithUpdates.assignmentDeadline = undefined;
           orderWithUpdates.requiresConfirmation = undefined;
+          orderWithUpdates.pickedBy = undefined; // Clear pickedBy
+          orderWithUpdates.bids = []; // Clear all bids
           break;
           
         case 'start_work':
@@ -1404,21 +1442,26 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
       console.log('💾 OrderContext: Saving order to database:', {
         orderId,
+        action,
         newStatus: orderWithUpdates.status,
         writerId: orderWithUpdates.writerId,
-        assignedWriter: orderWithUpdates.assignedWriter
+        assignedWriter: orderWithUpdates.assignedWriter,
+        bidsCount: orderWithUpdates.bids?.length || 0
       });
       
       try {
         await db.update('orders', orderId, orderWithUpdates);
-        console.log('✅ OrderContext: Order saved to database successfully');
+        console.log('✅ OrderContext: Order saved to database successfully', {
+          orderId,
+          action,
+          bidsCount: orderWithUpdates.bids?.length || 0
+        });
       } catch (error) {
         console.error('❌ OrderContext: Failed to save order to database:', error);
         // Refresh orders to get the correct state from database
         refreshOrders();
-        throw error;
       }
-    }
+    })();
   }, [orders, refreshOrders]);
 
   const confirmOrder = useCallback((orderId: string, confirmation: WriterConfirmation, questions: WriterQuestion[]) => {

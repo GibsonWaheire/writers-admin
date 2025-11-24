@@ -3,17 +3,39 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { AlertTriangle, RefreshCw, FileText } from 'lucide-react';
+import { AlertTriangle, RefreshCw, FileText, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Checkbox } from './ui/checkbox';
 import type { Order } from '../types/order';
 
 interface RequestRevisionModalProps {
   order: Order;
   isOpen: boolean;
   onClose: () => void;
-  onRequestRevision: (orderId: string, explanation: string, notes?: string) => void;
+  onRequestRevision: (orderId: string, explanation: string, notes?: string, revisionOptions?: {
+    type?: string;
+    priority?: string;
+    areas?: string[];
+  }) => void;
 }
+
+type RevisionType = 'formatting' | 'content' | 'structure' | 'requirements' | 'grammar' | 'other';
+type RevisionPriority = 'low' | 'medium' | 'high' | 'critical';
+
+const REVISION_AREAS = [
+  { id: 'introduction', label: 'Introduction' },
+  { id: 'body', label: 'Body Content' },
+  { id: 'conclusion', label: 'Conclusion' },
+  { id: 'citations', label: 'Citations & References' },
+  { id: 'formatting', label: 'Formatting & Layout' },
+  { id: 'grammar', label: 'Grammar & Spelling' },
+  { id: 'structure', label: 'Structure & Flow' },
+  { id: 'requirements', label: 'Order Requirements' },
+  { id: 'quality', label: 'Content Quality' },
+  { id: 'other', label: 'Other' }
+];
 
 const REVISION_TEMPLATES = [
   {
@@ -64,6 +86,9 @@ export function RequestRevisionModal({
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [revisionType, setRevisionType] = useState<RevisionType | ''>('');
+  const [revisionPriority, setRevisionPriority] = useState<RevisionPriority>('medium');
+  const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
 
   const handleTemplateSelect = (templateId: string) => {
     const template = REVISION_TEMPLATES.find(t => t.id === templateId);
@@ -73,16 +98,60 @@ export function RequestRevisionModal({
     }
   };
 
+  const handleAreaToggle = (areaId: string) => {
+    setSelectedAreas(prev => 
+      prev.includes(areaId) 
+        ? prev.filter(id => id !== areaId)
+        : [...prev, areaId]
+    );
+  };
+
   const handleSubmit = async () => {
-    if (!explanation.trim()) return;
+    if (!explanation.trim()) {
+      alert('Please provide a revision explanation before submitting.');
+      return;
+    }
     
     setIsSubmitting(true);
     try {
-      await onRequestRevision(order.id, explanation.trim(), notes.trim() || undefined);
+      // Build comprehensive revision message
+      let fullExplanation = explanation.trim();
+      
+      // Add revision type and priority info
+      if (revisionType) {
+        const typeLabel = REVISION_TEMPLATES.find(t => t.id === revisionType)?.title || revisionType;
+        fullExplanation = `[${typeLabel}] ${fullExplanation}`;
+      }
+      
+      if (revisionPriority && revisionPriority !== 'medium') {
+        const priorityLabel = revisionPriority.charAt(0).toUpperCase() + revisionPriority.slice(1);
+        fullExplanation = `${fullExplanation}\n\nPriority: ${priorityLabel}`;
+      }
+      
+      if (selectedAreas.length > 0) {
+        const areasList = selectedAreas.map(id => REVISION_AREAS.find(a => a.id === id)?.label || id).join(', ');
+        fullExplanation = `${fullExplanation}\n\nAreas Affected: ${areasList}`;
+      }
+      
+      await onRequestRevision(
+        order.id, 
+        fullExplanation, 
+        notes.trim() || undefined,
+        {
+          type: revisionType || undefined,
+          priority: revisionPriority,
+          areas: selectedAreas.length > 0 ? selectedAreas : undefined
+        }
+      );
+      
+      // Reset form
       onClose();
       setExplanation('');
       setNotes('');
       setSelectedTemplate(null);
+      setRevisionType('');
+      setRevisionPriority('medium');
+      setSelectedAreas([]);
     } finally {
       setIsSubmitting(false);
     }
@@ -92,7 +161,7 @@ export function RequestRevisionModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-2xl font-bold">
             <div className="p-2 bg-orange-100 rounded-full">
@@ -143,6 +212,113 @@ export function RequestRevisionModal({
                 </ul>
               </div>
             </div>
+          </div>
+
+          {/* Revision Type Selection */}
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-3 block">
+              Revision Type <span className="text-gray-500 font-normal">(Optional but recommended)</span>
+            </Label>
+            <RadioGroup 
+              value={revisionType} 
+              onValueChange={(value) => {
+                setRevisionType(value as RevisionType);
+                // Auto-select template if type matches
+                if (value && value !== 'other') {
+                  handleTemplateSelect(value);
+                }
+              }}
+              className="grid grid-cols-2 md:grid-cols-3 gap-3"
+            >
+              {REVISION_TEMPLATES.filter(t => t.id !== 'custom').map(template => (
+                <div key={template.id} className="flex items-center space-x-2">
+                  <RadioGroupItem value={template.id} id={template.id} />
+                  <Label 
+                    htmlFor={template.id} 
+                    className="flex-1 cursor-pointer p-2 rounded border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-orange-600" />
+                      <span className="text-sm font-medium">{template.title}</span>
+                    </div>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+            <p className="text-xs text-gray-500 mt-2">
+              Select the primary type of revision needed. This helps categorize and track revision patterns.
+            </p>
+          </div>
+
+          {/* Revision Priority */}
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-3 block">
+              Revision Priority
+            </Label>
+            <RadioGroup 
+              value={revisionPriority} 
+              onValueChange={(value) => setRevisionPriority(value as RevisionPriority)}
+              className="flex gap-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="low" id="priority-low" />
+                <Label htmlFor="priority-low" className="flex items-center gap-2 cursor-pointer">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span>Low</span>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="medium" id="priority-medium" />
+                <Label htmlFor="priority-medium" className="flex items-center gap-2 cursor-pointer">
+                  <AlertCircle className="h-4 w-4 text-yellow-600" />
+                  <span>Medium</span>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="high" id="priority-high" />
+                <Label htmlFor="priority-high" className="flex items-center gap-2 cursor-pointer">
+                  <AlertTriangle className="h-4 w-4 text-orange-600" />
+                  <span>High</span>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="critical" id="priority-critical" />
+                <Label htmlFor="priority-critical" className="flex items-center gap-2 cursor-pointer">
+                  <XCircle className="h-4 w-4 text-red-600" />
+                  <span>Critical</span>
+                </Label>
+              </div>
+            </RadioGroup>
+            <p className="text-xs text-gray-500 mt-2">
+              Indicate the urgency and importance of this revision request.
+            </p>
+          </div>
+
+          {/* Affected Areas */}
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-3 block">
+              Affected Areas <span className="text-gray-500 font-normal">(Select all that apply)</span>
+            </Label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {REVISION_AREAS.map(area => (
+                <div key={area.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={area.id}
+                    checked={selectedAreas.includes(area.id)}
+                    onCheckedChange={() => handleAreaToggle(area.id)}
+                  />
+                  <Label 
+                    htmlFor={area.id} 
+                    className="text-sm cursor-pointer flex-1"
+                  >
+                    {area.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Select specific areas of the document that need revision.
+            </p>
           </div>
 
           {/* Revision Templates */}
