@@ -596,14 +596,28 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           break;
           
         case 'submit':
+          // Get files from additionalData or use files already on the order
+          const filesToSubmit = additionalData?.files && Array.isArray(additionalData.files) && additionalData.files.length > 0
+            ? additionalData.files
+            : (order.originalFiles || order.uploadedFiles || []);
+          
           // Validation: Must have files to submit
-          if (!additionalData?.files || !Array.isArray(additionalData.files) || additionalData.files.length === 0) {
+          if (!filesToSubmit || !Array.isArray(filesToSubmit) || filesToSubmit.length === 0) {
             throw new Error('Cannot submit order without uploaded files. Please upload at least one file.');
           }
           
-          newStatus = 'Submitted'; // Submitted to admin for review
+          newStatus = 'Awaiting Approval'; // Submitted to admin for review - awaiting admin approval
           updates.submittedToAdminAt = new Date().toISOString();
-          updates.uploadedFiles = [...(order.uploadedFiles || []), ...additionalData.files];
+          updates.submittedAt = new Date().toISOString();
+          
+          // Store files in originalFiles if this is the first submission (not a revision)
+          if (!order.originalFiles || order.originalFiles.length === 0) {
+            // First submission - store as originalFiles
+            updates.originalFiles = filesToSubmit;
+          }
+          // Also update uploadedFiles for backward compatibility
+          updates.uploadedFiles = filesToSubmit;
+          
           if (additionalData?.notes) {
             updates.submissionNotes = additionalData.notes;
           }
@@ -613,14 +627,14 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           
           // Queue activity logging
           notificationType = null; // No notification for submit (status change is enough)
-          const submitFilesCount = additionalData.files.length;
-          const activityDescription = `Order ${order.orderNumber || orderId} submitted to admin for review with ${submitFilesCount} file(s)`;
+          const submitFilesCount = filesToSubmit.length;
+          const activityDescription = `Order ${order.orderNumber || orderId} submitted to admin for review with ${submitFilesCount} file(s) - Awaiting Approval`;
           logOrderActivity(
             orderId,
             order.orderNumber,
             'submit',
             oldStatus,
-            'Submitted',
+            'Awaiting Approval',
             activityDescription,
             { filesCount: submitFilesCount, notes: additionalData?.notes }
           ).catch(err => console.error('Failed to log activity:', err));
@@ -628,11 +642,29 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           console.log('📤 OrderContext: Order submitted to admin:', {
             orderId,
             oldStatus,
-            newStatus: 'Submitted',
+            newStatus: 'Awaiting Approval',
             writerId: order.writerId,
             filesCount: submitFilesCount,
-            submittedAt: updates.submittedToAdminAt
+            submittedAt: updates.submittedToAdminAt,
+            filesSource: additionalData?.files ? 'provided' : 'from_order'
           });
+
+          // Notify admins asynchronously
+          notificationHelpers.notifyAdminOrderSubmitted(
+            orderId,
+            order.title,
+            order.assignedWriter || user?.name || 'Writer'
+          ).catch(err => console.error('Failed to notify admins about submission:', err));
+
+          // Show success toast to writer
+          if (toastContext && user?.role === 'writer') {
+            toastContext.showToast({
+              type: 'success',
+              title: 'Submitted for Review',
+              message: `"${order.title}" was sent to admin. We will notify you when it is reviewed.`,
+              duration: 6000
+            });
+          }
           break;
           
         case 'approve':
@@ -748,7 +780,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           // Preserve originalFiles when revision is requested
           if (!updates.originalFiles && order.originalFiles) {
             updates.originalFiles = order.originalFiles;
-          } else if (!updates.originalFiles && order.uploadedFiles && order.status === 'Submitted') {
+          } else if (!updates.originalFiles && order.uploadedFiles && (order.status === 'Awaiting Approval' || order.status === 'Submitted')) {
             // If this is the first revision request, preserve current uploadedFiles as originalFiles
             updates.originalFiles = order.uploadedFiles;
           }
@@ -1332,17 +1364,28 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           break;
           
         case 'submit':
+          // Get files from additionalData or use files already on the order
+          const dbFilesToSubmit = additionalData?.files && Array.isArray(additionalData.files) && additionalData.files.length > 0
+            ? additionalData.files
+            : (orderWithUpdates.originalFiles || orderWithUpdates.uploadedFiles || []);
+          
           // Validation: Must have files to submit
-          if (!additionalData?.files || !Array.isArray(additionalData.files) || additionalData.files.length === 0) {
+          if (!dbFilesToSubmit || !Array.isArray(dbFilesToSubmit) || dbFilesToSubmit.length === 0) {
             throw new Error('Cannot submit order without uploaded files. Please upload at least one file.');
           }
           
-          orderWithUpdates.status = 'Submitted';
+          orderWithUpdates.status = 'Awaiting Approval';
           orderWithUpdates.submittedAt = new Date().toISOString();
           orderWithUpdates.submittedToAdminAt = new Date().toISOString();
-          if (additionalData?.files) {
-            orderWithUpdates.uploadedFiles = [...(orderWithUpdates.uploadedFiles || []), ...additionalData.files];
+          
+          // Store files in originalFiles if this is the first submission (not a revision)
+          if (!orderWithUpdates.originalFiles || orderWithUpdates.originalFiles.length === 0) {
+            // First submission - store as originalFiles
+            orderWithUpdates.originalFiles = dbFilesToSubmit;
           }
+          // Also update uploadedFiles for backward compatibility
+          orderWithUpdates.uploadedFiles = dbFilesToSubmit;
+          
           if (additionalData?.notes) {
             orderWithUpdates.submissionNotes = additionalData.notes;
           }
@@ -1424,6 +1467,20 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           orderWithUpdates.pickedBy = 'writer';
           orderWithUpdates.assignedBy = 'writer';
           orderWithUpdates.assignmentPriority = 'medium';
+          break;
+          
+        case 'upload_files':
+          // Update files on the order
+          if (additionalData?.files && Array.isArray(additionalData.files)) {
+            if (orderWithUpdates.status === 'Revision') {
+              // For revision orders, store as revisionFiles
+              orderWithUpdates.revisionFiles = additionalData.files;
+            } else {
+              // For regular orders, add to uploadedFiles
+              orderWithUpdates.uploadedFiles = [...(orderWithUpdates.uploadedFiles || []), ...additionalData.files];
+            }
+          }
+          // Status remains unchanged for upload_files
           break;
           
         case 'refresh':

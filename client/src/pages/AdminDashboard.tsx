@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { StatCard } from "../components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useOrders } from "../contexts/OrderContext";
+import { useUsers } from "../contexts/UsersContext";
 import { UploadNewOrderModal } from "../components/UploadNewOrderModal";
 import type { Order } from "../types/order";
 import { 
@@ -20,19 +21,41 @@ import {
   Plus,
   BarChart3,
   Star,
-  Download
+  Download,
+  RefreshCw
 } from "lucide-react";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { orders, getOrdersByStatus, createOrder } = useOrders();
+  const { orders, getOrdersByStatus, createOrder, refreshOrders } = useOrders();
+  const { writers, filterWriters } = useUsers();
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Calculate real-time stats from order data
+  // Refresh all data on mount and when needed
+  useEffect(() => {
+    const refreshData = async () => {
+      try {
+        await refreshOrders();
+      } catch (error) {
+        console.error('Failed to refresh data:', error);
+      }
+    };
+    refreshData();
+  }, [refreshOrders]);
+
+  // Calculate real-time stats from order data and writers
   const calculateStats = () => {
     const totalOrders = orders.length;
-    const activeWriters = Array.from(new Set(orders.filter(o => o.writerId).map(o => o.writerId!))).length;
-    const pendingReviews = getOrdersByStatus('Submitted').length;
+    
+    // Get active writers from writers table (not just from orders)
+    const activeWritersList = filterWriters({ status: 'active' });
+    const activeWritersCount = activeWritersList.length;
+    
+    // Also count writers with active orders
+    const writersWithOrders = Array.from(new Set(orders.filter(o => o.writerId).map(o => o.writerId!))).length;
+    
+    const pendingReviews = getOrdersByStatus('Awaiting Approval').length;
     const completedOrders = getOrdersByStatus('Completed').length + getOrdersByStatus('Approved').length;
     const totalRevenue = orders
       .filter(o => ['Completed', 'Approved'].includes(o.status))
@@ -43,17 +66,32 @@ export default function AdminDashboard() {
     
     return {
       totalOrders,
-      activeWriters,
+      activeWriters: activeWritersCount, // Use actual active writers count
+      writersWithOrders, // Writers who have orders
       pendingReviews,
       completedOrders,
-      totalRevenue
+      totalRevenue,
+      completionRate
     };
   };
 
   const stats = calculateStats();
 
+  // Handle manual refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshOrders();
+      // Small delay to show refresh animation
+      setTimeout(() => setIsRefreshing(false), 500);
+    } catch (error) {
+      console.error('Failed to refresh:', error);
+      setIsRefreshing(false);
+    }
+  };
+
   const pendingOrders = [
-    ...getOrdersByStatus('Submitted').slice(0, 3), // Show first 3 submitted orders
+    ...getOrdersByStatus('Awaiting Approval').slice(0, 3), // Show first 3 orders awaiting approval
     ...getOrdersByStatus('Revision').slice(0, 2)   // Show first 2 revision orders
   ].map(order => ({
     id: order.id,
@@ -62,8 +100,8 @@ export default function AdminDashboard() {
     pages: order.pages,
     price: `KES ${(order.pages * 350).toLocaleString()}`,
     deadline: order.deadline,
-    status: order.status === 'Submitted' ? 'Pending Review' : 'Revision Required',
-    priority: order.status === 'Submitted' ? 'High' : 'Medium'
+    status: order.status === 'Awaiting Approval' ? 'Pending Review' : 'Revision Required',
+    priority: order.status === 'Awaiting Approval' ? 'High' : 'Medium'
   }));
 
   const getStatusBadge = (status: string): "default" | "secondary" | "outline" | "destructive" => {
@@ -158,6 +196,16 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center gap-3">
             <Button 
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              variant="outline"
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-3 text-lg"
+            >
+              <RefreshCw className={`mr-2 h-6 w-6 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Syncing...' : 'Sync Data'}
+            </Button>
+            
+            <Button 
               onClick={() => setShowUploadModal(true)}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg"
             >
@@ -176,13 +224,13 @@ export default function AdminDashboard() {
           </div>
         </div>
         
-        {/* Database Management Instructions */}
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        {/* Sync Status */}
+        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex items-start gap-3">
-            <div className="text-blue-600 text-lg">💡</div>
-            <div className="text-sm text-blue-800">
-              <p className="font-medium mb-1">Database Management:</p>
-              <p>After creating orders, use "Export Database" to download the updated db.json file. Replace your project's db.json with this file to ensure orders persist and are visible to writers.</p>
+            <div className="text-green-600 text-lg">🔄</div>
+            <div className="text-sm text-green-800 flex-1">
+              <p className="font-medium mb-1">Real-time Sync Active:</p>
+              <p>All data (orders, writers, stats) syncs automatically. Use the "Sync Data" button to manually refresh if needed. Currently showing {orders.length} orders and {stats.activeWriters} active writers.</p>
             </div>
           </div>
         </div>
@@ -203,9 +251,9 @@ export default function AdminDashboard() {
           title="Active Writers"
           value={stats.activeWriters.toString()}
           icon={Users}
-          change={`${stats.activeWriters} writers`}
+          change={`${stats.writersWithOrders} with orders`}
           changeType="positive"
-          onClick={() => navigate('/admin/writers')}
+          onClick={() => navigate('/admin/orders/writers')}
         />
         <StatCard
           title="Pending Reviews"
@@ -518,10 +566,10 @@ export default function AdminDashboard() {
                 </div>
                 <div 
                   className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
-                  onClick={() => navigate('/admin/writers')}
+                  onClick={() => navigate('/admin/orders/writers')}
                 >
                   <span className="text-blue-600">👤</span>
-                  <span>Active writers: {stats.activeWriters}</span>
+                  <span>Active writers: {stats.activeWriters} ({stats.writersWithOrders} with orders)</span>
                   <span className="text-muted-foreground text-xs ml-auto">Current</span>
                 </div>
                 <div 

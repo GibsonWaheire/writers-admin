@@ -16,6 +16,7 @@ import { BidOrdersCard } from '../../components/BidOrdersCard';
 import { OrderViewModal } from '../../components/OrderViewModal';
 import { useOrders } from '../../contexts/OrderContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import type { Order } from '../../types/order';
 import { getWriterIdForUser } from '../../utils/writer';
 
@@ -31,6 +32,7 @@ export default function AssignedOrdersPage() {
   } = useOrders();
   
   const { user } = useAuth();
+  const { showToast } = useToast();
   const currentWriterId = getWriterIdForUser(user?.id);
 
   // Get assigned orders for current writer (including all assigned and in-progress orders)
@@ -91,16 +93,47 @@ export default function AssignedOrdersPage() {
   const handleUploadFiles = async (orderId: string, files: any[]) => {
     try {
       await handleOrderAction('upload_files', orderId, { files });
+      showToast({
+        type: 'success',
+        title: 'Files Uploaded',
+        message: 'Your files were uploaded successfully.',
+        duration: 4000
+      });
     } catch (error) {
       console.error('Failed to upload files:', error);
+      showToast({
+        type: 'error',
+        title: 'Upload Failed',
+        message: error instanceof Error ? error.message : 'Failed to upload files. Please try again.',
+        duration: 5000
+      });
     }
   };
 
   const handleSubmitWork = async (orderId: string, data: any) => {
     try {
-      await handleOrderAction('submit_to_admin', orderId, data);
+      const order = orders.find(o => o.id === orderId);
+      await handleOrderAction('submit', orderId, {
+        files: data.files || [],
+        notes: data.notes || '',
+        estimatedCompletionTime: data.estimatedCompletionTime
+      });
+      
+      // Show success message
+      showToast({
+        type: 'success',
+        title: 'Order Submitted for Review',
+        message: `"${order?.title || 'Order'}" has been submitted to admin for review.`,
+        duration: 5000
+      });
     } catch (error) {
       console.error('Failed to submit work:', error);
+      showToast({
+        type: 'error',
+        title: 'Submission Failed',
+        message: error instanceof Error ? error.message : 'Failed to submit work. Please try again.',
+        duration: 5000
+      });
     }
   };
 

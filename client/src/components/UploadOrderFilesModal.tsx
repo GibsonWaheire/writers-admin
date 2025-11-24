@@ -28,11 +28,13 @@ export function UploadOrderFilesModal({
   const processedFilesRef = useRef<Set<string>>(new Set());
   const lastDropTimeRef = useRef<number>(0);
 
-  // Debug: Log when isOpen changes
+  // Debug: Log when isOpen changes (removed order.status from deps to prevent infinite loop)
   useEffect(() => {
-    console.log('📎 UploadOrderFilesModal: isOpen changed to:', isOpen);
-    console.log('📎 UploadOrderFilesModal: order.status =', order.status);
-  }, [isOpen, order.status]);
+    if (isOpen) {
+      console.log('📎 UploadOrderFilesModal: isOpen changed to:', isOpen);
+      console.log('📎 UploadOrderFilesModal: order.status =', order.status);
+    }
+  }, [isOpen]); // Removed order.status to prevent infinite re-renders
 
   // Reset state when modal closes
   useEffect(() => {

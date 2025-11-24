@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -8,14 +8,13 @@ import {
   Play,
   RotateCcw,
   User,
-  FileText,
   Upload,
   AlertTriangle
 } from 'lucide-react';
 import { AssignmentConfirmationModal } from './AssignmentConfirmationModal';
 import { UnifiedAssignmentModal } from './UnifiedAssignmentModal';
-import { SubmitToAdminModal } from './SubmitToAdminModal';
 import { UploadOrderFilesModal } from './UploadOrderFilesModal';
+import { useOrders } from '../contexts/OrderContext';
 import type { Order } from '../types/order';
 import type { AssignmentHistory } from '../types/notification';
 
@@ -47,7 +46,7 @@ interface AssignedOrderCardProps {
 }
 
 export function AssignedOrderCard({
-  order,
+  order: orderProp,
   assignment,
   onView,
   onConfirmAssignment,
@@ -57,12 +56,53 @@ export function AssignedOrderCard({
   onSubmitWork,
   onUploadFiles
 }: AssignedOrderCardProps) {
+  const { orders } = useOrders();
+  // Get the latest order from context to ensure we have updated files
+  const order = orders.find(o => o.id === orderProp.id) || orderProp;
+  
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showUnifiedModal, setShowUnifiedModal] = useState(false);
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [unifiedModalAction, setUnifiedModalAction] = useState<'start_work' | 'reassign'>('start_work');
+  const [isSubmittingWork, setIsSubmittingWork] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const filesToSubmit = useMemo(() => {
+    if (order.revisionFiles && order.revisionFiles.length > 0 && order.status === 'Revision') {
+      return order.revisionFiles;
+    }
+    if (order.originalFiles && order.originalFiles.length > 0) {
+      return order.originalFiles;
+    }
+    return order.uploadedFiles || [];
+  }, [order]);
 
+  const hasFiles = filesToSubmit.length > 0;
+
+  const handleSubmitWorkClick = async () => {
+    if (!onSubmitWork) return;
+    if (!hasFiles) {
+      setShowUploadModal(true);
+      return;
+    }
+
+    const confirmed = window.confirm('Submit your work to admin for review? You will be notified once it is reviewed.');
+    if (!confirmed) return;
+
+    setIsSubmittingWork(true);
+    setSubmitError(null);
+    try {
+      await onSubmitWork(order.id, {
+        files: filesToSubmit,
+        notes: '',
+        estimatedCompletionTime: undefined
+      });
+    } catch (error) {
+      console.error('Failed to submit work:', error);
+      setSubmitError(error instanceof Error ? error.message : 'Failed to submit work. Please try again.');
+    } finally {
+      setIsSubmittingWork(false);
+    }
+  };
   const needsConfirmation = order.status === 'Assigned' && assignment?.status === 'pending';
   const canStartWork = order.status === 'Assigned' && assignment?.status === 'confirmed';
   
@@ -261,30 +301,30 @@ export function AssignedOrderCard({
                 )}
                 {/* Upload and Submit buttons for Assigned and In Progress orders */}
                 {(order.status === 'Assigned' || order.status === 'In Progress') && (
-                  <>
-                    {(!order.originalFiles || order.originalFiles.length === 0) && 
-                     (!order.uploadedFiles || order.uploadedFiles.length === 0) ? (
-                      // Step 1: Upload files first
+                  hasFiles ? (
+                    <div className="flex-1 flex flex-col gap-1">
                       <Button
                         size="sm"
-                        onClick={() => setShowUploadModal(true)}
-                        className="flex-1 bg-green-600 hover:bg-green-700"
+                        onClick={handleSubmitWorkClick}
+                        disabled={isSubmittingWork}
+                        className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Upload className="h-4 w-4 mr-1" />
-                        Upload Files
+                        {isSubmittingWork ? 'Submitting...' : 'Submit for Review'}
                       </Button>
-                    ) : onSubmitWork ? (
-                      // Step 2: Submit work after files are uploaded
-                      <Button
-                        size="sm"
-                        onClick={() => setShowSubmitModal(true)}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      >
-                        <FileText className="h-4 w-4 mr-1" />
-                        Submit for Review
-                      </Button>
-                    ) : null}
-                  </>
+                      {submitError && (
+                        <p className="text-xs text-red-600">{submitError}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => setShowUploadModal(true)}
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                    >
+                      <Upload className="h-4 w-4 mr-1" />
+                      Upload Files
+                    </Button>
+                  )
                 )}
                 {canReassign && (
                   <Button
@@ -346,26 +386,174 @@ export function AssignedOrderCard({
         />
       )}
 
-      {/* Submit to Admin Modal */}
-      {onSubmitWork && (
-        <SubmitToAdminModal
-          order={order}
-          isOpen={showSubmitModal}
-          onClose={() => setShowSubmitModal(false)}
-          onSubmit={async (submission) => {
-            if (onSubmitWork) {
-              // Use originalFiles if available, otherwise uploadedFiles
-              const filesToSubmit = order.originalFiles || order.uploadedFiles || [];
-              await onSubmitWork(order.id, {
-                files: filesToSubmit,
-                notes: submission.notes,
-                estimatedCompletionTime: submission.estimatedCompletionTime
-              });
-            }
-            setShowSubmitModal(false);
-          }}
-        />
-      )}
     </>
+  );
+}
+
+interface WriterSubmissionPanelProps {
+  order: Order;
+  onSubmitWork?: (orderId: string, submission: {
+    files: import('../types/order').UploadedFile[];
+    notes: string;
+    estimatedCompletionTime?: string;
+  }) => Promise<void>;
+  onOpenUpload: () => void;
+  submissionNotes: string;
+  onChangeNotes: (value: string) => void;
+  isSubmitting: boolean;
+  setIsSubmitting: (value: boolean) => void;
+  submitError: string | null;
+  setSubmitError: (value: string | null) => void;
+}
+
+function WriterSubmissionPanel({
+  order,
+  onSubmitWork,
+  onOpenUpload,
+  submissionNotes,
+  onChangeNotes,
+  isSubmitting,
+  setIsSubmitting,
+  submitError,
+  setSubmitError
+}: WriterSubmissionPanelProps) {
+  const filesToSubmit = useMemo(() => {
+    if (order.revisionFiles && order.revisionFiles.length > 0 && order.status === 'Revision') {
+      return order.revisionFiles;
+    }
+    if (order.originalFiles && order.originalFiles.length > 0) {
+      return order.originalFiles;
+    }
+    return order.uploadedFiles || [];
+  }, [order]);
+
+  const hasFiles = filesToSubmit.length > 0;
+
+  const renderFileSummary = () => {
+    if (!hasFiles) {
+      return (
+        <div className="text-sm text-gray-500">
+          No files uploaded yet. Please upload your work files before submitting.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {filesToSubmit.slice(0, 3).map((file, index) => (
+          <div
+            key={`${file.id || file.filename || index}-${index}`}
+            className="flex items-center justify-between text-sm bg-gray-50 px-3 py-2 rounded-md border border-gray-100"
+          >
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-blue-600" />
+              <span className="font-medium text-gray-800 truncate max-w-[160px]">
+                {file.originalName || file.filename}
+              </span>
+            </div>
+            <span className="text-xs text-gray-500">
+              {(file.size / 1024 / 1024).toFixed(2)} MB
+            </span>
+          </div>
+        ))}
+        {filesToSubmit.length > 3 && (
+          <div className="text-xs text-gray-500">
+            +{filesToSubmit.length - 3} more file(s)
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (!onSubmitWork) return;
+    if (!hasFiles) {
+      onOpenUpload();
+      return;
+    }
+
+    const confirmed = window.confirm('Submit your work to admin for review? You will be notified once it is reviewed.');
+    if (!confirmed) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await onSubmitWork(order.id, {
+        files: filesToSubmit,
+        notes: submissionNotes.trim(),
+        estimatedCompletionTime: undefined
+      });
+      onChangeNotes('');
+    } catch (error) {
+      console.error('Failed to submit work:', error);
+      setSubmitError(error instanceof Error ? error.message : 'Failed to submit work. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="w-full border rounded-xl p-4 flex flex-col gap-3">
+      <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+        <Upload className="h-4 w-4 text-blue-600" />
+        Upload & Submit Work
+      </div>
+
+      {renderFileSummary()}
+
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-gray-600">Notes for Admin (optional)</label>
+        <Textarea
+          value={submissionNotes}
+          onChange={(e) => onChangeNotes(e.target.value)}
+          placeholder="Add context about your submission for the admin reviewer..."
+          className="bg-white border-gray-200 focus:border-blue-300 focus:ring-blue-200 resize-none text-sm"
+          rows={2}
+        />
+      </div>
+
+      {submitError && (
+        <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg p-2">
+          {submitError}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2">
+        <Button
+          size="sm"
+          onClick={handleSubmit}
+          disabled={!hasFiles || isSubmitting}
+          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isSubmitting ? (
+            <>
+              <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+              Submitting...
+            </>
+          ) : (
+            <>
+              <FileText className="h-4 w-4 mr-1" />
+              Submit for Review
+              <span className="ml-1 text-xs opacity-90">({filesToSubmit.length})</span>
+            </>
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onOpenUpload}
+        >
+          <Upload className="h-4 w-4 mr-1" />
+          {hasFiles ? 'Update Uploaded Files' : 'Upload Files'}
+        </Button>
+      </div>
+
+      {!hasFiles && (
+        <p className="text-xs text-gray-500">
+          Upload your work files first to enable submission.
+        </p>
+      )}
+    </div>
   );
 }

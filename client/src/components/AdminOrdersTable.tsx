@@ -129,6 +129,7 @@ export function AdminOrdersTable({
         );
         break;
 
+      case 'Awaiting Approval':
       case 'Submitted':
         actions.push(
           <Button

@@ -29,12 +29,12 @@ export default function PendingReviewPage() {
   } = useOrders();
   const { user } = useAuth();
 
-  // Get orders that need admin review
+  // Get orders that need admin review (Awaiting Approval status)
   const submittedOrders = orders.filter(order => 
-    order.status === 'Submitted' && !(order.revisionFiles && order.revisionFiles.length > 0)
+    order.status === 'Awaiting Approval' && !(order.revisionFiles && order.revisionFiles.length > 0)
   );
   const revisionOrders = orders.filter(order => 
-    order.status === 'Submitted' && (order.revisionFiles && order.revisionFiles.length > 0)
+    (order.status === 'Awaiting Approval' || order.status === 'Submitted') && (order.revisionFiles && order.revisionFiles.length > 0)
   );
   const allPendingReview = [...revisionOrders, ...submittedOrders];
 

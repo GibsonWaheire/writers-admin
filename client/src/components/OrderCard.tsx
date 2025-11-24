@@ -282,7 +282,7 @@ export function OrderCard({
         );
       }
       
-      if (order.status === 'Submitted') {
+      if (order.status === 'Awaiting Approval' || order.status === 'Submitted') {
         const isRevisionSubmission = (order.revisionFiles && order.revisionFiles.length > 0) || !!order.revisionResponseNotes;
         const revisionCount = order.revisionCount || 0;
         const nextRevisionNumber = revisionCount + 1;

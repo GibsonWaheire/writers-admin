@@ -256,9 +256,10 @@ export function OrderViewModal({
     if (currentOrder.status === 'Assigned' || currentOrder.status === 'In Progress') {
       const hasFiles = (currentOrder.originalFiles && currentOrder.originalFiles.length > 0) || 
                       (currentOrder.uploadedFiles && currentOrder.uploadedFiles.length > 0);
+      const filesToSubmit = currentOrder.originalFiles || currentOrder.uploadedFiles || [];
       
       if (!hasFiles) {
-        // Step 1: Upload files first
+        // Step 1: Only show Upload button when no files exist
         return (
           <Button 
             type="button"
@@ -274,23 +275,36 @@ export function OrderViewModal({
           </Button>
         );
       } else {
-        // Step 2: Submit work after files are uploaded
-        const filesToSubmit = currentOrder.originalFiles || currentOrder.uploadedFiles || [];
+        // Step 2: Show Submit button when files exist
         return (
           <Button 
             type="button"
-            onClick={(e) => {
+            onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              setShowSubmitModal(true);
+              
+              // Submit directly to admin (files already validated)
+              if (onAction && filesToSubmit.length > 0) {
+                try {
+                  await onAction('submit', order.id, {
+                    files: filesToSubmit,
+                    notes: notes || ''
+                  });
+                  // Show success message
+                  alert('Order submitted for review. The admin will review your submission.');
+                  onClose(); // Close modal after successful submission
+                } catch (error) {
+                  console.error('Failed to submit work:', error);
+                  alert(error instanceof Error ? error.message : 'Failed to submit work. Please try again.');
+                }
+              }
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            disabled={filesToSubmit.length === 0}
+            className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FileText className="h-4 w-4 mr-2" />
             Submit for Review
-            {filesToSubmit.length > 0 && (
-              <span className="ml-2 text-xs">({filesToSubmit.length} file{filesToSubmit.length !== 1 ? 's' : ''})</span>
-            )}
+            <span className="ml-2 text-xs opacity-90">({filesToSubmit.length} file{filesToSubmit.length !== 1 ? 's' : ''})</span>
           </Button>
         );
       }
@@ -377,7 +391,7 @@ export function OrderViewModal({
       );
     }
 
-    if (order.status === 'Submitted') {
+    if (order.status === 'Awaiting Approval' || order.status === 'Submitted') {
       const isRevisionSubmission = (order.revisionFiles && order.revisionFiles.length > 0) || !!order.revisionResponseNotes;
       const revisionCount = order.revisionCount || 0;
       const nextRevisionNumber = revisionCount + 1;

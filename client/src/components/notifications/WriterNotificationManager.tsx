@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { WriterAlertBanner } from './WriterAlertBanner';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,7 +18,7 @@ export function WriterNotificationManager() {
   const { showToast } = useToast();
   
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
-  const [lastProcessedNotifications, setLastProcessedNotifications] = useState<Set<string>>(new Set());
+  const lastProcessedNotificationsRef = useRef<Set<string>>(new Set());
 
   // Get writer's notifications
   const writerNotifications = useMemo(() => {
@@ -42,7 +42,7 @@ export function WriterNotificationManager() {
 
     const currentNotificationIds = new Set(writerNotifications.map(n => n.id));
     const newNotifications = writerNotifications.filter(
-      n => !lastProcessedNotifications.has(n.id)
+      n => !lastProcessedNotificationsRef.current.has(n.id)
     );
 
     newNotifications.forEach(notification => {
@@ -62,8 +62,8 @@ export function WriterNotificationManager() {
       }
     });
 
-    setLastProcessedNotifications(currentNotificationIds);
-  }, [writerNotifications, user, showToast, lastProcessedNotifications]);
+    lastProcessedNotificationsRef.current = currentNotificationIds;
+  }, [writerNotifications, user, showToast]);
 
   // Track order status changes for real-time alerts
   useEffect(() => {

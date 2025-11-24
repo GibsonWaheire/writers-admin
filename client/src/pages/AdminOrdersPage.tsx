@@ -88,7 +88,7 @@ export default function AdminOrdersPage() {
   };
 
   // Admin-focused order categories
-  const underReviewOrders = getOrdersByStatus('Submitted');
+  const underReviewOrders = getOrdersByStatus('Awaiting Approval');
   const revisionRequests = getOrdersByStatus('Revision');
   const approvedOrders = getOrdersByStatus('Approved');
   const rejectedOrders = getOrdersByStatus('Rejected');
