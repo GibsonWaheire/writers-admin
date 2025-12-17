@@ -33,3 +33,4 @@ export function MeritScoreIndicator({ score, showLabel = true }: MeritScoreIndic
 }
 
 
+
